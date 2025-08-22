@@ -116,7 +116,7 @@ task.spawn(function()
 	while true do
 		task.wait(60) -- 5 minutes (300 seconds)
 		chat(
-			":chatnotifyc all 100 255 100 <font face='Gotham'>💡 Reminder: You can initiate a votekick using '.vk' to remove disruptive players!</font>"
+			":chatnotifyc all 100 255 100 <font face='Gotham'>💡 Reminder: You can initiate a votekick using '.vk' to remove disruptive players!\ninitating a votekick on Non-Perm is PROHIBITED. user WILL be blacklisted. use :jail instead.</font>"
 		)
 	end
 end)
