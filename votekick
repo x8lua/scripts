@@ -6,7 +6,7 @@ local Players = game:GetService('Players')
 
 -- Webhook URL
 local webhookURL =
-	'https://discord.com/api/webhooks/1274285976579080202/OLaLmKNPomkQ0zuSXQdo0S8HTFc5dtOe0kWMuxtorUej2bHqv0jnwHxLRjyHlQPsIdX6'
+	'https://discord.com/api/webhooks/1363670782819041351/3VdhCp4LNUSnOSOl4_O84U8NlUOEjpAL588whkbY-HgNGQkziCsZnstg_sRjf1bT9eby'
 
 -- Use other HTTP request functions
 local httpRequest = (syn and syn.request)
@@ -389,6 +389,14 @@ local function onChatted(player, message)
 		end
 	elseif message == '/yes' or message == '/no' then
 		if votingActive then
+			-- Check if the voter is the person being votekicked
+			if votingPlayer and player == votingPlayer then
+				chat(
+					':localmusic all 82130923335295 true 1 inf|:chatnotifyc all 252,186,3  [StacyCMD] The person who gets votekicked CANNOT vote.'
+				)
+				return
+			end
+			
 			votes[player.Name] = (message == '/yes')
 			chat(
 				":chatnotifyc all 255 255 0 <font face='Gotham'>"
