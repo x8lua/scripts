@@ -1,0 +1,390 @@
+--[[
+    WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+local HttpService = game:GetService('HttpService')
+local Players = game:GetService('Players')
+
+-- Webhook URL
+local webhookURL =
+	'https://discord.com/api/webhooks/1274285976579080202/OLaLmKNPomkQ0zuSXQdo0S8HTFc5dtOe0kWMuxtorUej2bHqv0jnwHxLRjyHlQPsIdX6'
+
+-- Use other HTTP request functions
+local httpRequest = (syn and syn.request)
+	or (http and http.request)
+	or http_request
+	or (fluxus and fluxus.request)
+
+local votes = {} -- Store votes for the current votekick
+local votingPlayer = nil -- Player being voted on
+local kickReason = '' -- Reason for the votekick
+local votingActive = false -- Track if a votekick is in progress
+local lastVotekickTime = 0 -- Time of the last votekick
+
+-- StacyCMD-style kick system
+_G.__stacyVotekickBans = _G.__stacyVotekickBans or {}
+local votekickBans = _G.__stacyVotekickBans
+
+local function chat(msg)
+	game.Players:Chat(msg)
+end
+
+-- build 64-DNA string for StacyCMD compatibility
+local GENE64 = ('🧬'):rep(64)
+
+local function displayOf(plr)
+	return string.format('%s (@%s)', plr.DisplayName, plr.Name)
+end
+
+-- StacyCMD tp + 3x talk + notify (music + chat)
+local function tpAndTripleTalk(plr, musicId, notifyText)
+	chat((':exacttp %s wp-dna'):format(plr.Name))
+	task.wait(0.6)
+	chat((':talk %s %s'):format(plr.Name, GENE64))
+	task.wait(0.25)
+	chat((':talk %s %s'):format(plr.Name, GENE64))
+	task.wait(0.25)
+	chat((':talk %s %s'):format(plr.Name, GENE64))
+	if musicId and notifyText then
+		chat(
+			(':localmusic all %s true 1 inf|:chatnotifyc all 252,186,3  %s'):format(
+				tostring(musicId),
+				notifyText
+			)
+		)
+	end
+end
+
+-- Initialize votekick auto-kick system
+if not _G.__stacyVotekickHook then
+	_G.__stacyVotekickHook = true
+	Players.PlayerAdded:Connect(function(plr)
+		if votekickBans[plr.Name:lower()] then
+			task.defer(function()
+				chat(':unfly ' .. plr.Name)
+				tpAndTripleTalk(
+					plr,
+					82130923335295,
+					('[Votekick System] %s was VOTEKICKED and cannot rejoin this server.'):format(
+						displayOf(plr)
+					)
+				)
+				print('[votekick] auto-kicked ' .. displayOf(plr))
+			end)
+		end
+	end)
+end
+
+chat(
+	":music 3997124966 true|:chatnotifyc all 255 255 0 <font face='Gotham'>x8ko's votekick system is loaded!! (StacyCMD integration)</font>"
+)
+
+-- Reminder system for votekick usage
+task.spawn(function()
+	while true do
+		task.wait(25) -- 5 minutes (300 seconds)
+		chat(
+			":chatnotifyc all 100 255 100 <font face='Gotham'>💡 Reminder: You can initiate a votekick using '.vk [playerName] [reason]' to remove disruptive players!</font>"
+		)
+	end
+end)
+
+local function notifyVotes()
+	local yesVotes = 0
+	local noVotes = 0
+
+	for _, vote in pairs(votes) do
+		if vote then
+			yesVotes = yesVotes + 1
+		else
+			noVotes = noVotes + 1
+		end
+	end
+
+	chat(':sm Yes votes: ' .. yesVotes .. ', No votes: ' .. noVotes)
+	return yesVotes, noVotes -- Return vote counts
+end
+
+local function sendToDiscord(
+	voter,
+	targetPlayer,
+	yesVotes,
+	noVotes,
+	kicked,
+	reason
+)
+	local currentTime = os.date('%H:%M:%S') -- Get the current time in hh:mm:ss format
+	local payload = {
+		content = '',
+		embeds = {
+			{
+				title = 'Votekick Event',
+				description = voter
+					.. ' has initiated a votekick against '
+					.. targetPlayer
+					.. ' at '
+					.. currentTime
+					.. ' for reason: '
+					.. kickReason,
+				color = tonumber(0xff0000), -- HEX color
+				fields = {
+					{
+						name = 'Yes Votes',
+						value = tostring(yesVotes),
+						inline = true,
+					},
+					{
+						name = 'No Votes',
+						value = tostring(noVotes),
+						inline = true,
+					},
+					{
+						name = 'Kicked?',
+						value = tostring(kicked),
+						inline = true,
+					},
+				},
+			},
+		},
+	}
+
+	-- Sending the request to the webhook
+	local response = httpRequest({
+		Url = webhookURL,
+		Method = 'POST',
+		Headers = {
+			['Content-Type'] = 'application/json',
+		},
+		Body = HttpService:JSONEncode(payload),
+	})
+
+	print('Webhook response: ' .. response.StatusCode)
+end
+
+-- StacyCMD-style kick function
+local function executeVotekick(targetPlayer)
+	-- Add to votekick ban list (prevents rejoin)
+	votekickBans[targetPlayer.Name:lower()] = true
+
+	-- Pre-kick cleanup commands (check for jails, ice, punish)
+	local cleanupCommands = {}
+
+	-- Check for Adonis jail
+	if workspace:FindFirstChild(targetPlayer.Name .. '_ADONISJAIL') then
+		table.insert(cleanupCommands, ':free ' .. targetPlayer.Name)
+	end
+
+	-- Check for Adonis ice
+	for _, v in pairs(workspace:GetDescendants()) do
+		if v.Name == 'Adonis_Ice' and v.Parent.Name == targetPlayer.Name then
+			table.insert(cleanupCommands, ':thaw ' .. targetPlayer.Name)
+			break -- Only need to thaw once
+		end
+	end
+
+	-- Check for punishment in lighting
+	if game.Lighting:FindFirstChild(targetPlayer.Name) then
+		table.insert(cleanupCommands, ':unpunish ' .. targetPlayer.Name)
+	end
+
+	-- Execute cleanup commands if any exist
+	if #cleanupCommands > 0 then
+		local cleanupString = table.concat(cleanupCommands, '|')
+		chat(cleanupString)
+		task.wait(1) -- Wait for cleanup to process
+	end
+
+	-- Unfly if airborne-ish (from StacyCMD)
+	if
+		targetPlayer.Character
+		and targetPlayer.Character:FindFirstChildOfClass('Humanoid')
+	then
+		local hrp = targetPlayer.Character:FindFirstChild('HumanoidRootPart')
+		if hrp and math.abs(hrp.Velocity.Y) > 2 then
+			chat(':unfly ' .. targetPlayer.Name)
+		end
+	end
+
+	-- Execute StacyCMD-style kick
+	tpAndTripleTalk(
+		targetPlayer,
+		82130923335295,
+		('[Votekick System] %s has been VOTEKICKED. Rejoining will auto-kick.'):format(
+			displayOf(targetPlayer)
+		)
+	)
+
+	print('[votekick] executed on ' .. displayOf(targetPlayer))
+end
+
+local function onChatted(player, message)
+	message = message:lower()
+	local currentTime = os.time()
+
+	-- Check for votekick command
+	if message:sub(1, 3) == '.vk' then
+		if votingActive then
+			chat(
+				":music 8243331779 true 1 inf|:chatnotifyc all 255 255 255 <font face='Gotham'>NO VOTEKICKs WHEN VOTEKICK IS OCCURRING!</font>"
+			)
+			return
+		elseif currentTime - lastVotekickTime < 70 then
+			chat(
+				":music 8243331779 true 1 inf|:chatnotifyc all 255 255 255 <font face='Gotham'>NO VOTEKICKs UNTIL "
+					.. (lastVotekickTime + 70 - currentTime)
+					.. ' seconds.</font>'
+			)
+			return
+		end
+
+		local args = message:split(' ')
+		if #args < 3 then
+			-- Special camera sequence for incorrect usage
+			chat(
+				':localmusic '
+					.. player.Name
+					.. ' 122147370431788 false 0.1|:smoothforceviewcam '
+					.. player.Name
+					.. ' vk1 1 Sine InOut 0,0,0|:wait 3|:smoothforceviewcam '
+					.. player.Name
+					.. ' vk2 1 Sine InOut 0,0,0|:wait 3|:smoothforceviewcam '
+					.. player.Name
+					.. ' vk3 1 Sine InOut 0,0,0|:wait 3|:smoothforceviewcam '
+					.. player.Name
+					.. ' vk4 1 Sine InOut 0,0,0|:wait 3|:rv '
+					.. player.Name
+					.. '|:localmusic '
+					.. player.Name
+					.. ' off'
+			)
+			-- Also show the usage message
+			task.delay(12, function()
+				chat(
+					':chatnotifyc '
+						.. player.Name
+						.. ",me 255 255 0 <font face='Gotham'>Usage: .vk [playerName] [reason]</font>"
+				)
+			end)
+			return
+		end
+
+		local targetName = args[2]
+		kickReason = table.concat(args, ' ', 3) -- Get the reason
+		local targetPlayer = nil
+
+		-- Find the target player based on the name provided
+		for _, v in pairs(game.Players:GetPlayers()) do
+			if
+				string.sub(string.lower(v.Name), 1, #targetName)
+				== string.lower(targetName)
+			then
+				targetPlayer = v
+				break
+			end
+		end
+
+		-- Check if targetPlayer is valid and not the player initiating the command
+		if targetPlayer and targetPlayer ~= player then
+			votingPlayer = targetPlayer
+			votes = {} -- Reset votes
+			votingActive = true
+			lastVotekickTime = currentTime -- Update the last votekick time
+
+			-- Notify players about the votekick initiation
+			chat(
+				':sn '
+					.. player.Name
+					.. ' has initiated a votekick against '
+					.. targetPlayer.Name
+					.. ' for reason: '
+					.. kickReason
+					.. '\nType /no to vote no, type /yes to vote yes'
+			)
+			chat(':cd 15|:music 1835331450 true')
+			local yesVotes, noVotes = notifyVotes() -- Notify initial votes
+
+			-- Start timer for voting
+			task.delay(15, function()
+				if votingActive then
+					yesVotes, noVotes = notifyVotes() -- Recalculate votes
+
+					-- Execute the kick logic if yes votes are greater than no votes
+					local kicked = yesVotes > noVotes
+					if kicked then
+						executeVotekick(votingPlayer) -- Use StacyCMD-style kick
+
+						task.wait(2) -- Brief wait for the kick to process
+						chat(
+							':music 8452665473 true|:sn '
+								.. votingPlayer.Name
+								.. ' has been votekicked. Vote has ended.|:music 7078093160 true'
+						)
+					else
+						chat(
+							":chatnotifyc all 255 255 0 <font face='Gotham'>Voting has ended. Not enough votes to kick "
+								.. votingPlayer.Name
+								.. '.</font>'
+						)
+					end
+
+					-- Log the votekick event to Discord
+					sendToDiscord(
+						player.Name,
+						votingPlayer.Name,
+						yesVotes,
+						noVotes,
+						kicked
+					)
+
+					votingActive = false -- Reset voting status
+					votingPlayer = nil -- Reset voting player
+					kickReason = '' -- Reset the reason
+				end
+			end)
+		else
+			chat(
+				':chatnotifyc '
+					.. player.Name
+					.. ",me 255 255 0 <font face='Gotham'>Invalid player name or you cannot votekick yourself.</font>"
+			)
+		end
+	elseif message == '/yes' or message == '/no' then
+		if votingActive then
+			votes[player.Name] = (message == '/yes')
+			chat(
+				":chatnotifyc all 255 255 0 <font face='Gotham'>"
+					.. player.Name
+					.. ' voted '
+					.. message
+					.. '</font>'
+			)
+			notifyVotes() -- Notify current votes
+		else
+			chat(
+				':chatnotifyc '
+					.. player.Name
+					.. ",me 255 255 0 <font face='Gotham'>No votekick is currently in progress.</font>"
+			)
+		end
+	end
+end
+
+local connectedPlayers = {} -- Track connected players
+
+local function connectPlayer(player)
+	if not connectedPlayers[player.UserId] then -- Check if the player is already connected
+		connectedPlayers[player.UserId] = true
+		player.Chatted:Connect(function(message)
+			onChatted(player, message)
+		end)
+	end
+end
+
+-- Connect the function to the Chatted event of each player already in the game
+for _, player in ipairs(game.Players:GetPlayers()) do
+	connectPlayer(player)
+end
+
+-- Connect the function to the PlayerAdded event to handle new players joining
+game.Players.PlayerAdded:Connect(function(player)
+	connectPlayer(player)
+end)
