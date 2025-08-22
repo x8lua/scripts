@@ -108,15 +108,15 @@ if not _G.__stacyVotekickHook then
 end
 
 chat(
-	":music 3997124966 true|:chatnotifyc all 255 255 0 <font face='Gotham'>x8ko's votekick system is loaded!! (StacyCMD integration)</font>"
+	":music 3997124966 true|:chatnotifyc all 255 255 0 <font face='Gotham'>StacyCMD's votekick system has been loaded</font>"
 )
 
 -- Reminder system for votekick usage
 task.spawn(function()
 	while true do
-		task.wait(300) -- 5 minutes (300 seconds)
+		task.wait(60) -- 5 minutes (300 seconds)
 		chat(
-			":chatnotifyc all 100 255 100 <font face='Gotham'>💡 Reminder: You can initiate a votekick using '.vk [playerName] [reason]' to remove disruptive players!</font>"
+			":chatnotifyc all 100 255 100 <font face='Gotham'>💡 Reminder: You can initiate a votekick using '.vk' to remove disruptive players!</font>"
 		)
 	end
 end)
