@@ -117,23 +117,56 @@ local function tpAndTripleTalk(plr, musicId, notifyText)
     end
 end
 
--- FIXED: Auto-kick function with better error handling
+-- FIXED: Auto-kick function with proper load waiting
 local function autoKickPlayer(plr)
 	-- Double-check the ban status
 	if not votekickBans[plr.Name:lower()] then
 		return -- Player is not banned, skip
 	end
 	
-	print('[votekick] auto-kicking banned player: ' .. displayOf(plr))
+	print('[votekick] detected banned player, waiting for full load: ' .. displayOf(plr))
 	
-	-- Wait a moment for player to fully load
-	task.wait(1)
+	-- Wait for player to fully load into the game
+	local maxWaitTime = 30 -- Maximum wait time in seconds
+	local startTime = tick()
 	
-	-- Verify player is still in game
-	if not plr.Parent then
-		return -- Player already left
+	-- Wait for character to spawn
+	while not plr.Character and (tick() - startTime) < maxWaitTime do
+		if not plr.Parent then
+			print('[votekick] player left before character spawned')
+			return -- Player left before we could kick them
+		end
+		task.wait(0.5)
 	end
 	
+	-- Wait for HumanoidRootPart to exist (indicates full character load)
+	if plr.Character then
+		while not plr.Character:FindFirstChild("HumanoidRootPart") and (tick() - startTime) < maxWaitTime do
+			if not plr.Parent then
+				print('[votekick] player left during character load')
+				return
+			end
+			task.wait(0.5)
+		end
+	end
+	
+	-- Additional wait to ensure everything is properly loaded
+	task.wait(2)
+	
+	-- Final verification that player is still in game and ready
+	if not plr.Parent then
+		print('[votekick] player left before kick execution')
+		return
+	end
+	
+	if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
+		print('[votekick] player character not ready, skipping kick')
+		return
+	end
+	
+	print('[votekick] executing auto-kick on fully loaded player: ' .. displayOf(plr))
+	
+	-- Execute the kick
 	chat(':unfly ' .. plr.Name)
 	task.wait(0.1)
 	
