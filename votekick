@@ -156,7 +156,7 @@ local function tpAndTripleTalk(plr, musicId, notifyText)
     end
 end
 
--- FIXED: Auto-kick function that waits for player to touch ground and checks ban expiration
+-- FIXED: Auto-kick function with reset detection to prevent bypass
 local function autoKickPlayer(plr)
 	local playerKey = plr.Name:lower()
 	
@@ -182,147 +182,218 @@ local function autoKickPlayer(plr)
 		end
 	end
 	
-	print('[votekick] detected banned player, waiting for ground contact: ' .. displayOf(plr))
+	print('[votekick] detected banned player, monitoring for resets: ' .. displayOf(plr))
 	
-	-- Wait for player to fully load into the game
-	local maxWaitTime = 45 -- Maximum wait time in seconds
-	local startTime = tick()
+	-- Track reset attempts to prevent infinite loops
+	local resetCount = 0
+	local maxResets = 5
 	
-	-- Wait for character to spawn
-	while not plr.Character and (tick() - startTime) < maxWaitTime do
-		if not plr.Parent then
-			print('[votekick] player left before character spawned')
-			return -- Player left before we could kick them
-		end
-		task.wait(0.5)
-	end
-	
-	-- Wait for HumanoidRootPart and Humanoid to exist
-	local character = plr.Character
-	if not character then
-		print('[votekick] no character found, aborting')
-		return
-	end
-	
-	while not character:FindFirstChild("HumanoidRootPart") or not character:FindFirstChild("Humanoid") do
-		if not plr.Parent then
-			print('[votekick] player left during character load')
+	local function executeKickSequence()
+		resetCount = resetCount + 1
+		if resetCount > maxResets then
+			print('[votekick] max resets reached, executing immediate kick')
+			-- Immediate kick without waiting
+			if plr.Parent then
+				chat(':unfly ' .. plr.Name)
+				task.wait(0.1)
+				tpAndTripleTalk(
+					plr,
+					82130923335295,
+					('[Votekick System] %s BYPASS DETECTED - Immediate kick executed'):format(displayOf(plr))
+				)
+			end
 			return
 		end
-		if (tick() - startTime) > maxWaitTime then
-			print('[votekick] timeout waiting for character parts')
-			return
-		end
-		task.wait(0.5)
-	end
-	
-	local humanoidRootPart = character.HumanoidRootPart
-	local humanoid = character.Humanoid
-	
-	print('[votekick] character loaded, waiting for ground contact...')
-	
-	-- Method 1: Wait for Humanoid state to be not Freefall
-	local groundTouched = false
-	local connection
-	
-	-- Set up state change detection
-	connection = humanoid.StateChanged:Connect(function(oldState, newState)
-		if newState == Enum.HumanoidStateType.Landed or 
-		   newState == Enum.HumanoidStateType.Running or
-		   newState == Enum.HumanoidStateType.RunningNoPhysics then
-			groundTouched = true
-			if connection then
-				connection:Disconnect()
-			end
-		end
-	end)
-	
-	-- Alternative method: Check velocity and position stability
-	local stableGroundCheck = coroutine.create(function()
-		task.wait(3) -- Wait a bit before checking stability
-		while not groundTouched and (tick() - startTime) < maxWaitTime do
-			if not plr.Parent or not humanoidRootPart.Parent then
-				return
-			end
-			
-			-- Check if player is stable (low Y velocity and reasonable Y position)
-			local velocity = humanoidRootPart.AssemblyLinearVelocity or humanoidRootPart.Velocity
-			if math.abs(velocity.Y) < 2 and humanoidRootPart.Position.Y > -1000 then
-				-- Do a raycast downward to confirm ground contact
-				local rayOrigin = humanoidRootPart.Position
-				local rayDirection = Vector3.new(0, -10, 0)
-				
-				local raycastParams = RaycastParams.new()
-				raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-				raycastParams.FilterDescendantsInstances = {character}
-				
-				local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-				if raycastResult then
-					groundTouched = true
-					if connection then
-						connection:Disconnect()
-					end
-					break
-				end
+		
+		print('[votekick] kick sequence #' .. resetCount .. ' starting for: ' .. displayOf(plr))
+		
+		-- Wait for player to fully load into the game
+		local maxWaitTime = 45 -- Maximum wait time in seconds
+		local startTime = tick()
+		
+		-- Wait for character to spawn
+		while not plr.Character and (tick() - startTime) < maxWaitTime do
+			if not plr.Parent then
+				print('[votekick] player left before character spawned')
+				return -- Player left before we could kick them
 			end
 			task.wait(0.5)
 		end
-	end)
-	
-	coroutine.resume(stableGroundCheck)
-	
-	-- Wait for ground contact or timeout
-	while not groundTouched and (tick() - startTime) < maxWaitTime do
-		if not plr.Parent then
-			print('[votekick] player left before touching ground')
-			if connection then
-				connection:Disconnect()
-			end
+		
+		-- Wait for HumanoidRootPart and Humanoid to exist
+		local character = plr.Character
+		if not character then
+			print('[votekick] no character found, aborting')
 			return
 		end
+		
+		-- Set up reset detection for this character
+		local characterResetDetected = false
+		local resetConnection
+		
+		-- Monitor for character changes (resets)
+		resetConnection = plr.CharacterAdded:Connect(function(newChar)
+			print('[votekick] RESET DETECTED for ' .. displayOf(plr) .. ' - restarting kick sequence')
+			characterResetDetected = true
+			if resetConnection then
+				resetConnection:Disconnect()
+			end
+			-- Restart the kick sequence with new character
+			task.spawn(executeKickSequence)
+		end)
+		
+		while not character:FindFirstChild("HumanoidRootPart") or not character:FindFirstChild("Humanoid") do
+			if not plr.Parent then
+				print('[votekick] player left during character load')
+				if resetConnection then resetConnection:Disconnect() end
+				return
+			end
+			if characterResetDetected then
+				print('[votekick] character reset during loading, sequence restarted')
+				if resetConnection then resetConnection:Disconnect() end
+				return
+			end
+			if (tick() - startTime) > maxWaitTime then
+				print('[votekick] timeout waiting for character parts')
+				if resetConnection then resetConnection:Disconnect() end
+				return
+			end
+			task.wait(0.5)
+		end
+		
+		local humanoidRootPart = character.HumanoidRootPart
+		local humanoid = character.Humanoid
+		
+		print('[votekick] character loaded, waiting for ground contact...')
+		
+		-- Method 1: Wait for Humanoid state to be not Freefall
+		local groundTouched = false
+		local stateConnection
+		
+		-- Set up state change detection
+		stateConnection = humanoid.StateChanged:Connect(function(oldState, newState)
+			if newState == Enum.HumanoidStateType.Landed or 
+			   newState == Enum.HumanoidStateType.Running or
+			   newState == Enum.HumanoidStateType.RunningNoPhysics then
+				groundTouched = true
+				if stateConnection then
+					stateConnection:Disconnect()
+				end
+			end
+		end)
+		
+		-- Alternative method: Check velocity and position stability
+		local stableGroundCheck = coroutine.create(function()
+			task.wait(3) -- Wait a bit before checking stability
+			while not groundTouched and not characterResetDetected and (tick() - startTime) < maxWaitTime do
+				if not plr.Parent or not humanoidRootPart.Parent then
+					return
+				end
+				
+				-- Check if player is stable (low Y velocity and reasonable Y position)
+				local velocity = humanoidRootPart.AssemblyLinearVelocity or humanoidRootPart.Velocity
+				if math.abs(velocity.Y) < 2 and humanoidRootPart.Position.Y > -1000 then
+					-- Do a raycast downward to confirm ground contact
+					local rayOrigin = humanoidRootPart.Position
+					local rayDirection = Vector3.new(0, -10, 0)
+					
+					local raycastParams = RaycastParams.new()
+					raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+					raycastParams.FilterDescendantsInstances = {character}
+					
+					local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+					if raycastResult then
+						groundTouched = true
+						if stateConnection then
+							stateConnection:Disconnect()
+						end
+						break
+					end
+				end
+				task.wait(0.5)
+			end
+		end)
+		
+		coroutine.resume(stableGroundCheck)
+		
+		-- Wait for ground contact, reset detection, or timeout
+		while not groundTouched and not characterResetDetected and (tick() - startTime) < maxWaitTime do
+			if not plr.Parent then
+				print('[votekick] player left before touching ground')
+				if stateConnection then stateConnection:Disconnect() end
+				if resetConnection then resetConnection:Disconnect() end
+				return
+			end
+			task.wait(0.1)
+		end
+		
+		-- Check if character was reset during waiting
+		if characterResetDetected then
+			print('[votekick] character reset detected, new sequence will handle it')
+			if stateConnection then stateConnection:Disconnect() end
+			if resetConnection then resetConnection:Disconnect() end
+			return
+		end
+		
+		-- Clean up connections
+		if stateConnection then
+			stateConnection:Disconnect()
+		end
+		if resetConnection then
+			resetConnection:Disconnect()
+		end
+		
+		if not groundTouched then
+			print('[votekick] timeout waiting for ground contact, executing anyway')
+		else
+			print('[votekick] ground contact detected!')
+		end
+		
+		-- Wait additional 2 seconds after touching ground (but still monitor for resets)
+		local postGroundWait = 0
+		while postGroundWait < 2 do
+			if not plr.Parent then
+				print('[votekick] player left during post-ground wait')
+				return
+			end
+			if not plr.Character or plr.Character ~= character then
+				print('[votekick] character changed during post-ground wait, restarting sequence')
+				task.spawn(executeKickSequence)
+				return
+			end
+			task.wait(0.1)
+			postGroundWait = postGroundWait + 0.1
+		end
+		
+		-- Final verification that player is still in game
+		if not plr.Parent then
+			print('[votekick] player left before kick execution')
+			return
+		end
+		
+		if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
+			print('[votekick] player character missing, aborting kick')
+			return
+		end
+		
+		print('[votekick] executing auto-kick after ground contact: ' .. displayOf(plr))
+		
+		-- Execute the kick
+		chat(':unfly ' .. plr.Name)
 		task.wait(0.1)
+		
+		local kickMessage = ('[Votekick System] %s was VOTEKICKED and cannot rejoin this server.'):format(displayOf(plr))
+		if resetCount > 1 then
+			kickMessage = ('[Votekick System] %s BYPASS ATTEMPT FAILED - Multiple resets detected.'):format(displayOf(plr))
+		end
+		
+		tpAndTripleTalk(plr, 82130923335295, kickMessage)
+		
+		print('[votekick] successfully auto-kicked ' .. displayOf(plr) .. ' after ' .. resetCount .. ' attempts')
 	end
 	
-	-- Clean up connection if still active
-	if connection then
-		connection:Disconnect()
-	end
-	
-	if not groundTouched then
-		print('[votekick] timeout waiting for ground contact, executing anyway')
-	else
-		print('[votekick] ground contact detected!')
-	end
-	
-	-- Wait additional 2 seconds after touching ground
-	task.wait(2)
-	
-	-- Final verification that player is still in game
-	if not plr.Parent then
-		print('[votekick] player left before kick execution')
-		return
-	end
-	
-	if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
-		print('[votekick] player character missing, aborting kick')
-		return
-	end
-	
-	print('[votekick] executing auto-kick after ground contact: ' .. displayOf(plr))
-	
-	-- Execute the kick
-	chat(':unfly ' .. plr.Name)
-	task.wait(0.1)
-	
-	tpAndTripleTalk(
-		plr,
-		82130923335295,
-		('[Votekick System] %s was VOTEKICKED and cannot rejoin this server.'):format(
-			displayOf(plr)
-		)
-	)
-	
-	print('[votekick] successfully auto-kicked ' .. displayOf(plr))
+	-- Start the kick sequence
+	task.spawn(executeKickSequence)
 end
 
 -- FIXED: Always establish PlayerAdded connection and check existing players
