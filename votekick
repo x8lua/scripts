@@ -482,11 +482,6 @@ local function onChatted(player, message)
 						executeVotekick(votingPlayer) -- Use StacyCMD-style kick
 
 						task.wait(2) -- Brief wait for the kick to process
-						chat(
-							':music 8452665473 true|:sn '
-								.. votingPlayer.Name
-								.. ' has been votekicked. Vote has ended.|:music 7078093160 true'
-						)
 					else
 						chat(
 							":chatnotifyc all 255 255 0 <font face='Gotham'>Voting has ended. Not enough votes to kick "
