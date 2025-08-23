@@ -159,7 +159,6 @@ local function autoKickPlayer(plr)
 	end
 
 	-- Additional wait to ensure everything is properly loaded
-	task.wait(0.5)
 
 	-- Final verification that player is still in game and ready
 	if not plr.Parent then
