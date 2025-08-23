@@ -76,7 +76,9 @@ local function saveVotekickBlacklist()
 	local json = HttpService:JSONEncode(votekickBlacklist)
 	local ok, err = pcall(writefile, BLACKLIST_FILE, json)
 	if not ok then
-		print('[votekick blacklist] failed to write database: ' .. tostring(err))
+		print(
+			'[votekick blacklist] failed to write database: ' .. tostring(err)
+		)
 	end
 end
 
@@ -95,41 +97,44 @@ end
 local GENE64 = ('🧬'):rep(64)
 
 local function displayOf(plr)
-    return string.format('%s (@%s)', plr.DisplayName, plr.Name)
+	return string.format('%s (@%s)', plr.DisplayName, plr.Name)
 end
 
 -- StacyCMD tp + 3x talk + notify (music + chat)
 local function tpAndTripleTalk(plr, musicId, notifyText)
-    chat((':exacttp %s wp-dna'):format(plr.Name))
-    task.wait(0.6)
-    chat((':talk %s %s'):format(plr.Name, GENE64))
-    task.wait(0.25)
-    chat((':talk %s %s'):format(plr.Name, GENE64))
-    task.wait(0.25)
-    chat((':talk %s %s'):format(plr.Name, GENE64))
-    if musicId and notifyText then
-        chat(
-            (':localmusic all %s true 1 inf|:chatnotifyc all 252,186,3  %s'):format(
-                tostring(musicId),
-                notifyText
-            )
-        )
-    end
+	chat((':exacttp %s wp-dna'):format(plr.Name))
+	task.wait(0.6)
+	chat((':talk %s %s'):format(plr.Name, GENE64))
+	task.wait(0.25)
+	chat((':talk %s %s'):format(plr.Name, GENE64))
+	task.wait(0.25)
+	chat((':talk %s %s'):format(plr.Name, GENE64))
+	if musicId and notifyText then
+		chat(
+			(':localmusic all %s true 1 inf|:chatnotifyc all 252,186,3  %s'):format(
+				tostring(musicId),
+				notifyText
+			)
+		)
+	end
 end
 
--- FIXED: Auto-kick function that waits for player to touch ground
+-- FIXED: Auto-kick function with proper load waiting
 local function autoKickPlayer(plr)
 	-- Double-check the ban status
 	if not votekickBans[plr.Name:lower()] then
 		return -- Player is not banned, skip
 	end
-	
-	print('[votekick] detected banned player, waiting for ground contact: ' .. displayOf(plr))
-	
+
+	print(
+		'[votekick] detected banned player, waiting for full load: '
+			.. displayOf(plr)
+	)
+
 	-- Wait for player to fully load into the game
-	local maxWaitTime = 45 -- Maximum wait time in seconds
+	local maxWaitTime = 30 -- Maximum wait time in seconds
 	local startTime = tick()
-	
+
 	-- Wait for character to spawn
 	while not plr.Character and (tick() - startTime) < maxWaitTime do
 		if not plr.Parent then
@@ -138,124 +143,47 @@ local function autoKickPlayer(plr)
 		end
 		task.wait(0.5)
 	end
-	
-	-- Wait for HumanoidRootPart and Humanoid to exist
-	local character = plr.Character
-	if not character then
-		print('[votekick] no character found, aborting')
-		return
-	end
-	
-	while not character:FindFirstChild("HumanoidRootPart") or not character:FindFirstChild("Humanoid") do
-		if not plr.Parent then
-			print('[votekick] player left during character load')
-			return
-		end
-		if (tick() - startTime) > maxWaitTime then
-			print('[votekick] timeout waiting for character parts')
-			return
-		end
-		task.wait(0.5)
-	end
-	
-	local humanoidRootPart = character.HumanoidRootPart
-	local humanoid = character.Humanoid
-	
-	print('[votekick] character loaded, waiting for ground contact...')
-	
-	-- Method 1: Wait for Humanoid state to be not Freefall
-	local groundTouched = false
-	local connection
-	
-	-- Set up state change detection
-	connection = humanoid.StateChanged:Connect(function(oldState, newState)
-		if newState == Enum.HumanoidStateType.Landed or 
-		   newState == Enum.HumanoidStateType.Running or
-		   newState == Enum.HumanoidStateType.RunningNoPhysics then
-			groundTouched = true
-			if connection then
-				connection:Disconnect()
-			end
-		end
-	end)
-	
-	-- Alternative method: Check velocity and position stability
-	local stableGroundCheck = coroutine.create(function()
-		task.wait(3) -- Wait a bit before checking stability
-		while not groundTouched and (tick() - startTime) < maxWaitTime do
-			if not plr.Parent or not humanoidRootPart.Parent then
+
+	-- Wait for HumanoidRootPart to exist (indicates full character load)
+	if plr.Character then
+		while
+			not plr.Character:FindFirstChild('HumanoidRootPart')
+			and (tick() - startTime) < maxWaitTime
+		do
+			if not plr.Parent then
+				print('[votekick] player left during character load')
 				return
-			end
-			
-			-- Check if player is stable (low Y velocity and reasonable Y position)
-			local velocity = humanoidRootPart.AssemblyLinearVelocity or humanoidRootPart.Velocity
-			if math.abs(velocity.Y) < 2 and humanoidRootPart.Position.Y > -1000 then
-				-- Do a raycast downward to confirm ground contact
-				local rayOrigin = humanoidRootPart.Position
-				local rayDirection = Vector3.new(0, -10, 0)
-				
-				local raycastParams = RaycastParams.new()
-				raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-				raycastParams.FilterDescendantsInstances = {character}
-				
-				local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-				if raycastResult then
-					groundTouched = true
-					if connection then
-						connection:Disconnect()
-					end
-					break
-				end
 			end
 			task.wait(0.5)
 		end
-	end)
-	
-	coroutine.resume(stableGroundCheck)
-	
-	-- Wait for ground contact or timeout
-	while not groundTouched and (tick() - startTime) < maxWaitTime do
-		if not plr.Parent then
-			print('[votekick] player left before touching ground')
-			if connection then
-				connection:Disconnect()
-			end
-			return
-		end
-		task.wait(0.1)
 	end
-	
-	-- Clean up connection if still active
-	if connection then
-		connection:Disconnect()
-	end
-	
-	if not groundTouched then
-		print('[votekick] timeout waiting for ground contact, executing anyway')
-	else
-		print('[votekick] ground contact detected!')
-	end
-	
-	-- Wait additional 2 seconds after touching ground
-	task.wait(2)
-	
-	-- Final verification that player is still in game
+
+	-- Additional wait to ensure everything is properly loaded
+	task.wait(0.5)
+
+	-- Final verification that player is still in game and ready
 	if not plr.Parent then
 		print('[votekick] player left before kick execution')
 		return
 	end
-	
-	if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
-		print('[votekick] player character missing, aborting kick')
+
+	if
+		not plr.Character
+		or not plr.Character:FindFirstChild('HumanoidRootPart')
+	then
+		print('[votekick] player character not ready, skipping kick')
 		return
 	end
-	
-	print('[votekick] executing auto-kick after ground contact: ' .. displayOf(plr))
-	
+
+	print(
+		'[votekick] executing auto-kick on fully loaded player: '
+			.. displayOf(plr)
+	)
+
 	-- Execute the kick
 	chat(':unfly ' .. plr.Name)
 	task.wait(0.1)
-	
+
 	tpAndTripleTalk(
 		plr,
 		82130923335295,
@@ -263,7 +191,7 @@ local function autoKickPlayer(plr)
 			displayOf(plr)
 		)
 	)
-	
+
 	print('[votekick] successfully auto-kicked ' .. displayOf(plr))
 end
 
@@ -279,17 +207,20 @@ local function initializeAutoKick()
 			end)
 		end
 	end)
-	
+
 	-- FIXED: Check players already in the server
 	for _, plr in pairs(Players:GetPlayers()) do
 		if votekickBans[plr.Name:lower()] then
-			print('[votekick] found banned player already in server: ' .. displayOf(plr))
+			print(
+				'[votekick] found banned player already in server: '
+					.. displayOf(plr)
+			)
 			task.spawn(function()
 				autoKickPlayer(plr)
 			end)
 		end
 	end
-	
+
 	print('[votekick] auto-kick system initialized')
 end
 
@@ -384,62 +315,65 @@ end
 
 -- FIXED: StacyCMD-style kick function with proper ban persistence
 local function executeVotekick(targetPlayer)
-    -- Add to votekick ban list (prevents rejoin)
-    local playerKey = targetPlayer.Name:lower()
-    votekickBans[playerKey] = true
-    _G.__stacyVotekickBans[playerKey] = true -- Sync with global
-    
-    -- FIXED: Save bans to file for persistence
-    saveVotekickBans()
-    
-    print('[votekick] banned player: ' .. displayOf(targetPlayer))
-    
-    -- Pre-kick cleanup commands (check for jails, ice, punish)
-    local cleanupCommands = {}
-    
-    -- Check for Adonis jail
-    if workspace:FindFirstChild(targetPlayer.Name .. '_ADONISJAIL') then
-        table.insert(cleanupCommands, ':free ' .. targetPlayer.Name)
-    end
-    
-    -- Check for Adonis ice
-    for _, v in pairs(workspace:GetDescendants()) do
-        if v.Name == 'Adonis_Ice' and v.Parent.Name == targetPlayer.Name then
-            table.insert(cleanupCommands, ':thaw ' .. targetPlayer.Name)
-            break -- Only need to thaw once
-        end
-    end
-    
-    -- Check for punishment in lighting
-    if game.Lighting:FindFirstChild(targetPlayer.Name) then
-        table.insert(cleanupCommands, ':unpunish ' .. targetPlayer.Name)
-    end
-    
-    -- Execute cleanup commands if any exist
-    if #cleanupCommands > 0 then
-        local cleanupString = table.concat(cleanupCommands, '|')
-        chat(cleanupString)
-        task.wait(1) -- Wait for cleanup to process
-    end
-    
-    -- Unfly if airborne-ish (from StacyCMD)
-    if targetPlayer.Character and targetPlayer.Character:FindFirstChildOfClass('Humanoid') then
-        local hrp = targetPlayer.Character:FindFirstChild('HumanoidRootPart')
-        if hrp and math.abs(hrp.Velocity.Y) > 2 then
-            chat(':unfly ' .. targetPlayer.Name)
-        end
-    end
+	-- Add to votekick ban list (prevents rejoin)
+	local playerKey = targetPlayer.Name:lower()
+	votekickBans[playerKey] = true
+	_G.__stacyVotekickBans[playerKey] = true -- Sync with global
 
-    -- Execute StacyCMD-style kick
-    tpAndTripleTalk(
-        targetPlayer,
-        82130923335295,
-        ('[Votekick System] %s has been VOTEKICKED. Rejoining will auto-kick.'):format(
-            displayOf(targetPlayer)
-        )
-    )
-    
-    print('[votekick] executed on ' .. displayOf(targetPlayer))
+	-- FIXED: Save bans to file for persistence
+	saveVotekickBans()
+
+	print('[votekick] banned player: ' .. displayOf(targetPlayer))
+
+	-- Pre-kick cleanup commands (check for jails, ice, punish)
+	local cleanupCommands = {}
+
+	-- Check for Adonis jail
+	if workspace:FindFirstChild(targetPlayer.Name .. '_ADONISJAIL') then
+		table.insert(cleanupCommands, ':free ' .. targetPlayer.Name)
+	end
+
+	-- Check for Adonis ice
+	for _, v in pairs(workspace:GetDescendants()) do
+		if v.Name == 'Adonis_Ice' and v.Parent.Name == targetPlayer.Name then
+			table.insert(cleanupCommands, ':thaw ' .. targetPlayer.Name)
+			break -- Only need to thaw once
+		end
+	end
+
+	-- Check for punishment in lighting
+	if game.Lighting:FindFirstChild(targetPlayer.Name) then
+		table.insert(cleanupCommands, ':unpunish ' .. targetPlayer.Name)
+	end
+
+	-- Execute cleanup commands if any exist
+	if #cleanupCommands > 0 then
+		local cleanupString = table.concat(cleanupCommands, '|')
+		chat(cleanupString)
+		task.wait(1) -- Wait for cleanup to process
+	end
+
+	-- Unfly if airborne-ish (from StacyCMD)
+	if
+		targetPlayer.Character
+		and targetPlayer.Character:FindFirstChildOfClass('Humanoid')
+	then
+		local hrp = targetPlayer.Character:FindFirstChild('HumanoidRootPart')
+		if hrp and math.abs(hrp.Velocity.Y) > 2 then
+			chat(':unfly ' .. targetPlayer.Name)
+		end
+	end
+
+	-- Execute StacyCMD-style kick
+	tpAndTripleTalk(
+		targetPlayer,
+		82130923335295,
+		('[Votekick System] %s has been VOTEKICKED. Rejoining will auto-kick.'):format(
+			displayOf(targetPlayer)
+		)
+	)
+
+	print('[votekick] executed on ' .. displayOf(targetPlayer))
 end
 
 local function onChatted(player, message)
@@ -451,13 +385,13 @@ local function onChatted(player, message)
 		-- Check if initiator is blacklisted
 		if votekickBlacklist[player.Name:lower()] then
 			chat(
-				':chatnotifyc all 255 0 0 <font face=\'Gotham\'>❌ ACCESS DENIED - '
+				":chatnotifyc all 255 0 0 <font face='Gotham'>❌ ACCESS DENIED - "
 					.. displayOf(player)
 					.. ' is BLACKLISTED from using votekick system!</font>|:music 9066167010 true 1 1 10'
 			)
 			return
 		end
-		
+
 		if votingActive then
 			chat(
 				":music 8243331779 true 1 inf|:chatnotifyc all 255 255 255 <font face='Gotham'>NO VOTEKICKs WHEN VOTEKICK IS OCCURRING!</font>"
@@ -547,7 +481,7 @@ local function onChatted(player, message)
 					local kicked = yesVotes > noVotes
 					if kicked then
 						executeVotekick(votingPlayer) -- Use StacyCMD-style kick
-						
+
 						task.wait(2) -- Brief wait for the kick to process
 						chat(
 							':music 8452665473 true|:sn '
@@ -592,7 +526,7 @@ local function onChatted(player, message)
 				)
 				return
 			end
-			
+
 			votes[player.Name] = (message == '/yes')
 			chat(
 				":chatnotifyc all 255 255 0 <font face='Gotham'>"
@@ -616,16 +550,31 @@ local function onChatted(player, message)
 			votekickBans[targetName] = nil
 			_G.__stacyVotekickBans[targetName] = nil
 			saveVotekickBans()
-			chat(':chatnotifyc all 0 255 0 ' .. player.Name .. ' unbanned ' .. targetName .. ' from votekick system')
+			chat(
+				':chatnotifyc all 0 255 0 '
+					.. player.Name
+					.. ' unbanned '
+					.. targetName
+					.. ' from votekick system'
+			)
 		else
-			chat(':chatnotifyc ' .. player.Name .. ',me 255 0 0 Player not found in ban list')
+			chat(
+				':chatnotifyc '
+					.. player.Name
+					.. ',me 255 0 0 Player not found in ban list'
+			)
 		end
 	elseif message == '.banlist' then
 		local banCount = 0
 		for _ in pairs(votekickBans) do
 			banCount = banCount + 1
 		end
-		chat(':chatnotifyc ' .. player.Name .. ',me 255 255 0 Total votekick bans: ' .. banCount)
+		chat(
+			':chatnotifyc '
+				.. player.Name
+				.. ',me 255 255 0 Total votekick bans: '
+				.. banCount
+		)
 	end
 end
 
