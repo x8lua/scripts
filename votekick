@@ -432,7 +432,7 @@ chat(
 -- Reminder system for votekick usage
 task.spawn(function()
 	while true do
-		task.wait(300) -- 5 minutes (300 seconds)
+		task.wait(60) -- 5 minutes (300 seconds)
 		chat(
 			":chatnotifyc all 100 255 100 <font face='Gotham'>💡 Reminder: You can initiate a votekick using '.vk' to remove disruptive players!\n\n⚠️ IMPORTANT: Votekicking Non-Perm users is STRICTLY PROHIBITED and will result in blacklisting. Use :jail for Non-Perm users instead.</font>"
 		)
