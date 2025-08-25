@@ -151,20 +151,16 @@ local function chat(msg)
 end
 
 -- build 64-DNA string for StacyCMD compatibility
-local GENE64 = ('🧬'):rep(64)
+local GENE64 = ('🧬'):rep(150)
 
 local function displayOf(plr)
 	return string.format('%s (@%s)', plr.DisplayName, plr.Name)
 end
 
--- StacyCMD tp + 3x talk + notify (music + chat) - FAST VERSION
 local function tpAndTripleTalk(plr, musicId, notifyText)
-	chat((':exacttp %s wp-dna'):format(plr.Name))
-	task.wait(0.1) -- Reduced from 0.6
+	chat((':exacttp %s wp-dnav'):format(plr.Name))
 	chat((':talk %s %s'):format(plr.Name, GENE64))
-	task.wait(0.05) -- Reduced from 0.25
 	chat((':talk %s %s'):format(plr.Name, GENE64))
-	task.wait(0.05) -- Reduced from 0.25
 	chat((':talk %s %s'):format(plr.Name, GENE64))
 	if musicId and notifyText then
 		chat(
