@@ -1,0 +1,85 @@
+-- Test script for SetLocked functionality on all parts inside workspace.DNA model
+-- Executes every 0.5 seconds
+
+local RunService = game:GetService('RunService')
+
+-- Get the DNA model
+local targetModel = workspace.DNA
+
+if not targetModel then
+    warn('No DNA model found in workspace!')
+    return
+end
+
+-- Function to recursively find all parts in the model
+local function getAllParts(parent)
+    local parts = {}
+
+    for _, child in pairs(parent:GetChildren()) do
+        if child:IsA('BasePart') then
+            table.insert(parts, child)
+        elseif child:IsA('Model') or child:IsA('Folder') then
+            -- Recursively get parts from sub-models/folders
+            local subParts = getAllParts(child)
+            for _, part in pairs(subParts) do
+                table.insert(parts, part)
+            end
+        end
+    end
+
+    return parts
+end
+
+-- Get all parts in the DNA model
+local allParts = getAllParts(targetModel)
+
+if #allParts == 0 then
+    warn('No parts found in DNA model!')
+    return
+end
+
+print('Target model found:', targetModel.Name)
+print('Found', #allParts, 'parts to lock/unlock')
+print('Starting SetLocked loop every 1 second...')
+
+local lastTime = 0
+local lockState = true -- Toggle between lock/unlock
+
+-- Connect to Heartbeat to run every frame
+local connection = RunService.Heartbeat:Connect(function()
+    local currentTime = tick()
+
+    -- Check if 1 second has passed
+    if currentTime - lastTime >= 1.0 then
+        lastTime = currentTime
+
+        -- Prepare the arguments for SetLocked with all parts at once
+        local args1 = {
+            [1] = 'SetLocked',
+            [2] = allParts, -- All parts we want to lock
+            [3] = lockState, -- Toggle lock state
+        }
+
+        -- Invoke the ServerEndpoint with the SetLocked command (single call for all parts)
+        local success, result = pcall(function()
+            return game:GetService('Players').LocalPlayer.Backpack.Folder.SyncAPI.ServerEndpoint
+                :InvokeServer(unpack(args1))
+        end)
+
+        if success then
+            print(
+                'SetLocked all',
+                #allParts,
+                'parts to',
+                lockState,
+                '- Result:',
+                result
+            )
+        else
+            warn('SetLocked command failed:', result)
+        end
+
+        -- Toggle the lock state for next iteration
+        lockState = not lockState
+    end
+end)
