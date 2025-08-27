@@ -1,0 +1,681 @@
+local plrs = game:GetService('Players')
+local uis = game:GetService('UserInputService')
+local rs = game:GetService('RunService')
+local cam = workspace.CurrentCamera
+
+local lp = plrs.LocalPlayer
+local mouse = lp:GetMouse()
+
+local ui = loadstring(
+    game:HttpGet(
+        'https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua'
+    )
+)()
+
+local settings = {
+    minDist = 18,
+    maxDist = 22,
+    lookTime = 0.1,
+    attackDelay = 2.0,
+    shouldLook = true,
+    autoMode = false,
+    unequipTime = 0.5,
+    randomRange = 0.3,
+}
+
+local target = nil
+local lastHit = 0
+local looking = false
+local lookStart = 0
+local active = true
+local hasGlove = false
+local lastUnequip = 0
+
+local window = ui:CreateWindow({
+    Title = 'Extended Targeting System',
+    Icon = 'crosshair',
+    Author = 'Combat Assistant',
+    Folder = 'ExtendedTargeting',
+    Size = UDim2.fromOffset(520, 400),
+    Theme = 'Dark',
+    User = {
+        Enabled = true,
+        Anonymous = true,
+        Callback = function()
+            ui:Notify({
+                Title = 'User Profile',
+                Content = 'Extended Targeting System Active',
+                Duration = 3,
+            })
+        end,
+    },
+    SideBarWidth = 180,
+})
+
+window:Tag({
+    Title = 'v1.2.0',
+    Color = Color3.fromHex('#30ff6a'),
+})
+
+local statusTag = window:Tag({
+    Title = 'ACTIVE',
+    Color = Color3.fromHex('#28a745'),
+})
+
+local sections = {
+    combat = window:Section({
+        Title = 'Combat System',
+        Opened = true,
+    }),
+    config = window:Section({
+        Title = 'Settings',
+        Opened = true,
+    }),
+}
+
+local tabs = {
+    targeting = sections.combat:Tab({
+        Title = 'Targeting',
+        Icon = 'target',
+        Desc = 'Player targeting system',
+    }),
+    combat = sections.combat:Tab({
+        Title = 'Combat',
+        Icon = 'sword',
+        Desc = 'Auto-attack settings',
+    }),
+    settings = sections.config:Tab({
+        Title = 'Configuration',
+        Icon = 'settings',
+        Desc = 'System configuration',
+    }),
+}
+
+local function getNearestPlayer(pos)
+    local nearestPlayer = nil
+    local shortestDistance = math.huge
+
+    for _, player in pairs(plrs:GetPlayers()) do
+        if
+            player ~= lp
+            and player.Character
+            and player.Character:FindFirstChild('HumanoidRootPart')
+        then
+            local distance = (player.Character.HumanoidRootPart.Position - pos).Magnitude
+            if distance < shortestDistance then
+                shortestDistance = distance
+                nearestPlayer = player
+            end
+        end
+    end
+
+    return nearestPlayer, shortestDistance
+end
+
+local function getDistance()
+    if
+        not target
+        or not target.Character
+        or not target.Character:FindFirstChild('HumanoidRootPart')
+    then
+        return math.huge
+    end
+
+    if
+        not lp.Character or not lp.Character:FindFirstChild('HumanoidRootPart')
+    then
+        return math.huge
+    end
+
+    return (
+        target.Character.HumanoidRootPart.Position
+        - lp.Character.HumanoidRootPart.Position
+    ).Magnitude
+end
+
+local function lookAt()
+    if
+        not target
+        or not target.Character
+        or not target.Character:FindFirstChild('HumanoidRootPart')
+    then
+        return
+    end
+
+    if
+        not lp.Character or not lp.Character:FindFirstChild('HumanoidRootPart')
+    then
+        return
+    end
+
+    local targetPos = target.Character.HumanoidRootPart.Position
+    local myPos = lp.Character.HumanoidRootPart.Position
+
+    local lookPos = Vector3.new(targetPos.X, myPos.Y, targetPos.Z)
+    lp.Character.HumanoidRootPart.CFrame = CFrame.lookAt(myPos, lookPos)
+end
+
+local function getTools(p)
+    p = p or lp
+    local r = {}
+    for _, v in ipairs(p.Character and p.Character:GetChildren() or {}) do
+        if v:IsA('BackpackItem') and v:FindFirstChild('Handle') then
+            r[#r + 1] = v
+        end
+    end
+    for _, v in
+        ipairs(
+            p:FindFirstChildOfClass('Backpack') and p.Backpack:GetChildren()
+                or {}
+        )
+    do
+        if v:IsA('BackpackItem') and v:FindFirstChild('Handle') then
+            r[#r + 1] = v
+        end
+    end
+    return r
+end
+
+local function equipGlove()
+    if hasGlove then
+        return
+    end
+
+    local tools = getTools(lp)
+    local equipped = false
+
+    if lp.Character then
+        for _, v in ipairs(lp.Character:GetChildren()) do
+            if v:IsA('Tool') or v:IsA('HopperBin') or v:IsA('BackpackItem') then
+                equipped = true
+                break
+            end
+        end
+    end
+
+    if equipped then
+        hasGlove = true
+        return
+    end
+
+    if lp:FindFirstChildOfClass('Backpack') then
+        for i, v in pairs(lp:FindFirstChildOfClass('Backpack'):GetChildren()) do
+            if v:IsA('Tool') or v:IsA('HopperBin') then
+                pcall(function()
+                    v.Parent = lp.Character
+                end)
+            end
+        end
+        hasGlove = true
+        wait(0.1)
+    end
+end
+
+local function unequipGlove()
+    if not hasGlove then
+        return
+    end
+
+    if lp.Character and lp.Character:FindFirstChildOfClass('Humanoid') then
+        pcall(function()
+            lp.Character:FindFirstChildOfClass('Humanoid'):UnequipTools()
+        end)
+        hasGlove = false
+        lastUnequip = tick()
+    end
+end
+
+local function attack()
+    local vim = game:GetService('VirtualInputManager')
+    vim:SendMouseButtonEvent(mouse.X, mouse.Y, 0, true, game, 0)
+    wait(0.01)
+    vim:SendMouseButtonEvent(mouse.X, mouse.Y, 0, false, game, 0)
+end
+
+tabs.targeting:Paragraph({
+    Title = 'Target Selection',
+    Desc = 'Click to select nearest player as target',
+    Image = 'crosshair',
+    ImageSize = 20,
+    Color = Color3.fromHex('#ff6b6b'),
+})
+
+local targetLabel = tabs.targeting:Paragraph({
+    Title = 'Current Target',
+    Desc = 'No target selected',
+    Image = 'user',
+    ImageSize = 16,
+    Color = Color3.fromHex('#6c757d'),
+})
+
+-- Function to find player by username (supports shortened names)
+local function findPlayerByName(searchName)
+    if not searchName or searchName == '' then
+        return nil
+    end
+
+    searchName = searchName:lower()
+
+    -- First try exact match
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player.Name:lower() == searchName then
+            return player
+        end
+    end
+
+    -- Then try partial match (starts with)
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player.Name:lower():sub(1, #searchName) == searchName then
+            return player
+        end
+    end
+
+    -- Finally try contains match
+    for _, player in pairs(game.Players:GetPlayers()) do
+        if player.Name:lower():find(searchName, 1, true) then
+            return player
+        end
+    end
+
+    return nil
+end
+
+-- Function to select nearest target
+local function selectNearestTarget()
+    local nearestPlayer, distance = getNearestPlayer(
+        lp.Character
+                and lp.Character.HumanoidRootPart
+                and lp.Character.HumanoidRootPart.Position
+            or Vector3.new(0, 0, 0)
+    )
+
+    if nearestPlayer and distance < 80 then
+        target = nearestPlayer
+        targetLabel:SetDesc('Target: ' .. nearestPlayer.Name)
+
+        ui:Notify({
+            Title = 'Target Selected',
+            Content = 'Target: ' .. nearestPlayer.Name,
+            Icon = 'target',
+            Duration = 3,
+        })
+    else
+        ui:Notify({
+            Title = 'No Target',
+            Content = 'No player found nearby',
+            Icon = 'alert-circle',
+            Duration = 2,
+        })
+    end
+end
+
+-- Function to set target by username
+local function setTargetByName(username)
+    local player = findPlayerByName(username)
+
+    if player and player ~= lp then
+        target = player
+        targetLabel:SetDesc('Target: ' .. player.Name)
+
+        ui:Notify({
+            Title = 'Target Set',
+            Content = 'Target: ' .. player.Name,
+            Icon = 'target',
+            Duration = 3,
+        })
+        return true
+    else
+        ui:Notify({
+            Title = 'Player Not Found',
+            Content = username == '' and 'Please enter a username'
+                or ('No player found matching: ' .. username),
+            Icon = 'alert-circle',
+            Duration = 3,
+        })
+        return false
+    end
+end
+
+local usernameInput = tabs.targeting:Input({
+    Title = 'Target Username',
+    Placeholder = 'Enter username (can be shortened)',
+    Icon = 'user',
+    Callback = function(value)
+        if value and value ~= '' then
+            setTargetByName(value)
+        end
+    end,
+})
+
+tabs.targeting:Button({
+    Title = 'Set Target',
+    Icon = 'crosshair',
+    Variant = 'Primary',
+    Callback = function()
+        selectNearestTarget()
+    end,
+})
+
+tabs.targeting:Button({
+    Title = 'Clear Target',
+    Icon = 'x',
+    Variant = 'Destructive',
+    Callback = function()
+        target = nil
+        targetLabel:SetDesc('No target selected')
+        ui:Notify({
+            Title = 'Target Cleared',
+            Content = 'No target selected',
+            Icon = 'x',
+            Duration = 2,
+        })
+    end,
+})
+
+tabs.combat:Paragraph({
+    Title = 'Auto-Combat System',
+    Desc = 'Automatic targeting and attacking',
+    Image = 'sword',
+    ImageSize = 20,
+    Color = Color3.fromHex('#ffa500'),
+})
+
+local lookToggle = tabs.combat:Toggle({
+    Title = 'Look at Target',
+    Desc = 'Automatically look at target before attacking',
+    Value = settings.shouldLook,
+    Callback = function(state)
+        settings.shouldLook = state
+        ui:Notify({
+            Title = 'Look at Target',
+            Content = state and 'Enabled' or 'Disabled',
+            Icon = state and 'eye' or 'eye-off',
+            Duration = 2,
+        })
+    end,
+})
+
+tabs.combat:Paragraph({
+    Title = 'Distance Range Attack',
+    Desc = 'Attacks when target is between 18-22 studs away',
+    Image = 'target',
+    ImageSize = 16,
+    Color = Color3.fromHex('#ffc107'),
+})
+
+local autoToggle = tabs.combat:Toggle({
+    Title = 'ProMode',
+    Desc = 'Auto-equip glove when in range, attack, then unequip with randomized timing',
+    Value = settings.autoMode,
+    Callback = function(state)
+        settings.autoMode = state
+        ui:Notify({
+            Title = 'AutoMode ' .. (state and 'Enabled' or 'Disabled'),
+            Content = state and 'Will auto-equip/unequip gloves'
+                or 'Normal attack mode',
+            Icon = state and 'zap' or 'hand',
+            Duration = 3,
+        })
+    end,
+})
+
+tabs.combat:Slider({
+    Title = 'Unequip Delay',
+    Desc = 'Base time to wait before unequipping glove (seconds)',
+    Value = {
+        Min = 0.1,
+        Max = 3.0,
+        Default = settings.unequipTime,
+    },
+    Step = 0.1,
+    Callback = function(value)
+        settings.unequipTime = value
+    end,
+})
+
+tabs.combat:Slider({
+    Title = 'Unequip Randomization',
+    Desc = 'Random variation in unequip timing (+/- seconds)',
+    Value = {
+        Min = 0.0,
+        Max = 1.0,
+        Default = settings.randomRange,
+    },
+    Step = 0.05,
+    Callback = function(value)
+        settings.randomRange = value
+    end,
+})
+
+tabs.combat:Slider({
+    Title = 'Look Duration',
+    Desc = 'Time to look at target before attacking (seconds)',
+    Value = {
+        Min = 0.01,
+        Max = 1.0,
+        Default = settings.lookTime,
+    },
+    Step = 0.01,
+    Callback = function(value)
+        settings.lookTime = value
+    end,
+})
+
+tabs.combat:Slider({
+    Title = 'Attack Cooldown',
+    Desc = 'Cooldown between attacks (seconds)',
+    Value = {
+        Min = 0.5,
+        Max = 10.0,
+        Default = settings.attackDelay,
+    },
+    Step = 0.1,
+    Callback = function(value)
+        settings.attackDelay = value
+    end,
+})
+
+tabs.combat:Button({
+    Title = 'Toggle System (F)',
+    Icon = 'power',
+    Variant = 'Secondary',
+    Callback = function()
+        active = not active
+        statusTag:SetTitle(active and 'ACTIVE' or 'STOPPED')
+        ui:Notify({
+            Title = 'System ' .. (active and 'Started' or 'Stopped'),
+            Content = 'Press F to toggle',
+            Icon = active and 'play' or 'pause',
+            Duration = 2,
+        })
+    end,
+})
+
+tabs.settings:Paragraph({
+    Title = 'System Status',
+    Desc = 'Real-time system information',
+    Image = 'activity',
+    ImageSize = 20,
+    Color = Color3.fromHex('#20c997'),
+})
+
+local statusLabel = tabs.settings:Paragraph({
+    Title = 'Status',
+    Desc = 'System ready',
+    Image = 'check-circle',
+    ImageSize = 16,
+    Color = Color3.fromHex('#28a745'),
+})
+
+mouse.Button1Down:Connect(function()
+    if uis:IsKeyDown(Enum.KeyCode.LeftControl) then
+        local pos = mouse.Hit.Position
+        local nearestPlayer, distance = getNearestPlayer(pos)
+
+        if nearestPlayer and distance < 50 then
+            target = nearestPlayer
+            targetLabel:SetDesc('Target: ' .. nearestPlayer.Name)
+
+            ui:Notify({
+                Title = 'Target Selected',
+                Content = 'Target: ' .. nearestPlayer.Name,
+                Icon = 'target',
+                Duration = 3,
+            })
+        else
+            ui:Notify({
+                Title = 'No Target',
+                Content = 'No player found near cursor',
+                Icon = 'alert-circle',
+                Duration = 2,
+            })
+        end
+    end
+end)
+
+uis.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then
+        return
+    end
+
+    if input.KeyCode == Enum.KeyCode.F then
+        active = not active
+        statusTag:SetTitle(active and 'ACTIVE' or 'STOPPED')
+
+        ui:Notify({
+            Title = 'System ' .. (active and 'Started' or 'Stopped'),
+            Content = 'System is now ' .. (active and 'active' or 'stopped'),
+            Icon = active and 'play' or 'pause',
+            Duration = 2,
+        })
+    end
+end)
+
+local function mainLoop()
+    local inArena = true
+    if
+        workspace:FindFirstChild(lp.Name)
+        and workspace[lp.Name]:FindFirstChild('IsInArena')
+    then
+        inArena = workspace[lp.Name].IsInArena.Value
+    end
+
+    if not inArena then
+        statusLabel:SetDesc(
+            '[PAUSED - NOT IN ARENA] System paused until you enter arena'
+        )
+        return
+    end
+
+    if not target or not target.Character then
+        if target then
+            target = nil
+            targetLabel:SetDesc('Target left game')
+        end
+        return
+    end
+
+    local dist = getDistance()
+    local time = tick()
+
+    local status = active and 'ACTIVE' or 'STOPPED'
+    local inRange = dist >= settings.minDist and dist <= settings.maxDist
+    local gloveStatus = settings.autoMode
+            and (hasGlove and ' | Glove: EQUIPPED' or ' | Glove: UNEQUIPPED')
+        or ''
+    statusLabel:SetDesc(
+        string.format(
+            '[%s] Target: %s | Distance: %.1f studs | In Range: %s%s',
+            status,
+            target.Name,
+            dist,
+            inRange and 'YES' or 'NO',
+            gloveStatus
+        )
+    )
+
+    if active and inRange and time - lastHit >= settings.attackDelay then
+        if settings.autoMode and not hasGlove then
+            equipGlove()
+        end
+
+        if settings.shouldLook and not looking then
+            looking = true
+            lookStart = time
+            lookAt()
+        elseif settings.shouldLook and looking then
+            if time - lookStart >= settings.lookTime then
+                attack()
+                lastHit = time
+                looking = false
+
+                if settings.autoMode and hasGlove then
+                    spawn(function()
+                        local offset = (math.random() - 0.5)
+                            * 2
+                            * settings.randomRange
+                        local delay =
+                            math.max(0.1, settings.unequipTime + offset)
+                        wait(delay)
+                        unequipGlove()
+                    end)
+                end
+
+                ui:Notify({
+                    Title = 'Attack!',
+                    Content = 'Attacked '
+                        .. target.Name
+                        .. (settings.autoMode and ' (Auto)' or ''),
+                    Icon = 'sword',
+                    Duration = 1,
+                })
+            end
+        elseif not settings.shouldLook then
+            attack()
+            lastHit = time
+
+            if settings.autoMode and hasGlove then
+                spawn(function()
+                    local offset = (math.random() - 0.5)
+                        * 2
+                        * settings.randomRange
+                    local delay = math.max(0.1, settings.unequipTime + offset)
+                    wait(delay)
+                    unequipGlove()
+                end)
+            end
+        end
+    elseif not inRange then
+        looking = false
+        if settings.autoMode and hasGlove and time - lastUnequip > 1.0 then
+            unequipGlove()
+        end
+    else
+        looking = false
+    end
+end
+
+rs.Heartbeat:Connect(mainLoop)
+
+tabs.targeting:Paragraph({
+    Title = 'Instructions',
+    Desc = 'PC: Hold CTRL + Click near player. Mobile: Use draggable target button. System attacks at 18-22 studs. Enable ProMode for auto glove management. Press F to toggle.',
+    Image = 'info',
+    ImageSize = 16,
+    Color = Color3.fromHex('#17a2b8'),
+})
+
+ui:Notify({
+    Title = 'Extended Targeting Loaded',
+    Content = 'PC: CTRL + Click to target\nMobile: Use target button or Target Username\nAttacks at 18-22 studs\nPress F to toggle system',
+    Icon = 'shield',
+    Duration = 6,
+})
+
+window:OnClose(function()
+    target = nil
+    if gui then
+        gui:Destroy()
+    end
+    print('System closed')
+end)
