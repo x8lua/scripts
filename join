@@ -1,4 +1,4 @@
--- Rank-Based Join/Leave Messages Script
+ -- Rank-Based Join/Leave Messages Script
 -- This script displays different messages based on the player's social credit rank
 -- Separate from StacyCMD main script
 
@@ -46,14 +46,176 @@ end
 -- Function to get player's rank (mirrored from main system)
 local function getSocialCreditRank(score, playerName)
     -- Special case for DerpyB33 - always show "Durp" rank regardless of SC
-    if playerName and playerName:lower() == 'derpyb33' then
-        return 'Durp'
+    if playerName and playerName:lower() == "derpyb33" then
+        return "Durp"
     end
-
+    
     -- Negative ranks (Prohibit tiers) - every 250 SC with unlimited Roman numerals
     if score < 0 then
         local prohibitLevel = math.floor(math.abs(score) / 250) + 1
+        
+        -- Convert any number to Roman numerals
+        local function toRoman(num)
+            local romanNumerals = {
+                {1000, "M"}, {900, "CM"}, {500, "D"}, {400, "CD"},
+                {100, "C"}, {90, "XC"}, {50, "L"}, {40, "XL"},
+                {10, "X"}, {9, "IX"}, {5, "V"}, {4, "IV"}, {1, "I"}
+            }
+            local result = ""
+            for _, pair in ipairs(romanNumerals) do
+                local value, numeral = pair[1], pair[2]
+                while num >= value do
+                    result = result .. numeral
+                    num = num - value
+                end
+            end
+            return result
+        end
+        
+        return "🚫 " .. toRoman(prohibitLevel)
+    
+    -- Pre-Prestige (0–34,999)
+        -- Novice → 0–499
+    elseif score >= 0 and score < 500 then
+        return "Novice"
 
+        -- Bronze (≈1,200 per tier)
+    elseif score >= 500 and score < 1700 then
+        return "Bronze I"
+    elseif score >= 1700 and score < 2900 then
+        return "Bronze II"
+    elseif score >= 2900 and score < 4100 then
+        return "Bronze III"
+
+        -- Silver (≈1,200 per tier)
+    elseif score >= 4100 and score < 5300 then
+        return "Silver I"
+    elseif score >= 5300 and score < 6500 then
+        return "Silver II"
+    elseif score >= 6500 and score < 7700 then
+        return "Silver III"
+
+        -- Gold (≈1,300 per tier)
+    elseif score >= 7700 and score < 9000 then
+        return "Gold I"
+    elseif score >= 9000 and score < 10300 then
+        return "Gold II"
+    elseif score >= 10300 and score < 11600 then
+        return "Gold III"
+
+        -- Platinum (≈1,300 per tier)
+    elseif score >= 11600 and score < 12900 then
+        return "PlatinumI"
+    elseif score >= 12900 and score < 14200 then
+        return "PlatinumII"
+    elseif score >= 14200 and score < 15500 then
+        return "PlatinumIII"
+
+        -- Diamond (≈1,300 per tier)
+    elseif score >= 15500 and score < 16800 then
+        return "DiamondI"
+    elseif score >= 16800 and score < 18100 then
+        return "DiamondII"
+    elseif score >= 18100 and score < 19400 then
+        return "DiamondIII"
+
+        -- Grandmaster (≈1,300 per tier)
+    elseif score >= 19400 and score < 20700 then
+        return "GrandmasterI"
+    elseif score >= 20700 and score < 22000 then
+        return "GrandmasterII"
+    elseif score >= 22000 and score < 23300 then
+        return "GrandmasterIII"
+
+        -- Epic (≈1,300 per tier)
+    elseif score >= 23300 and score < 24600 then
+        return "Epic I"
+    elseif score >= 24600 and score < 25900 then
+        return "Epic II"
+    elseif score >= 25900 and score < 27200 then
+        return "Epic III"
+
+        -- Mythic (≈1,300 per tier)
+    elseif score >= 27200 and score < 28500 then
+        return "Mythic I"
+    elseif score >= 28500 and score < 29800 then
+        return "Mythic II"
+    elseif score >= 29800 and score < 31100 then
+        return "Mythic III"
+
+        -- Zenith (≈1,300 per tier)
+    elseif score >= 31100 and score < 32400 then
+        return "Zenith I"
+    elseif score >= 32400 and score < 33700 then
+        return "Zenith II"
+    elseif score >= 33700 and score < 35000 then
+        return "Zenith III"
+
+        -- Checkpoint: SPAWN → 35,000
+    elseif score == 35000 then
+        return "Spawn"
+
+        -- Prestige Path (35,000–140,000)
+        -- Legacy (5k per tier)
+    elseif score >= 35000 and score < 40000 then
+        return "Legacy I"
+    elseif score >= 40000 and score < 45000 then
+        return "Legacy II"
+    elseif score >= 45000 and score < 50000 then
+        return "Legacy III"
+
+        -- Ascend (5k per tier)
+    elseif score >= 50000 and score < 55000 then
+        return "Ascend I"
+    elseif score >= 55000 and score < 60000 then
+        return "Ascend II"
+    elseif score >= 60000 and score < 65000 then
+        return "Ascend III"
+
+        -- Celest (5k per tier)
+    elseif score >= 65000 and score < 70000 then
+        return "Celest I"
+    elseif score >= 70000 and score < 75000 then
+        return "Celest II"
+    elseif score >= 75000 and score < 80000 then
+        return "Celest III"
+
+        -- Divine (5k per tier)
+    elseif score >= 80000 and score < 85000 then
+        return "Divine I"
+    elseif score >= 85000 and score < 90000 then
+        return "Divine II"
+    elseif score >= 90000 and score < 95000 then
+        return "Divine III"
+
+        -- Eternal (5k per tier)
+    elseif score >= 95000 and score < 100000 then
+        return "Eternal I"
+    elseif score >= 100000 and score < 105000 then
+        return "Eternal II"
+    elseif score >= 105000 and score < 110000 then
+        return "Eternal III"
+
+        -- Supreme (5k per tier)
+    elseif score >= 110000 and score < 115000 then
+        return "Supreme I"
+    elseif score >= 115000 and score < 120000 then
+        return "Supreme II"
+    elseif score >= 120000 and score < 125000 then
+        return "Supreme III"
+
+        -- Imperial (5k per tier)
+    elseif score >= 125000 and score < 130000 then
+        return "Imperial I"
+    elseif score >= 130000 and score < 135000 then
+        return "Imperial II"
+    elseif score >= 135000 and score < 140000 then
+        return "Imperial III"
+
+        -- Omega Tier (120k+) - "The Final Destination" - Infinite scaling
+    elseif score >= 140000 then
+        -- For scores above 120k, calculate the Roman numeral dynamically
+        local omegaLevel = math.floor((score - 140000) / 10000) + 1
         -- Convert any number to Roman numerals
         local function toRoman(num)
             local romanNumerals = {
@@ -81,518 +243,341 @@ local function getSocialCreditRank(score, playerName)
             end
             return result
         end
-
-        return '🚫 ' .. toRoman(prohibitLevel)
-
-    -- Basic/Low Tiers
-    elseif score >= 0 and score <= 500 then
-        return 'Novice'
-
-    -- Bronze Tier
-    elseif score >= 500 and score <= 1200 then
-        return 'Bronze I'
-    elseif score >= 1200 and score <= 1900 then
-        return 'Bronze II'
-    elseif score >= 1900 and score <= 2600 then
-        return 'Bronze III'
-
-    -- Silver Tier
-    elseif score >= 2600 and score <= 3300 then
-        return 'Silver I'
-    elseif score >= 3300 and score <= 4000 then
-        return 'Silver II'
-    elseif score >= 4000 and score <= 5000 then
-        return 'Silver III'
-
-    -- Gold Tier
-    elseif score >= 5000 and score <= 5800 then
-        return 'Gold I'
-    elseif score >= 5800 and score <= 6600 then
-        return 'Gold II'
-    elseif score >= 6600 and score <= 8000 then
-        return 'Gold III'
-
-    -- Platinum Tier (Prestige)
-    elseif score >= 8000 and score <= 8800 then
-        return 'PlatinumI'
-    elseif score >= 8800 and score <= 9600 then
-        return 'PlatinumII'
-    elseif score >= 9600 and score <= 11000 then
-        return 'PlatinumIII'
-
-    -- Diamond Tier (Prestige)
-    elseif score >= 11000 and score <= 11900 then
-        return 'DiamondI'
-    elseif score >= 11900 and score <= 12800 then
-        return 'DiamondII'
-    elseif score >= 12800 and score <= 14000 then
-        return 'DiamondIII'
-
-    -- Grandmaster Tier (Prestige)
-    elseif score >= 14000 and score <= 15000 then
-        return 'GrandmasterI'
-    elseif score >= 15000 and score <= 16000 then
-        return 'GrandmasterII'
-    elseif score >= 16000 and score <= 17000 then
-        return 'GrandmasterIII'
-
-    -- Epic Tier
-    elseif score >= 17000 and score <= 17800 then
-        return 'Epic I'
-    elseif score >= 17800 and score <= 18600 then
-        return 'Epic II'
-    elseif score >= 18600 and score <= 19400 then
-        return 'Epic III'
-
-    -- Mythic Tier
-    elseif score >= 19400 and score <= 20100 then
-        return 'Mythic I'
-    elseif score >= 20100 and score <= 20800 then
-        return 'Mythic II'
-    elseif score >= 20800 and score <= 21500 then
-        return 'Mythic III'
-
-    -- Zenith Tier (Prestige)
-    elseif score >= 21500 and score < 22667 then
-        return 'Zenith I'
-    elseif score >= 22667 and score < 23833 then
-        return 'Zenith II'
-    elseif score >= 23833 and score < 25000 then
-        return 'Zenith III'
-
-    -- SPAWN Tier (25k-26k)
-    elseif score >= 25000 and score < 26000 then
-        return 'Spawn'
-
-    -- Legacy Tier (26k-35k)
-    elseif score >= 26000 and score < 29000 then
-        return 'Legacy I'
-    elseif score >= 29000 and score < 32000 then
-        return 'Legacy II'
-    elseif score >= 32000 and score < 35000 then
-        return 'Legacy III'
-
-    -- Ascend Tier (35k-44k)
-    elseif score >= 35000 and score < 38000 then
-        return 'Ascend I'
-    elseif score >= 38000 and score < 41000 then
-        return 'Ascend II'
-    elseif score >= 41000 and score < 44000 then
-        return 'Ascend III'
-
-    -- Celest Tier (44k-53k)
-    elseif score >= 44000 and score < 47000 then
-        return 'Celest I'
-    elseif score >= 47000 and score < 50000 then
-        return 'Celest II'
-    elseif score >= 50000 and score < 53000 then
-        return 'Celest III'
-
-    -- Divine Tier (53k-62k)
-    elseif score >= 53000 and score < 56000 then
-        return 'Divine I'
-    elseif score >= 56000 and score < 59000 then
-        return 'Divine II'
-    elseif score >= 59000 and score < 62000 then
-        return 'Divine III'
-
-    -- Eternal Tier (62k-71k)
-    elseif score >= 62000 and score < 65000 then
-        return 'Eternal I'
-    elseif score >= 65000 and score < 68000 then
-        return 'Eternal II'
-    elseif score >= 68000 and score < 71000 then
-        return 'Eternal III'
-
-    -- Supreme Tier (71k-80k)
-    elseif score >= 71000 and score < 74000 then
-        return 'Supreme I'
-    elseif score >= 74000 and score < 77000 then
-        return 'Supreme II'
-    elseif score >= 77000 and score < 80000 then
-        return 'Supreme III'
-
-    -- Imperial Tier (80k-120k)
-    elseif score >= 80000 and score < 90000 then
-        return 'Imperial I'
-    elseif score >= 90000 and score < 105000 then
-        return 'Imperial II'
-    elseif score >= 105000 and score < 120000 then
-        return 'Imperial III'
-
-    -- Omega Tier (120k+) - Infinite scaling
-    elseif score >= 120000 then
-        local omegaLevel = math.floor((score - 120000) / 10000) + 1
-        local function toRoman(num)
-            local romanNumerals = {
-                { 1000, 'M' },
-                { 900, 'CM' },
-                { 500, 'D' },
-                { 400, 'CD' },
-                { 100, 'C' },
-                { 90, 'XC' },
-                { 50, 'L' },
-                { 40, 'XL' },
-                { 10, 'X' },
-                { 9, 'IX' },
-                { 5, 'V' },
-                { 4, 'IV' },
-                { 1, 'I' },
-            }
-            local result = ''
-            for _, pair in ipairs(romanNumerals) do
-                local value, numeral = pair[1], pair[2]
-                while num >= value do
-                    result = result .. numeral
-                    num = num - value
-                end
-            end
-            return result
-        end
         return 'Ω ' .. toRoman(omegaLevel)
+    
     else
-        return 'Unknown'
+        return "Unknown"
     end
 end
 
 -- Function to get rank tier for message categorization
 local function getRankTier(rank)
     -- Special cases
-    if rank == 'Durp' then
-        return 'special'
+    if rank == "Durp" then
+        return "special"
     end
-
+    
     -- Prohibit tiers (negative)
-    if rank:find('🚫') then
-        return 'prohibit'
+    if rank:find("🚫") then
+        return "prohibit"
     end
-
+    
     -- Basic tier
-    if rank == 'Novice' then
-        return 'novice'
+    if rank == "Novice" then
+        return "novice"
     end
-
+    
     -- Bronze tier
-    if rank:find('Bronze') then
-        return 'bronze'
+    if rank:find("Bronze") then
+        return "bronze"
     end
-
+    
     -- Silver tier
-    if rank:find('Silver') then
-        return 'silver'
+    if rank:find("Silver") then
+        return "silver"
     end
-
+    
     -- Gold tier
-    if rank:find('Gold') then
-        return 'gold'
+    if rank:find("Gold") then
+        return "gold"
     end
-
+    
     -- Prestige tiers
-    if
-        rank:find('Platinum')
-        or rank:find('Diamond')
-        or rank:find('Grandmaster')
-        or rank:find('Zenith')
-    then
-        return 'prestige'
+    if rank:find("Platinum") or rank:find("Diamond") or rank:find("Grandmaster") or rank:find("Zenith") then
+        return "prestige"
     end
-
+    
     -- Elite tiers
-    if rank:find('Epic') or rank:find('Mythic') then
-        return 'elite'
+    if rank:find("Epic") or rank:find("Mythic") then
+        return "elite"
     end
-
+    
     -- Legendary tiers
-    if
-        rank == 'Spawn'
-        or rank:find('Legacy')
-        or rank:find('Ascend')
-        or rank:find('Celest')
-    then
-        return 'legendary'
+    if rank == "Spawn" or rank:find("Legacy") or rank:find("Ascend") or rank:find("Celest") then
+        return "legendary"
     end
-
+    
     -- Divine tiers
-    if rank:find('Divine') or rank:find('Eternal') or rank:find('Supreme') then
-        return 'divine'
+    if rank:find("Divine") or rank:find("Eternal") or rank:find("Supreme") then
+        return "divine"
     end
-
+    
     -- Ultimate tiers
-    if rank:find('Imperial') or rank:find('Ω') then
-        return 'ultimate'
+    if rank:find("Imperial") or rank:find("Ω") then
+        return "ultimate"
     end
-
-    return 'unknown'
+    
+    return "unknown"
 end
 
 -- Rank-based Join Messages Configuration
 local RANK_JOIN_MESSAGES = {
-    ['prohibit'] = {
-        '⛔ The restricted [player] has crawled into the server...',
-        '🚫 [player] has shamefully entered the server.',
+    ["prohibit"] = {
+        "⛔ The restricted [player] has crawled into the server...",
+        "🚫 [player] has shamefully entered the server.",
         "😬 Look who's back... [player] joined.",
-        '⚠️ [player] has reluctantly joined the server.',
-        '😤 [player] stumbled into the server.',
+        "⚠️ [player] has reluctantly joined the server.",
+        "😤 [player] stumbled into the server."
     },
-
-    ['novice'] = {
-        '👋 Newcomer [player] has joined the server!',
-        '🌱 Fresh face [player] just arrived!',
-        '✨ Welcome to the server, [player]!',
-        '🎉 [player] has entered the building!',
-        '👶 Baby steps... [player] joined!',
+    
+    ["novice"] = {
+        "👋 Newcomer [player] has joined the server!",
+        "🌱 Fresh face [player] just arrived!",
+        "✨ Welcome to the server, [player]!",
+        "🎉 [player] has entered the building!",
+        "👶 Baby steps... [player] joined!"
     },
-
-    ['bronze'] = {
-        '🥉 Bronze warrior [player] has joined the battle!',
-        '⚡ [player] charged into the server!',
-        '🔸 Bronze-ranked [player] is here!',
-        '🛡️ [player] has arrived with determination!',
-        '⭐ Rising star [player] joined the server!',
+    
+    ["bronze"] = {
+        "🥉 Bronze warrior [player] has joined the battle!",
+        "⚡ [player] charged into the server!",
+        "🔸 Bronze-ranked [player] is here!",
+        "🛡️ [player] has arrived with determination!",
+        "⭐ Rising star [player] joined the server!"
     },
-
-    ['silver'] = {
-        '🥈 Silver champion [player] has arrived!',
-        '✨ Shining [player] just entered the server!',
-        '💫 [player] gracefully joined the server!',
-        '🌟 Silver-tier [player] is in the house!',
-        '⚡ [player] has made a brilliant entrance!',
+    
+    ["silver"] = {
+        "🥈 Silver champion [player] has arrived!",
+        "✨ Shining [player] just entered the server!",
+        "💫 [player] gracefully joined the server!",
+        "🌟 Silver-tier [player] is in the house!",
+        "⚡ [player] has made a brilliant entrance!"
     },
-
-    ['gold'] = {
-        '🥇 Golden warrior [player] has arrived in style!',
-        '👑 [player] has graced us with their presence!',
-        '✨ The magnificent [player] just joined!',
-        '🌟 Gold-tier legend [player] is here!',
-        '💛 [player] has entered with golden glory!',
+    
+    ["gold"] = {
+        "🥇 Golden warrior [player] has arrived in style!",
+        "👑 [player] has graced us with their presence!",
+        "✨ The magnificent [player] just joined!",
+        "🌟 Gold-tier legend [player] is here!",
+        "💛 [player] has entered with golden glory!"
     },
-
-    ['prestige'] = {
-        '💎 PRESTIGE: The legendary [player] has arrived!',
-        '👑 Bow down! Prestige player [player] joined!',
-        '✨ The prestigious [player] has entered the realm!',
-        '🏆 Elite champion [player] graces the server!',
-        '💫 [player] has ascended into the server!',
+    
+    ["prestige"] = {
+        "💎 PRESTIGE: The legendary [player] has arrived!",
+        "👑 Bow down! Prestige player [player] joined!",
+        "✨ The prestigious [player] has entered the realm!",
+        "🏆 Elite champion [player] graces the server!",
+        "💫 [player] has ascended into the server!"
     },
-
-    ['elite'] = {
-        '🔥 EPIC: The mythical [player] has appeared!',
-        '⚡ LEGENDARY: [player] has entered the server!',
-        '🌟 Elite warrior [player] just arrived!',
-        '💥 [player] has made an epic entrance!',
-        '🎭 The elite [player] has joined the performance!',
+    
+    ["elite"] = {
+        "🔥 EPIC: The mythical [player] has appeared!",
+        "⚡ LEGENDARY: [player] has entered the server!",
+        "🌟 Elite warrior [player] just arrived!",
+        "💥 [player] has made an epic entrance!",
+        "🎭 The elite [player] has joined the performance!"
     },
-
-    ['legendary'] = {
-        '🌌 LEGENDARY: The transcendent [player] has arrived!',
-        '🚀 [player] has ascended into the server!',
-        '⭐ CELESTIAL: [player] graces us from above!',
-        '🌟 The legendary [player] has descended!',
-        '🔮 [player] has spawned into our reality!',
+    
+    ["legendary"] = {
+        "🌌 LEGENDARY: The transcendent [player] has arrived!",
+        "🚀 [player] has ascended into the server!",
+        "⭐ CELESTIAL: [player] graces us from above!",
+        "🌟 The legendary [player] has descended!",
+        "🔮 [player] has spawned into our reality!"
     },
-
-    ['divine'] = {
-        '👼 DIVINE: The heavenly [player] has descended!',
-        '✨ ETERNAL: [player] has graced the mortal realm!',
-        '🌅 The divine [player] brings light to the server!',
-        '⚡ SUPREME: [player] has entered with godlike power!',
-        '🏛️ [player] has blessed the server with their presence!',
+    
+    ["divine"] = {
+        "👼 DIVINE: The heavenly [player] has descended!",
+        "✨ ETERNAL: [player] has graced the mortal realm!",
+        "🌅 The divine [player] brings light to the server!",
+        "⚡ SUPREME: [player] has entered with godlike power!",
+        "🏛️ [player] has blessed the server with their presence!"
     },
-
-    ['ultimate'] = {
-        '🌌 OMEGA: The omnipotent [player] has arrived!',
-        '👑 IMPERIAL: Emperor [player] rules the server!',
-        '💫 THE ULTIMATE: [player] transcends reality!',
-        '⚡ INFINITE: [player] has entered the dimension!',
-        '🌟 OMEGA TIER: [player] is beyond comprehension!',
+    
+    ["ultimate"] = {
+        "🌌 OMEGA: The omnipotent [player] has arrived!",
+        "👑 IMPERIAL: Emperor [player] rules the server!",
+        "💫 THE ULTIMATE: [player] transcends reality!",
+        "⚡ INFINITE: [player] has entered the dimension!",
+        "🌟 OMEGA TIER: [player] is beyond comprehension!"
     },
-
-    ['special'] = {
-        '🎪 The one and only Durp [player] has arrived!',
-        '🤡 Durp legend [player] just joined!',
-        '🎭 [player] the Durp master is here!',
-        '🎨 Artistic Durp [player] entered the server!',
-        '🎪 [player] brings the Durp energy!',
-    },
+    
+    ["special"] = {
+        "🎪 The one and only Durp [player] has arrived!",
+        "🤡 Durp legend [player] just joined!",
+        "🎭 [player] the Durp master is here!",
+        "🎨 Artistic Durp [player] entered the server!",
+        "🎪 [player] brings the Durp energy!"
+    }
 }
 
 -- Rank-based Leave Messages Configuration
 local RANK_LEAVE_MESSAGES = {
-    ['prohibit'] = {
-        '⛔ [player] has slithered away from the server.',
-        '🚫 [player] departed in shame.',
-        '😒 [player] has left (finally).',
-        '⚠️ [player] vanished into the shadows.',
-        '😤 [player] stormed out of the server.',
+    ["prohibit"] = {
+        "⛔ [player] has slithered away from the server.",
+        "🚫 [player] departed in shame.",
+        "😒 [player] has left (finally).",
+        "⚠️ [player] vanished into the shadows.",
+        "😤 [player] stormed out of the server."
     },
-
-    ['novice'] = {
-        '👋 Goodbye, newcomer [player]!',
-        '🌱 [player] has left to grow stronger!',
-        '✨ See you later, [player]!',
-        '🎉 [player] has departed the building!',
-        '👶 [player] went home for naptime!',
+    
+    ["novice"] = {
+        "👋 Goodbye, newcomer [player]!",
+        "🌱 [player] has left to grow stronger!",
+        "✨ See you later, [player]!",
+        "🎉 [player] has departed the building!",
+        "👶 [player] went home for naptime!"
     },
-
-    ['bronze'] = {
-        '🥉 Bronze warrior [player] has left the battlefield!',
-        '⚡ [player] charged out of the server!',
-        '🔸 [player] departed with honor!',
-        '🛡️ [player] has retreated strategically!',
-        '⭐ Rising star [player] left the server!',
+    
+    ["bronze"] = {
+        "🥉 Bronze warrior [player] has left the battlefield!",
+        "⚡ [player] charged out of the server!",
+        "🔸 [player] departed with honor!",
+        "🛡️ [player] has retreated strategically!",
+        "⭐ Rising star [player] left the server!"
     },
-
-    ['silver'] = {
-        '🥈 Silver champion [player] has departed!',
-        '✨ [player] faded away gracefully!',
-        '💫 [player] left in a shimmer of light!',
-        '🌟 [player] departed with silver grace!',
-        '⚡ [player] made a brilliant exit!',
+    
+    ["silver"] = {
+        "🥈 Silver champion [player] has departed!",
+        "✨ [player] faded away gracefully!",
+        "💫 [player] left in a shimmer of light!",
+        "🌟 [player] departed with silver grace!",
+        "⚡ [player] made a brilliant exit!"
     },
-
-    ['gold'] = {
-        '🥇 Golden warrior [player] has left in style!',
-        '👑 [player] departed with royal dignity!',
-        '✨ The magnificent [player] has left!',
-        '🌟 [player] left with golden glory!',
-        '💛 [player] departed in a blaze of gold!',
+    
+    ["gold"] = {
+        "🥇 Golden warrior [player] has left in style!",
+        "👑 [player] departed with royal dignity!",
+        "✨ The magnificent [player] has left!",
+        "🌟 [player] left with golden glory!",
+        "💛 [player] departed in a blaze of gold!"
     },
-
-    ['prestige'] = {
-        '💎 PRESTIGE: The legendary [player] has departed!',
-        '👑 Prestige player [player] left the realm!',
-        '✨ The prestigious [player] has ascended away!',
-        '🏆 Elite champion [player] left the server!',
-        '💫 [player] has transcended out of the server!',
+    
+    ["prestige"] = {
+        "💎 PRESTIGE: The legendary [player] has departed!",
+        "👑 Prestige player [player] left the realm!",
+        "✨ The prestigious [player] has ascended away!",
+        "🏆 Elite champion [player] left the server!",
+        "💫 [player] has transcended out of the server!"
     },
-
-    ['elite'] = {
-        '🔥 EPIC: The mythical [player] has vanished!',
-        '⚡ LEGENDARY: [player] has left the server!',
-        '🌟 Elite warrior [player] departed!',
-        '💥 [player] made an epic exit!',
-        '🎭 The elite [player] has left the stage!',
+    
+    ["elite"] = {
+        "🔥 EPIC: The mythical [player] has vanished!",
+        "⚡ LEGENDARY: [player] has left the server!",
+        "🌟 Elite warrior [player] departed!",
+        "💥 [player] made an epic exit!",
+        "🎭 The elite [player] has left the stage!"
     },
-
-    ['legendary'] = {
-        '🌌 LEGENDARY: The transcendent [player] has departed!',
-        '🚀 [player] has ascended to higher planes!',
-        '⭐ CELESTIAL: [player] returned to the heavens!',
-        '🌟 The legendary [player] has ascended!',
-        '🔮 [player] has phased out of reality!',
+    
+    ["legendary"] = {
+        "🌌 LEGENDARY: The transcendent [player] has departed!",
+        "🚀 [player] has ascended to higher planes!",
+        "⭐ CELESTIAL: [player] returned to the heavens!",
+        "🌟 The legendary [player] has ascended!",
+        "🔮 [player] has phased out of reality!"
     },
-
-    ['divine'] = {
-        '👼 DIVINE: The heavenly [player] has ascended!',
-        '✨ ETERNAL: [player] returned to the eternal realm!',
-        '🌅 The divine [player] departed to the heavens!',
-        '⚡ SUPREME: [player] left with godlike power!',
-        '🏛️ [player] has returned to the divine realm!',
+    
+    ["divine"] = {
+        "👼 DIVINE: The heavenly [player] has ascended!",
+        "✨ ETERNAL: [player] returned to the eternal realm!",
+        "🌅 The divine [player] departed to the heavens!",
+        "⚡ SUPREME: [player] left with godlike power!",
+        "🏛️ [player] has returned to the divine realm!"
     },
-
-    ['ultimate'] = {
-        '🌌 OMEGA: The omnipotent [player] has transcended!',
-        '👑 IMPERIAL: Emperor [player] left the mortal realm!',
-        '💫 THE ULTIMATE: [player] has left all dimensions!',
-        '⚡ INFINITE: [player] departed beyond comprehension!',
-        '🌟 OMEGA TIER: [player] transcended existence itself!',
+    
+    ["ultimate"] = {
+        "🌌 OMEGA: The omnipotent [player] has transcended!",
+        "👑 IMPERIAL: Emperor [player] left the mortal realm!",
+        "💫 THE ULTIMATE: [player] has left all dimensions!",
+        "⚡ INFINITE: [player] departed beyond comprehension!",
+        "🌟 OMEGA TIER: [player] transcended existence itself!"
     },
-
-    ['special'] = {
-        '🎪 The legendary Durp [player] has left!',
-        '🤡 Durp legend [player] departed!',
-        '🎭 [player] the Durp master left the stage!',
-        '🎨 Artistic Durp [player] left the server!',
-        '🎪 [player] took the Durp energy away!',
-    },
+    
+    ["special"] = {
+        "🎪 The legendary Durp [player] has left!",
+        "🤡 Durp legend [player] departed!",
+        "🎭 [player] the Durp master left the stage!",
+        "🎨 Artistic Durp [player] left the server!",
+        "🎪 [player] took the Durp energy away!"
+    }
 }
 
 -- Rank-specific music IDs from StacyCMD 36.luau
 local RANK_MUSIC_IDS = {
     -- Bronze I, II, III
-    ['Bronze I'] = 139141801896475,
-    ['Bronze II'] = 88464721999898,
-    ['Bronze III'] = 94644195639945,
-
-    -- Silver I, II, III
-    ['Silver I'] = 121168681054907,
-    ['Silver II'] = 95491219998708,
-    ['Silver III'] = 106546689865654,
-
+    ["Bronze I"] = 139141801896475,
+    ["Bronze II"] = 88464721999898,
+    ["Bronze III"] = 94644195639945,
+    
+    -- Silver I, II, III  
+    ["Silver I"] = 121168681054907,
+    ["Silver II"] = 95491219998708,
+    ["Silver III"] = 106546689865654,
+    
     -- Gold I, II, III
-    ['Gold I'] = 137829449852570,
-    ['Gold II'] = 111556910716996,
-    ['Gold III'] = 114290800690780,
-
+    ["Gold I"] = 137829449852570,
+    ["Gold II"] = 111556910716996,
+    ["Gold III"] = 114290800690780,
+    
     -- Platinum I, II, III
-    ['PlatinumI'] = 137789026267048,
-    ['PlatinumII'] = 100313888649595,
-    ['PlatinumIII'] = 77654325255030,
-
+    ["PlatinumI"] = 137789026267048,
+    ["PlatinumII"] = 100313888649595,
+    ["PlatinumIII"] = 77654325255030,
+    
     -- Diamond I, II, III
-    ['DiamondI'] = 129432314050795,
-    ['DiamondII'] = 83880206030828,
-    ['DiamondIII'] = 88453215499860,
-
+    ["DiamondI"] = 129432314050795,
+    ["DiamondII"] = 83880206030828,
+    ["DiamondIII"] = 88453215499860,
+    
     -- Grandmaster I, II, III
-    ['GrandmasterI'] = 127882141519372,
-    ['GrandmasterII'] = 94921861676860,
-    ['GrandmasterIII'] = 104036799692681,
-
+    ["GrandmasterI"] = 127882141519372,
+    ["GrandmasterII"] = 94921861676860,
+    ["GrandmasterIII"] = 104036799692681,
+    
     -- Epic I, II, III
-    ['Epic I'] = 81989168251747,
-    ['Epic II'] = 80120701278077,
-    ['Epic III'] = 85538081523591,
-
+    ["Epic I"] = 81989168251747,
+    ["Epic II"] = 80120701278077,
+    ["Epic III"] = 85538081523591,
+    
     -- Mythic I, II, III
-    ['Mythic I'] = 102408361503316,
-    ['Mythic II'] = 88221517850282,
-    ['Mythic III'] = 119850978492933,
-
+    ["Mythic I"] = 102408361503316,
+    ["Mythic II"] = 88221517850282,
+    ["Mythic III"] = 119850978492933,
+    
     -- Zenith I, II, III
-    ['Zenith I'] = 94010351474699,
-    ['Zenith II'] = 92816075750187,
-    ['Zenith III'] = 117480821092815,
+    ["Zenith I"] = 94010351474699,
+    ["Zenith II"] = 92816075750187,
+    ["Zenith III"] = 117480821092815
 }
 
 -- Specific rank sound effects from StacyCMD 36.luau
 local SPECIFIC_RANK_SOUNDS = {
     -- Novice tier sound
-    ['Novice'] = 2927319759,
-
+    ["Novice"] = 2927319759,
+    
     -- Bronze tier sounds
-    ['Bronze I'] = 109122972027408,
-    ['Bronze II'] = 109122972027408,
-    ['Bronze III'] = 122903309261344,
-
-    -- Silver tier sounds
-    ['Silver I'] = 129160822027882,
-    ['Silver II'] = 129160822027882,
-    ['Silver III'] = 132201495763206,
-
+    ["Bronze I"] = 109122972027408,
+    ["Bronze II"] = 109122972027408,
+    ["Bronze III"] = 122903309261344,
+    
+    -- Silver tier sounds  
+    ["Silver I"] = 129160822027882,
+    ["Silver II"] = 129160822027882,
+    ["Silver III"] = 132201495763206,
+    
     -- Gold tier sounds
-    ['Gold I'] = 103425748521144,
-    ['Gold II'] = 97035396433529,
-    ['Gold III'] = 129704045320962,
-
+    ["Gold I"] = 103425748521144,
+    ["Gold II"] = 97035396433529,
+    ["Gold III"] = 129704045320962,
+    
     -- Mythic tier sounds
-    ['Mythic I'] = 113821949976002,
-    ['Mythic II'] = 85779698721108,
-    ['Mythic III'] = 95964284023219,
-
+    ["Mythic I"] = 113821949976002,
+    ["Mythic II"] = 85779698721108,
+    ["Mythic III"] = 95964284023219,
+    
     -- Zenith tier sounds
-    ['Zenith I'] = 122018054885640,
-    ['Zenith II'] = 81588670454743,
-    ['Zenith III'] = 75019585119811,
-
+    ["Zenith I"] = 122018054885640,
+    ["Zenith II"] = 81588670454743,
+    ["Zenith III"] = 75019585119811,
+    
     -- Spawn tier special sound + effect
-    ['Spawn'] = 97455932101243,
+    ["Spawn"] = 97455932101243,
 }
 
 -- Tier-based music IDs from StacyCMD 36.luau
-local TIER_MUSIC_ID = 3269957051 -- Standard tier music
-local POST_25K_RANK_UP_MUSIC_ID = 86008809623143 -- 25k+ ranks (Legacy and above)
-local OMEGA_PROMOTION_MUSIC_ID = 97066579138178 -- Omega tier music
+local TIER_MUSIC_ID = 3269957051  -- Standard tier music
+local POST_25K_RANK_UP_MUSIC_ID = 86008809623143  -- 25k+ ranks (Legacy and above)
+local OMEGA_PROMOTION_MUSIC_ID = 97066579138178  -- Omega tier music
 
 -- Custom sound for Spawn and above ranks
 local SPAWN_AND_ABOVE_SOUND = 97455932101243
@@ -606,31 +591,19 @@ local function getRankMusic(rank)
     if SPECIFIC_RANK_SOUNDS[rank] then
         return SPECIFIC_RANK_SOUNDS[rank]
     end
-
+    
     -- For mid-tier ranks (Platinum, Diamond, Grandmaster, Epic), use specific music
-    if
-        rank:find('Platinum')
-        or rank:find('Diamond')
-        or rank:find('Grandmaster')
-        or rank:find('Epic')
-    then
+    if rank:find("Platinum") or rank:find("Diamond") or rank:find("Grandmaster") or rank:find("Epic") then
         return MID_TIER_MUSIC
     end
-
+    
     -- For high-tier ranks without specific sounds, use custom sound for Spawn and above
-    if
-        rank:find('Legacy')
-        or rank:find('Ascend')
-        or rank:find('Celest')
-        or rank:find('Divine')
-        or rank:find('Eternal')
-        or rank:find('Supreme')
-        or rank:find('Imperial')
-        or rank:find('Ω')
-    then
+    if rank:find("Legacy") or rank:find("Ascend") or rank:find("Celest") or 
+       rank:find("Divine") or rank:find("Eternal") or rank:find("Supreme") or 
+       rank:find("Imperial") or rank:find("Ω") then
         return SPAWN_AND_ABOVE_SOUND
     end
-
+    
     -- Default to standard tier music
     return TIER_MUSIC_ID
 end
@@ -638,67 +611,67 @@ end
 -- Function to get rank-appropriate music and colors
 local function getRankDisplayConfig(tier, specificRank)
     -- Get the appropriate music for this specific rank
-    local musicId = getRankMusic(specificRank or '')
-
+    local musicId = getRankMusic(specificRank or "")
+    
     local configs = {
-        ['prohibit'] = {
+        ["prohibit"] = {
             music = tostring(musicId), -- Use rank-specific or tier music
-            color = '255,100,100', -- Red
-            volume = 0.3,
+            color = "255,100,100", -- Red
+            volume = 0.3
         },
-        ['novice'] = {
+        ["novice"] = {
             music = tostring(musicId), -- Use rank-specific or tier music
-            color = '200,200,200', -- Light gray
-            volume = 0.5,
+            color = "200,200,200", -- Light gray
+            volume = 0.5
         },
-        ['bronze'] = {
+        ["bronze"] = {
             music = tostring(musicId), -- Use rank-specific or tier music
-            color = '205,127,50', -- Bronze color
-            volume = 0.6,
+            color = "205,127,50", -- Bronze color
+            volume = 0.6
         },
-        ['silver'] = {
+        ["silver"] = {
             music = tostring(musicId), -- Use rank-specific or tier music
-            color = '192,192,192', -- Silver color
-            volume = 0.7,
+            color = "192,192,192", -- Silver color
+            volume = 0.7
         },
-        ['gold'] = {
+        ["gold"] = {
             music = tostring(musicId), -- Use rank-specific or tier music
-            color = '255,215,0', -- Gold color
-            volume = 0.8,
+            color = "255,215,0", -- Gold color
+            volume = 0.8
         },
-        ['prestige'] = {
+        ["prestige"] = {
             music = tostring(musicId), -- Use rank-specific or tier music
-            color = '138,43,226', -- Purple
-            volume = 0.9,
+            color = "138,43,226", -- Purple
+            volume = 0.9
         },
-        ['elite'] = {
+        ["elite"] = {
             music = tostring(musicId), -- Use rank-specific or tier music
-            color = '255,20,147', -- Deep pink
-            volume = 1.0,
+            color = "255,20,147", -- Deep pink
+            volume = 1.0
         },
-        ['legendary'] = {
+        ["legendary"] = {
             music = tostring(musicId), -- Use rank-specific or tier music
-            color = '0,255,255', -- Cyan
-            volume = 1.2,
+            color = "0,255,255", -- Cyan
+            volume = 1.2
         },
-        ['divine'] = {
+        ["divine"] = {
             music = tostring(musicId), -- Use rank-specific or tier music
-            color = '255,255,255', -- Pure white
-            volume = 1.5,
+            color = "255,255,255", -- Pure white
+            volume = 1.5
         },
-        ['ultimate'] = {
+        ["ultimate"] = {
             music = tostring(musicId), -- Use rank-specific or tier music
-            color = '255,0,255', -- Magenta
-            volume = 2.0,
+            color = "255,0,255", -- Magenta
+            volume = 2.0
         },
-        ['special'] = {
+        ["special"] = {
             music = tostring(musicId), -- Use rank-specific or tier music
-            color = '255,165,0', -- Orange
-            volume = 1.0,
-        },
+            color = "255,165,0", -- Orange
+            volume = 1.0
+        }
     }
-
-    return configs[tier] or configs['novice']
+    
+    return configs[tier] or configs["novice"]
 end
 
 -- Main join function
@@ -707,34 +680,27 @@ local function onPlayerAdded(player)
     local playerSC = getPlayerSocialCredit(player.Name)
     local playerRank = getSocialCreditRank(playerSC, player.Name)
     local rankTier = getRankTier(playerRank)
-
+    
     -- Get appropriate messages for this rank tier
-    local messages = RANK_JOIN_MESSAGES[rankTier]
-        or RANK_JOIN_MESSAGES['novice']
-
+    local messages = RANK_JOIN_MESSAGES[rankTier] or RANK_JOIN_MESSAGES["novice"]
+    
     -- Generate a random join message
     local message = messages[math.random(1, #messages)]
-
+    
     -- Replace the [player] placeholder with the player's display name
-    message = message:gsub('%[player%]', player.DisplayName)
-
+    message = message:gsub("%[player%]", player.DisplayName)
+    
     -- Add rank information to the message
-    local rankInfo = ' [' .. playerRank .. ' - ' .. playerSC .. ' SC]'
+    local rankInfo = " [" .. playerRank .. " - " .. playerSC .. " SC]"
     message = message .. rankInfo
-
+    
     -- Get display configuration for this rank tier
     local config = getRankDisplayConfig(rankTier, playerRank)
-
+    
     -- Display the message in the chat with appropriate styling
     -- Execute music and chat commands separately to avoid pipe issues
-    chat(':music ' .. config.music .. ' true 1 1 ' .. config.volume)
-    chat(
-        ':chatnotifyc all '
-            .. config.color
-            .. " <font face= 'GothamBold'>"
-            .. message
-            .. '</font>'
-    )
+    chat(":music " .. config.music .. " true 1 1 " .. config.volume)
+    chat(":chatnotifyc all " .. config.color .. " <font face= 'GothamBold'>" .. message .. "</font>")
 end
 
 -- Main leave function
@@ -743,34 +709,27 @@ local function onPlayerRemoving(player)
     local playerSC = getPlayerSocialCredit(player.Name)
     local playerRank = getSocialCreditRank(playerSC, player.Name)
     local rankTier = getRankTier(playerRank)
-
+    
     -- Get appropriate messages for this rank tier
-    local messages = RANK_LEAVE_MESSAGES[rankTier]
-        or RANK_LEAVE_MESSAGES['novice']
-
+    local messages = RANK_LEAVE_MESSAGES[rankTier] or RANK_LEAVE_MESSAGES["novice"]
+    
     -- Generate a random leave message
     local message = messages[math.random(1, #messages)]
-
+    
     -- Replace the [player] placeholder with the player's display name
-    message = message:gsub('%[player%]', player.DisplayName)
-
+    message = message:gsub("%[player%]", player.DisplayName)
+    
     -- Add rank information to the message
-    local rankInfo = ' [' .. playerRank .. ' - ' .. playerSC .. ' SC]'
+    local rankInfo = " [" .. playerRank .. " - " .. playerSC .. " SC]"
     message = message .. rankInfo
-
+    
     -- Get display configuration for this rank tier
     local config = getRankDisplayConfig(rankTier, playerRank)
-
+    
     -- Display the message in the chat with appropriate styling (slightly different music for leaves)
     -- Execute music and chat commands separately to avoid pipe issues
-    chat(':music 3352057095 true 1 3 ' .. (config.volume * 0.7))
-    chat(
-        ':chatnotifyc all '
-            .. config.color
-            .. " <font face= 'GothamBold'>"
-            .. message
-            .. '</font>'
-    )
+    chat(":music 3352057095 true 1 3 " .. (config.volume * 0.7))
+    chat(":chatnotifyc all " .. config.color .. " <font face= 'GothamBold'>" .. message .. "</font>")
 end
 
 -- Data synchronization function (call this to sync with main StacyCMD data)
@@ -784,5 +743,5 @@ game.Players.PlayerRemoving:Connect(onPlayerRemoving)
 
 -- Export the sync function for use by main script
 return {
-    syncSocialCreditData = syncSocialCreditData,
+    syncSocialCreditData = syncSocialCreditData
 }
