@@ -1,0 +1,78 @@
+-- Test script for SetLocked functionality on all parts inside workspace.Storm model
+-- Toggles lock/unlock every 1 second
+
+local RunService = game:GetService('RunService')
+
+-- Get the Storm model
+local targetModel = workspace:FindFirstChild('Storm')
+
+if not targetModel then
+    warn('No Storm model found in workspace!')
+    return
+end
+
+-- Function to recursively find all parts in the model
+local function getAllParts(parent: Instance): { BasePart }
+    local parts = {}
+    for _, child in pairs(parent:GetChildren()) do
+        if child:IsA('BasePart') then
+            table.insert(parts, child)
+        elseif child:IsA('Model') or child:IsA('Folder') then
+            local subParts = getAllParts(child)
+            for _, part in pairs(subParts) do
+                table.insert(parts, part)
+            end
+        end
+    end
+    return parts
+end
+
+-- Get all parts in the Storm model once at start
+local allParts = getAllParts(targetModel)
+
+if #allParts == 0 then
+    warn('No parts found in Storm model!')
+    return
+end
+
+print('Target model found:', targetModel.Name)
+print('Found', #allParts, 'parts to lock/unlock')
+print('Starting SetLocked loop every 1 second...')
+
+local lastTime = 0
+local lockState = true -- Toggle between lock/unlock
+
+-- Connect to Heartbeat to run periodically
+local connection
+connection = RunService.Heartbeat:Connect(function()
+    local currentTime = tick()
+    if currentTime - lastTime >= 1.0 then
+        lastTime = currentTime
+
+        -- Prepare arguments for SetLocked with all parts
+        local args = {
+            [1] = 'SetLocked',
+            [2] = allParts,
+            [3] = lockState,
+        }
+
+        local success, result = pcall(function()
+            return game:GetService('Players').LocalPlayer.Backpack.Folder.SyncAPI.ServerEndpoint
+                :InvokeServer(unpack(args))
+        end)
+
+        if success then
+            print('SetLocked', #allParts, 'Storm parts to', lockState, '- Result:', result)
+        else
+            warn('SetLocked command failed:', result)
+        end
+
+        -- Toggle for next iteration
+        lockState = not lockState
+    end
+end)
+
+-- Cleanup: disconnect when script is destroyed or disabled
+script.Destroying:Connect(function()
+    if connection then connection:Disconnect() end
+end) 
