@@ -142,8 +142,7 @@ Notification.Gui = create("ScreenGui", {
 	}),
 })
 
-Notification.Gui.Parent = Plr.PlayerGui
-
+Notification.Gui.Parent = game:GetService("CoreGui")
 -- Scripts
 
 if Plr.Team ~= nil then
