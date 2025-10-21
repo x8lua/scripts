@@ -1,0 +1,6975 @@
+local Players = game:GetService('Players')
+local player = Players.LocalPlayer
+local HttpService = game:GetService('HttpService')
+local UserInputService = game:GetService('UserInputService')
+local RunService = game:GetService('RunService')
+local TweenService = game:GetService('TweenService')
+local Lighting = game:GetService('Lighting')
+local SoundService = game:GetService('SoundService')
+
+-- Load Fluent Renewed Library
+local Library = loadstring(
+	game:HttpGetAsync(
+		'https://github.com/ActualMasterOogway/Fluent-Renewed/releases/latest/download/Fluent.luau'
+	)
+)()
+local SaveManager = loadstring(
+	game:HttpGetAsync(
+		'https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/SaveManager.luau'
+	)
+)()
+local InterfaceManager = loadstring(
+	game:HttpGetAsync(
+		'https://raw.githubusercontent.com/ActualMasterOogway/Fluent-Renewed/master/Addons/InterfaceManager.luau'
+	)
+)()
+
+-- Create Window
+local Window = Library:CreateWindow({
+	Title = 'Forsaken Utilities',
+	SubTitle = 'by Formisc Team',
+	TabWidth = 160,
+	Size = UDim2.fromOffset(580, 490),
+	Resize = true,
+	MinSize = Vector2.new(470, 380),
+	Acrylic = true,
+	Theme = 'Dark',
+	MinimizeKey = Enum.KeyCode.RightControl,
+})
+
+-- Create Tabs
+local Tabs = {
+	Music = Window:CreateTab({
+		Title = 'Music',
+		Icon = 'lucide-music',
+	}),
+	Misc = Window:CreateTab({
+		Title = 'Misc',
+		Icon = 'lucide-settings',
+	}),
+	Settings = Window:CreateTab({
+		Title = 'Settings',
+		Icon = 'lucide-sliders',
+	}),
+}
+
+local Options = Library.Options
+
+-- UI Elements table to reduce local variable count
+local UI = {}
+
+-- ========================================
+-- MUSIC TAB
+-- ========================================
+	do
+-- create mp3 folders if they don't exist
+local lmsFolderName = 'forvids/LMS'
+local lobbyFolderName = 'forvids/Lobby'
+if not isfolder('forvids') then
+	makefolder('forvids')
+end
+if not isfolder(lmsFolderName) then
+	makefolder(lmsFolderName)
+end
+if not isfolder(lobbyFolderName) then
+	makefolder(lobbyFolderName)
+end
+
+-- mp3 file management
+local lmsFiles = {}
+local lobbyFiles = {}
+local supportedAudioFormats = { '.mp3', '.ogg', '.wav' }
+
+-- function to scan for LMS mp3 files
+local function scanLMSFiles()
+	lmsFiles = {}
+	if isfolder(lmsFolderName) then
+		local files = listfiles(lmsFolderName)
+		for _, filePath in ipairs(files) do
+			local fileName = filePath:match('([^/\\]+)$')
+			for _, format in ipairs(supportedAudioFormats) do
+				if fileName:lower():match(format .. '$') then
+					table.insert(lmsFiles, filePath)
+					break
+				end
+			end
+		end
+	end
+end
+
+-- function to scan for Lobby mp3 files
+local function scanLobbyFiles()
+	lobbyFiles = {}
+	if isfolder(lobbyFolderName) then
+		local files = listfiles(lobbyFolderName)
+		for _, filePath in ipairs(files) do
+			local fileName = filePath:match('([^/\\]+)$')
+			for _, format in ipairs(supportedAudioFormats) do
+				if fileName:lower():match(format .. '$') then
+					table.insert(lobbyFiles, filePath)
+					break
+				end
+			end
+		end
+	end
+end
+
+-- initial scan
+scanLMSFiles()
+scanLobbyFiles()
+
+-- LMS Music variables
+local LMS_TARGET_ID = '71057332615441'
+local selectedLMSPath = ''
+local isLMSEnabled = false
+local currentLMSSound = nil
+
+-- Lobby Music variables
+local selectedLobbyPath = ''
+local isLobbyEnabled = false
+local currentLobbySound = nil
+
+-- ========================================
+-- LAST SURVIVOR MUSIC SECTION
+-- ========================================
+
+Tabs.Music:CreateSection('🎵 Last Survivor Music')
+
+Tabs.Music:CreateParagraph('LMSStorageInfo', {
+	Title = '📁 LMS Storage Location',
+	Content = 'MP3 files are stored in: /forvids/LMS/\nMove any existing MP3s from /forvids/ to /forvids/LMS/',
+})
+
+-- LMS Download Section
+Tabs.Music:CreateSection('Download LMS MP3')
+
+local currentMp3URL = ''
+local customMp3Name = ''
+
+UI.Mp3URLInput = Tabs.Music:CreateInput('Mp3URL', {
+	Title = 'MP3 URL',
+	Default = '',
+	Placeholder = 'Enter direct mp3 file URL (.mp3, .ogg, .wav)',
+	Numeric = false,
+	Finished = false,
+	Callback = function(Value)
+		currentMp3URL = Value or ''
+	end,
+})
+
+UI.Mp3NameInput = Tabs.Music:CreateInput('Mp3Name', {
+	Title = 'Save As (optional)',
+	Default = '',
+	Placeholder = 'Custom filename without extension',
+	Numeric = false,
+	Finished = false,
+	Callback = function(Value)
+		customMp3Name = Value or ''
+	end,
+})
+
+Tabs.Music:CreateButton({
+	Title = 'Download & Add MP3',
+	Description = 'Download MP3 file to LMS folder',
+	Callback = function()
+		if currentMp3URL == '' then
+			Library:Notify({
+				Title = 'No URL',
+				Content = 'Please enter an MP3 URL first!',
+				Duration = 3,
+			})
+			return
+		end
+
+		print('Downloading mp3 from: ' .. currentMp3URL)
+
+		local success, result = pcall(function()
+			-- HTTP helper
+			local function performRequest(url)
+				local headers = {
+					['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+					['Accept'] = '*/*',
+					['Accept-Encoding'] = 'identity',
+					['Connection'] = 'close',
+				}
+				local req = { Url = url, Method = 'GET', Headers = headers }
+				if request then
+					return request(req)
+				elseif http_request then
+					return http_request(req)
+				elseif syn and syn.request then
+					return syn.request(req)
+				elseif http and http.request then
+					return http.request(req)
+				elseif fluxus and fluxus.request then
+					return fluxus.request(req)
+				else
+					error('No HTTP request method available!')
+				end
+			end
+
+			local function resolveUrl(baseUrl, location)
+				if location:match('^https?://') then
+					return location
+				end
+				local host = baseUrl:match('^(https?://[^/]+)')
+				if not host then
+					return location
+				end
+				if location:sub(1, 1) ~= '/' then
+					location = '/' .. location
+				end
+				return host .. location
+			end
+
+			local function fetchWithRedirects(url, maxHops)
+				local current = url
+				for _ = 1, maxHops do
+					local r = performRequest(current)
+					local sc = (r and r.StatusCode) or 0
+					if
+						sc == 301
+						or sc == 302
+						or sc == 303
+						or sc == 307
+						or sc == 308
+					then
+						local hdrs = (r and r.Headers) or {}
+						local loc
+						for k, v in pairs(hdrs) do
+							if tostring(k):lower() == 'location' then
+								loc = v
+								break
+							end
+						end
+						if not loc then
+							return r
+						end
+						current = resolveUrl(current, tostring(loc))
+					else
+						return r
+					end
+				end
+				return performRequest(current)
+			end
+
+			local res = fetchWithRedirects(currentMp3URL, 5)
+			local statusCode = (res and res.StatusCode) or 0
+			if statusCode < 200 or statusCode >= 300 then
+				error('HTTP error: ' .. tostring(statusCode))
+			end
+
+			local body = (res and res.Body) or ''
+			if type(body) ~= 'string' or #body < 32 then
+				error('Download returned no data or was too small')
+			end
+
+			-- determine filename
+			local function sanitize(str)
+				str = tostring(str or '')
+				str = str:gsub('[%\\/:*?"<>|]', '_')
+				str = str:gsub('%s+', ' ')
+				str = str:match('^%s*(.-)%s*$') or str
+				if str == '' then
+					return nil
+				end
+				return str
+			end
+
+			local baseName = sanitize(customMp3Name)
+			if not baseName then
+				local urlFile = (
+					currentMp3URL:match('([^/]+)$')
+					or 'audio_' .. tostring(math.floor(tick()))
+				)
+				urlFile = urlFile:match('([^?]+)') or urlFile
+				baseName = urlFile:gsub('%.[^%.]+$', '')
+				baseName = sanitize(baseName)
+					or ('audio_' .. tostring(math.floor(tick())))
+			end
+
+			-- detect extension
+			local ext = '.mp3'
+			local urlPath = currentMp3URL:match('([^?]+)') or currentMp3URL
+			local urlExt = urlPath:match('%.[A-Za-z0-9]+$')
+			if
+				urlExt
+						and (
+							urlExt == '.mp3'
+							or urlExt == '.ogg'
+							or urlExt == '.wav'
+						)
+			then
+				ext = urlExt
+			end
+
+			local fileName = baseName .. ext
+			local filePath = lmsFolderName .. '/' .. fileName
+			writefile(filePath, body)
+
+			return fileName
+		end)
+
+		if success then
+			print('✅ Successfully downloaded: ' .. result)
+			scanLMSFiles()
+			currentMp3URL = ''
+			customMp3Name = ''
+			Library:Notify({
+				Title = 'Download Complete',
+				Content = 'Successfully downloaded: ' .. result,
+				Duration = 3,
+			})
+		else
+			warn('❌ Download failed: ' .. tostring(result))
+			Library:Notify({
+				Title = 'Download Failed',
+				Content = tostring(result),
+				Duration = 5,
+			})
+		end
+	end,
+})
+
+-- LMS MP3 Selection Section
+Tabs.Music:CreateSection('Select LMS MP3')
+
+-- Create dropdown with LMS mp3 files
+local function getLMSValues()
+	local values = {}
+	for _, mp3Path in ipairs(lmsFiles) do
+		local mp3Name = mp3Path:match('([^/\\]+)$')
+		values[#values + 1] = mp3Name
+	end
+	return values
+end
+
+UI.LMSDropdown = Tabs.Music:CreateDropdown('LMSSelection', {
+	Title = 'Available LMS MP3 Files',
+	Values = getLMSValues(),
+	Multi = false,
+	Default = 1,
+})
+
+UI.LMSDropdown:OnChanged(function(Value)
+	-- find the full path from the filename
+	for _, mp3Path in ipairs(lmsFiles) do
+		local mp3Name = mp3Path:match('([^/\\]+)$')
+		if mp3Name == Value then
+			selectedLMSPath = mp3Path
+			print('Selected LMS MP3: ' .. mp3Name)
+			break
+		end
+	end
+end)
+
+-- function to apply LMS custom sound
+local function applyLMSCustomSound(soundObj)
+	if not soundObj or not soundObj:IsA('Sound') then
+		return
+	end
+	if selectedLMSPath == '' or not isfile(selectedLMSPath) then
+		return
+	end
+
+	local success, err = pcall(function()
+		local timePosition = soundObj.TimePosition
+		local wasPlaying = soundObj.Playing
+
+		if not isfile(selectedLMSPath) then
+			warn('File not found: ' .. selectedLMSPath)
+			return
+		end
+
+		local asset
+		if getcustomasset then
+			asset = getcustomasset(selectedLMSPath)
+		elseif getsynasset then
+			asset = getsynasset(selectedLMSPath)
+		end
+
+		if asset and asset ~= '' then
+			soundObj.SoundId = asset
+			soundObj.TimePosition = timePosition
+			if wasPlaying then
+				soundObj:Play()
+			end
+		else
+			warn('Failed to load custom asset for: ' .. selectedLMSPath)
+		end
+	end)
+
+	if not success then
+		warn('Error applying LMS custom sound: ' .. tostring(err))
+	end
+end
+
+-- function to restore original LMS sound
+local function restoreOriginalLMSSound(soundObj)
+	if not soundObj or not soundObj:IsA('Sound') then
+		return
+	end
+
+	pcall(function()
+		local timePosition = soundObj.TimePosition
+		local wasPlaying = soundObj.Playing
+
+		soundObj.SoundId = 'rbxassetid://' .. LMS_TARGET_ID
+		soundObj.Volume = 0.5
+		soundObj.TimePosition = timePosition
+		if wasPlaying then
+			soundObj:Play()
+		end
+	end)
+end
+
+-- function to find and monitor LMS sound
+local function findAndMonitorLMSSound()
+	local position = workspace:FindFirstChild('Themes')
+	if not position then
+		return nil
+	end
+
+	for _, obj in ipairs(position:GetDescendants()) do
+		if obj:IsA('Sound') and obj.Name == 'LastSurvivor' then
+			local sid = tostring(obj.SoundId)
+			if sid:find(LMS_TARGET_ID) then
+				return obj
+			elseif sid:find('rbxtempasset') or sid:find('rbxasset') then
+				if currentLMSSound == obj then
+					return obj
+				end
+				return nil
+			end
+			return nil
+		end
+	end
+	return nil
+end
+
+-- LMS Controls Section
+Tabs.Music:CreateSection('LMS Controls')
+
+UI.LMSMusicToggle = Tabs.Music:CreateToggle('LMSMusic', {
+	Title = 'Enable Custom LMS Music',
+	Description = 'Replace Last Survivor music with custom mp3',
+	Default = false,
+})
+
+UI.LMSMusicToggle:OnChanged(function()
+	isLMSEnabled = Options.LMSMusic.Value
+
+	if isLMSEnabled then
+		if selectedLMSPath == '' or not isfile(selectedLMSPath) then
+			Library:Notify({
+				Title = '⚠️ No LMS MP3 Selected',
+				Content = 'Please select an MP3 file from the list above!',
+				Duration = 5,
+			})
+			Options.LMSMusic:SetValue(false)
+			return
+		end
+
+		local position = workspace:FindFirstChild('Themes')
+		if position then
+			for _, obj in ipairs(position:GetDescendants()) do
+				if obj:IsA('Sound') and obj.Name == 'LastSurvivor' then
+					local sid = tostring(obj.SoundId)
+					if
+						not sid:find(LMS_TARGET_ID)
+						and not sid:find('rbxtempasset')
+						and not sid:find('rbxasset')
+					then
+						Library:Notify({
+							Title = '⚠️ Incompatible Sound ID',
+							Content = "LastSurvivor sound found but ID doesn't match "
+								.. LMS_TARGET_ID,
+							Duration = 6,
+						})
+						Options.LMSMusic:SetValue(false)
+						return
+					end
+				end
+			end
+		end
+
+		currentLMSSound = findAndMonitorLMSSound()
+		if currentLMSSound then
+			applyLMSCustomSound(currentLMSSound)
+			Library:Notify({
+				Title = '✅ Custom LMS Music Enabled',
+				Content = 'Last Survivor music replaced with your custom MP3',
+				Duration = 3,
+			})
+		else
+			Library:Notify({
+				Title = '🔍 LMS Monitoring Active',
+				Content = 'Waiting for Last Survivor music to play...',
+				Duration = 4,
+			})
+		end
+	else
+		if currentLMSSound then
+			local sid = tostring(currentLMSSound.SoundId)
+			if sid:find('rbxtempasset') or sid:find('rbxasset') then
+				restoreOriginalLMSSound(currentLMSSound)
+				Library:Notify({
+					Title = '🔄 Custom LMS Music Disabled',
+					Content = 'Restored original Last Survivor music',
+					Duration = 3,
+				})
+			else
+				currentLMSSound = nil
+				Library:Notify({
+					Title = '🔄 Custom LMS Music Disabled',
+					Content = 'Monitoring stopped',
+					Duration = 3,
+				})
+			end
+		end
+	end
+end)
+
+-- continuous monitoring for LMS sound
+spawn(function()
+	while true do
+		wait(0.1)
+
+		if isLMSEnabled then
+			local sound = findAndMonitorLMSSound()
+
+			if sound and sound ~= currentLMSSound then
+				currentLMSSound = sound
+				applyLMSCustomSound(sound)
+			elseif sound and currentLMSSound then
+				local sid = tostring(sound.SoundId)
+						if
+							sid:find(LMS_TARGET_ID) and not sid:find('rbxtempasset')
+						then
+					applyLMSCustomSound(sound)
+				end
+			end
+		end
+	end
+end)
+
+-- ========================================
+-- LOBBY MUSIC SECTION
+-- ========================================
+
+Tabs.Music:CreateSection('🎶 Lobby Music')
+
+Tabs.Music:CreateParagraph('LobbyStorageInfo', {
+	Title = '📁 Lobby Storage Location',
+	Content = 'MP3 files are stored in: /forvids/Lobby/',
+})
+
+-- Lobby Download Section
+Tabs.Music:CreateSection('Download Lobby MP3')
+
+local currentLobbyURL = ''
+local customLobbyName = ''
+
+UI.LobbyURLInput = Tabs.Music:CreateInput('LobbyURL', {
+	Title = 'Lobby MP3 URL',
+	Default = '',
+	Placeholder = 'Enter direct mp3 file URL (.mp3, .ogg, .wav)',
+	Numeric = false,
+	Finished = false,
+	Callback = function(Value)
+		currentLobbyURL = Value or ''
+	end,
+})
+
+UI.LobbyNameInput = Tabs.Music:CreateInput('LobbyName', {
+	Title = 'Save As (optional)',
+	Default = '',
+	Placeholder = 'Custom filename without extension',
+	Numeric = false,
+	Finished = false,
+	Callback = function(Value)
+		customLobbyName = Value or ''
+	end,
+})
+
+Tabs.Music:CreateButton({
+	Title = 'Download & Add Lobby MP3',
+	Description = 'Download MP3 file to Lobby folder',
+	Callback = function()
+		if currentLobbyURL == '' then
+			Library:Notify({
+				Title = 'No URL',
+				Content = 'Please enter an MP3 URL first!',
+				Duration = 3,
+			})
+			return
+		end
+
+		print('Downloading lobby mp3 from: ' .. currentLobbyURL)
+
+		local success, result = pcall(function()
+			-- HTTP helper
+			local function performRequest(url)
+				local headers = {
+					['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+					['Accept'] = '*/*',
+					['Accept-Encoding'] = 'identity',
+					['Connection'] = 'close',
+				}
+				local req = { Url = url, Method = 'GET', Headers = headers }
+				if request then
+					return request(req)
+				elseif http_request then
+					return http_request(req)
+				elseif syn and syn.request then
+					return syn.request(req)
+				elseif http and http.request then
+					return http.request(req)
+				elseif fluxus and fluxus.request then
+					return fluxus.request(req)
+				else
+					error('No HTTP request method available!')
+				end
+			end
+
+			local function resolveUrl(baseUrl, location)
+				if location:match('^https?://') then
+					return location
+				end
+				local host = baseUrl:match('^(https?://[^/]+)')
+				if not host then
+					return location
+				end
+				if location:sub(1, 1) ~= '/' then
+					location = '/' .. location
+				end
+				return host .. location
+			end
+
+			local function fetchWithRedirects(url, maxHops)
+				local current = url
+				for _ = 1, maxHops do
+					local r = performRequest(current)
+					local sc = (r and r.StatusCode) or 0
+					if
+						sc == 301
+						or sc == 302
+						or sc == 303
+						or sc == 307
+						or sc == 308
+					then
+						local hdrs = (r and r.Headers) or {}
+						local loc
+						for k, v in pairs(hdrs) do
+							if tostring(k):lower() == 'location' then
+								loc = v
+								break
+							end
+						end
+						if not loc then
+							return r
+						end
+						current = resolveUrl(current, tostring(loc))
+					else
+						return r
+					end
+				end
+				return performRequest(current)
+			end
+
+			local res = fetchWithRedirects(currentLobbyURL, 5)
+			local statusCode = (res and res.StatusCode) or 0
+			if statusCode < 200 or statusCode >= 300 then
+				error('HTTP error: ' .. tostring(statusCode))
+			end
+
+			local body = (res and res.Body) or ''
+			if type(body) ~= 'string' or #body < 32 then
+				error('Download returned no data or was too small')
+			end
+
+			-- determine filename
+			local function sanitize(str)
+				str = tostring(str or '')
+				str = str:gsub('[%\\/:*?"<>|]', '_')
+				str = str:gsub('%s+', ' ')
+				str = str:match('^%s*(.-)%s*$') or str
+				if str == '' then
+					return nil
+				end
+				return str
+			end
+
+			local baseName = sanitize(customLobbyName)
+			if not baseName then
+				local urlFile = (
+					currentLobbyURL:match('([^/]+)$')
+					or 'audio_' .. tostring(math.floor(tick()))
+				)
+				urlFile = urlFile:match('([^?]+)') or urlFile
+				baseName = urlFile:gsub('%.[^%.]+$', '')
+				baseName = sanitize(baseName)
+					or ('audio_' .. tostring(math.floor(tick())))
+			end
+
+			-- detect extension
+			local ext = '.mp3'
+					local urlPath = currentLobbyURL:match('([^?]+)')
+						or currentLobbyURL
+			local urlExt = urlPath:match('%.[A-Za-z0-9]+$')
+			if
+				urlExt
+						and (
+							urlExt == '.mp3'
+							or urlExt == '.ogg'
+							or urlExt == '.wav'
+						)
+			then
+				ext = urlExt
+			end
+
+			local fileName = baseName .. ext
+			local filePath = lobbyFolderName .. '/' .. fileName
+			writefile(filePath, body)
+
+			return fileName
+		end)
+
+		if success then
+			print('✅ Successfully downloaded lobby mp3: ' .. result)
+			scanLobbyFiles()
+			currentLobbyURL = ''
+			customLobbyName = ''
+			Library:Notify({
+				Title = 'Download Complete',
+				Content = 'Successfully downloaded: ' .. result,
+				Duration = 3,
+			})
+		else
+			warn('❌ Lobby download failed: ' .. tostring(result))
+			Library:Notify({
+				Title = 'Download Failed',
+				Content = tostring(result),
+				Duration = 5,
+			})
+		end
+	end,
+})
+
+-- Lobby MP3 Selection Section
+Tabs.Music:CreateSection('Select Lobby MP3')
+
+-- Create dropdown with Lobby mp3 files
+local function getLobbyValues()
+	local values = {}
+	for _, mp3Path in ipairs(lobbyFiles) do
+		local mp3Name = mp3Path:match('([^/\\]+)$')
+		values[#values + 1] = mp3Name
+	end
+	return values
+end
+
+UI.LobbyDropdown = Tabs.Music:CreateDropdown('LobbySelection', {
+	Title = 'Available Lobby MP3 Files',
+	Values = getLobbyValues(),
+	Multi = false,
+	Default = 1,
+})
+
+UI.LobbyDropdown:OnChanged(function(Value)
+	-- find the full path from the filename
+	for _, mp3Path in ipairs(lobbyFiles) do
+		local mp3Name = mp3Path:match('([^/\\]+)$')
+		if mp3Name == Value then
+			selectedLobbyPath = mp3Path
+			print('Selected Lobby MP3: ' .. mp3Name)
+			break
+		end
+	end
+end)
+
+-- function to apply Lobby custom sound
+local function applyLobbyCustomSound(soundObj)
+	if not soundObj or not soundObj:IsA('Sound') then
+		return
+	end
+	if selectedLobbyPath == '' or not isfile(selectedLobbyPath) then
+		return
+	end
+
+	local success, err = pcall(function()
+		local timePosition = soundObj.TimePosition
+		local wasPlaying = soundObj.Playing
+
+		if not isfile(selectedLobbyPath) then
+			warn('File not found: ' .. selectedLobbyPath)
+			return
+		end
+
+		local asset
+		if getcustomasset then
+			asset = getcustomasset(selectedLobbyPath)
+		elseif getsynasset then
+			asset = getsynasset(selectedLobbyPath)
+		end
+
+		if asset and asset ~= '' then
+			soundObj.SoundId = asset
+			soundObj.TimePosition = timePosition
+			if wasPlaying then
+				soundObj:Play()
+			end
+		else
+			warn('Failed to load custom asset for: ' .. selectedLobbyPath)
+		end
+	end)
+
+	if not success then
+		warn('Error applying Lobby custom sound: ' .. tostring(err))
+	end
+end
+
+-- function to restore original Lobby sound
+local function restoreOriginalLobbySound(soundObj)
+	if not soundObj or not soundObj:IsA('Sound') then
+		return
+	end
+
+	pcall(function()
+		local timePosition = soundObj.TimePosition
+		local wasPlaying = soundObj.Playing
+		local originalId = soundObj:GetAttribute('OriginalSoundId')
+
+		if originalId then
+			soundObj.SoundId = originalId
+			soundObj.TimePosition = timePosition
+			if wasPlaying then
+				soundObj:Play()
+			end
+		end
+	end)
+end
+
+-- function to find and monitor Lobby sound
+local function findAndMonitorLobbySound()
+	local themesFolder = workspace:FindFirstChild('Themes')
+	if not themesFolder then
+		return nil
+	end
+
+	local lobbySound = themesFolder:FindFirstChild('lobby')
+	if lobbySound and lobbySound:IsA('Sound') then
+		local sid = tostring(lobbySound.SoundId)
+		-- Store original ID if not already stored
+		if
+			not lobbySound:GetAttribute('OriginalSoundId')
+			and not sid:find('rbxtempasset')
+			and not sid:find('rbxasset')
+		then
+			lobbySound:SetAttribute('OriginalSoundId', sid)
+		end
+
+		if sid:find('rbxtempasset') or sid:find('rbxasset') then
+			if currentLobbySound == lobbySound then
+				return lobbySound
+			end
+		else
+			return lobbySound
+		end
+	end
+
+	return nil
+end
+
+-- Lobby Controls Section
+Tabs.Music:CreateSection('Lobby Controls')
+
+UI.LobbyMusicToggle = Tabs.Music:CreateToggle('LobbyMusic', {
+	Title = 'Enable Custom Lobby Music',
+	Description = 'Replace Lobby music with custom mp3',
+	Default = false,
+})
+
+UI.LobbyMusicToggle:OnChanged(function()
+	isLobbyEnabled = Options.LobbyMusic.Value
+
+	if isLobbyEnabled then
+		if selectedLobbyPath == '' or not isfile(selectedLobbyPath) then
+			Library:Notify({
+				Title = '⚠️ No Lobby MP3 Selected',
+				Content = 'Please select an MP3 file from the list above!',
+				Duration = 5,
+			})
+			Options.LobbyMusic:SetValue(false)
+			return
+		end
+
+		currentLobbySound = findAndMonitorLobbySound()
+		if currentLobbySound then
+			applyLobbyCustomSound(currentLobbySound)
+			Library:Notify({
+				Title = '✅ Custom Lobby Music Enabled',
+				Content = 'Lobby music replaced with your custom MP3',
+				Duration = 3,
+			})
+		else
+			Library:Notify({
+				Title = '🔍 Lobby Monitoring Active',
+				Content = 'Waiting for Lobby music to play...',
+				Duration = 4,
+			})
+		end
+	else
+		if currentLobbySound then
+			local sid = tostring(currentLobbySound.SoundId)
+			if sid:find('rbxtempasset') or sid:find('rbxasset') then
+				restoreOriginalLobbySound(currentLobbySound)
+				Library:Notify({
+					Title = '🔄 Custom Lobby Music Disabled',
+					Content = 'Restored original Lobby music',
+					Duration = 3,
+				})
+			else
+				currentLobbySound = nil
+				Library:Notify({
+					Title = '🔄 Custom Lobby Music Disabled',
+					Content = 'Monitoring stopped',
+					Duration = 3,
+				})
+			end
+		end
+	end
+end)
+
+-- continuous monitoring for Lobby sound
+spawn(function()
+	while true do
+		wait(0.1)
+
+		if isLobbyEnabled then
+			local sound = findAndMonitorLobbySound()
+
+			if sound and sound ~= currentLobbySound then
+				currentLobbySound = sound
+				applyLobbyCustomSound(sound)
+			elseif sound and currentLobbySound then
+				local sid = tostring(sound.SoundId)
+				if
+							not sid:find('rbxtempasset')
+							and not sid:find('rbxasset')
+				then
+					applyLobbyCustomSound(sound)
+				end
+			end
+		end
+	end
+end)
+
+-- auto-scan for new mp3 files
+spawn(function()
+	while true do
+		wait(5)
+		local oldLMSCount = #lmsFiles
+		local oldLobbyCount = #lobbyFiles
+
+		scanLMSFiles()
+		scanLobbyFiles()
+
+		if #lmsFiles ~= oldLMSCount then
+			LMSDropdown:SetValues(getLMSValues())
+		end
+		if #lobbyFiles ~= oldLobbyCount then
+			LobbyDropdown:SetValues(getLobbyValues())
+		end
+	end
+end)
+	end -- End MUSIC TAB scope
+
+-- ========================================
+	-- SHARED: GUNSHOT SOUND SAVE SYSTEM
+	-- (Used by both MISC TAB and SETTINGS TAB)
+-- ========================================
+
+	-- Gunshot Sound Save System
+	local gunshotSaveFile = 'gunshot_sounds.json'
+	local savedGunshotSounds = {}
+	local gunshotDropdownOptions = { 'Select Saved Sound' }
+	local currentGunshotDropdown = nil
+
+	-- Target sound IDs to replace
+	local TARGET_GUNSHOT_IDS = {
+		'rbxassetid://94081182837305',
+		'rbxassetid://112970442457481',
+	}
+
+	-- Helper function to check if a sound ID is a target gunshot
+	local function isTargetGunshotSound(soundId)
+		for _, targetId in pairs(TARGET_GUNSHOT_IDS) do
+			if soundId == targetId then
+				return true
+			end
+		end
+		return false
+	end
+
+	-- Forward declarations
+	local updateRemoveDropdownOptions
+
+	local function updateGunshotDropdownOptions()
+		gunshotDropdownOptions = { 'Select Saved Sound' }
+
+		for _, sound in ipairs(savedGunshotSounds) do
+			table.insert(
+				gunshotDropdownOptions,
+				sound.name .. ' (' .. sound.soundId .. ')'
+			)
+		end
+
+		-- Refresh dropdown if it exists
+		if currentGunshotDropdown and currentGunshotDropdown.SetValues then
+			pcall(function()
+				currentGunshotDropdown:SetValues(gunshotDropdownOptions)
+			end)
+		end
+
+		-- Also update remove dropdown
+		if updateRemoveDropdownOptions then
+			updateRemoveDropdownOptions()
+		end
+	end
+
+	local function loadGunshotSounds()
+		local success, result = pcall(function()
+			if isfile(gunshotSaveFile) then
+				local data = readfile(gunshotSaveFile)
+				return HttpService:JSONDecode(data)
+			end
+			return {}
+		end)
+
+		if success and type(result) == 'table' then
+			savedGunshotSounds = result
+			print('🔫 Loaded', #savedGunshotSounds, 'saved gunshot sounds')
+		else
+			savedGunshotSounds = {}
+			print('🔫 No saved gunshot sounds found, starting fresh')
+		end
+
+		updateGunshotDropdownOptions()
+	end
+
+	local function saveGunshotSounds()
+		local success, error = pcall(function()
+			local data = HttpService:JSONEncode(savedGunshotSounds)
+			writefile(gunshotSaveFile, data)
+		end)
+
+		if success then
+			print('🔫 Gunshot sounds saved successfully')
+			return true
+		else
+			print('❌ Failed to save gunshot sounds:', error)
+			return false
+		end
+	end
+
+	local function addGunshotSound(name, soundId)
+		if name == '' or soundId == '' then
+			return false, 'Name and Sound ID cannot be empty'
+		end
+
+		-- Check if name already exists
+		for i, sound in ipairs(savedGunshotSounds) do
+			if sound.name == name then
+				return false, 'Sound name already exists'
+			end
+		end
+
+		table.insert(savedGunshotSounds, {
+			name = name,
+			soundId = soundId,
+			timestamp = os.time(),
+		})
+
+		saveGunshotSounds()
+		updateGunshotDropdownOptions()
+		return true, 'Sound saved successfully'
+	end
+
+	local function removeGunshotSound(name)
+		if not name or name == '' or name == 'Select Saved Sound' then
+			return false, 'Please select a valid sound to remove'
+		end
+
+		-- Extract sound name from dropdown format "Name (ID)"
+		local soundName = name:match('^(.+) %(.+%)$') or name
+
+		-- Find and remove the sound
+		for i, sound in ipairs(savedGunshotSounds) do
+			if sound.name == soundName then
+				table.remove(savedGunshotSounds, i)
+				saveGunshotSounds()
+				updateGunshotDropdownOptions()
+				if updateRemoveDropdownOptions then
+					updateRemoveDropdownOptions()
+				end
+				return true, "Sound '" .. soundName .. "' removed successfully"
+			end
+		end
+
+		return false, 'Sound not found in saved list'
+	end
+
+	function updateRemoveDropdownOptions()
+		local removeOptions = { 'Select Sound to Remove' }
+
+		for _, sound in ipairs(savedGunshotSounds) do
+			table.insert(
+				removeOptions,
+				sound.name .. ' (' .. sound.soundId .. ')'
+			)
+		end
+
+		-- Refresh remove dropdown if it exists
+		if UI.GunshotRemoveDropdown and UI.GunshotRemoveDropdown.SetValues then
+			pcall(function()
+				UI.GunshotRemoveDropdown:SetValues(removeOptions)
+			end)
+		end
+	end
+
+	-- ========================================
+	-- MISC TAB
+	-- ========================================
+	do
+-- Stamina Warning Section
+		do -- Isolated scope for Stamina Warning
+Tabs.Misc:CreateSection('⚠️ Stamina Warning')
+
+Tabs.Misc:CreateParagraph('StaminaWarningInfo', {
+	Title = 'Visual stamina warning overlay',
+	Content = 'Shows screen shake and color flicker when stamina is low',
+})
+
+local staminaWarningActive = false
+local staminaWarningCleanup = nil
+
+local function startStaminaWarning()
+	if not staminaWarningActive then
+		return
+	end
+
+	if staminaWarningCleanup then
+		staminaWarningCleanup()
+		staminaWarningCleanup = nil
+	end
+
+	local TweenService = game:GetService('TweenService')
+	local camera = workspace.CurrentCamera
+
+	local success, staminaValue = pcall(function()
+		return player
+			:WaitForChild('PlayerGui', 5)
+			:WaitForChild('TemporaryUI', 5)
+			:WaitForChild('PlayerInfo', 5)
+			:WaitForChild('Bars', 5)
+			:WaitForChild('Stamina', 5)
+			:WaitForChild('Amount', 5)
+	end)
+
+	if not success or not staminaValue then
+		Library:Notify({
+			Title = '❌ Stamina Warning Failed',
+			Content = 'Could not find stamina UI element',
+			Duration = 4,
+		})
+		return
+	end
+
+	local screenGui = Instance.new('ScreenGui')
+	screenGui.Name = 'StaminaScreen'
+	screenGui.IgnoreGuiInset = true
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = player:WaitForChild('PlayerGui')
+
+	local textLabel = Instance.new('TextLabel')
+	textLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+	textLabel.Position = UDim2.new(0.5, 0, 0.58, 0)
+	textLabel.Size = UDim2.new(1.5, 0, 1.5, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	textLabel.TextTransparency = 1
+	textLabel.Font = Enum.Font.GothamBlack
+	textLabel.TextScaled = true
+	textLabel.Text = 'Loading...'
+	textLabel.ZIndex = 3
+	textLabel.TextStrokeTransparency = 0.8
+	textLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+	textLabel.Parent = screenGui
+
+	local vignette = Instance.new('ImageLabel')
+	vignette.Size = UDim2.new(1, 0, 1, 0)
+	vignette.Position = UDim2.new(0, 0, 0, 0)
+	vignette.BackgroundTransparency = 1
+	vignette.Image = 'rbxassetid://3156051342'
+	vignette.ImageTransparency = 1
+	vignette.ScaleType = Enum.ScaleType.Fit
+	vignette.ZIndex = 2
+	vignette.Parent = screenGui
+
+	local running = true
+	local flickState = false
+	local lastFlick = 0
+	local isZeroTriggered = false
+
+	local function fadeVignette(targetAlpha, speed)
+		TweenService
+					:Create(
+						vignette,
+						TweenInfo.new(speed, Enum.EasingStyle.Linear),
+						{
+				ImageTransparency = targetAlpha,
+						}
+					)
+			:Play()
+	end
+
+	local function setTextTransparency(value, speed)
+		TweenService
+					:Create(
+						textLabel,
+						TweenInfo.new(speed, Enum.EasingStyle.Linear),
+						{
+				TextTransparency = value,
+						}
+					)
+			:Play()
+	end
+
+	local renderConnection = RunService.RenderStepped:Connect(function()
+		if not running or not staminaWarningActive then
+			running = false
+			return
+		end
+
+		local text = staminaValue.Text or '0/100'
+		textLabel.Text = text
+
+		local current, total = string.match(text, '(%d+)%s*/%s*(%d+)')
+		current = tonumber(current) or 0
+		total = tonumber(total) or 100
+		local ratio = math.clamp(current / total, 0, 1)
+
+		if current == 0 and not isZeroTriggered then
+			isZeroTriggered = true
+			textLabel.Text = 'fuck you'
+
+			TweenService:Create(
+				textLabel,
+				TweenInfo.new(
+					1,
+					Enum.EasingStyle.Quad,
+					Enum.EasingDirection.Out
+				),
+				{
+					TextTransparency = 1,
+				}
+			):Play()
+
+			task.delay(1.1, function()
+				isZeroTriggered = false
+			end)
+			return
+		end
+
+		if ratio <= 0.3 then
+			local strength = 1 - (ratio / 0.3)
+			local textTransparency = 1 - (0.9 * strength)
+			local vignetteAlpha = 1 - (strength * 0.9)
+			setTextTransparency(textTransparency, 0.1)
+			fadeVignette(vignetteAlpha, 0.1)
+		else
+			setTextTransparency(1, 0.2)
+			fadeVignette(1, 0.3)
+		end
+
+		if ratio <= 0.3 then
+					local flickInterval =
+						math.clamp((ratio ^ 2.2) * 0.25, 0.03, 0.25)
+			if tick() - lastFlick >= flickInterval then
+				lastFlick = tick()
+				flickState = not flickState
+						local targetColor = flickState
+								and Color3.fromRGB(255, 80, 80)
+					or Color3.fromRGB(255, 255, 255)
+						TweenService
+							:Create(
+					textLabel,
+								TweenInfo.new(
+									flickInterval / 2,
+									Enum.EasingStyle.Quad
+								),
+					{
+						TextColor3 = targetColor,
+					}
+							)
+							:Play()
+			end
+		else
+			textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		end
+
+		if ratio <= 0.3 then
+					local strength = (ratio > 0.16)
+							and ((0.3 - ratio) / (0.3 - 0.16))
+				or 1
+			local intensity = 0.5 * strength + 0.15
+			local offsetX = (math.random() - 0.5) * intensity
+			local offsetY = (math.random() - 0.5) * intensity
+			camera.CFrame = camera.CFrame * CFrame.new(offsetX, offsetY, 0)
+			textLabel.Position = UDim2.new(
+				0.5,
+				math.random(-10 * strength, 10 * strength),
+				0.58,
+				math.random(-10 * strength, 10 * strength)
+			)
+		else
+			textLabel.Position = UDim2.new(0.5, 0, 0.58, 0)
+		end
+	end)
+
+	staminaWarningCleanup = function()
+		running = false
+		if renderConnection then
+			renderConnection:Disconnect()
+		end
+		if screenGui then
+			screenGui:Destroy()
+		end
+	end
+
+	Library:Notify({
+		Title = '✅ Stamina Warning Enabled',
+		Content = 'Visual overlay will appear when stamina is low',
+		Duration = 3,
+	})
+end
+
+UI.StaminaWarningToggle = Tabs.Misc:CreateToggle('StaminaWarning', {
+	Title = 'Enable Stamina Warning',
+	Description = 'Show visual warning overlay when stamina is low',
+	Default = false,
+})
+
+UI.StaminaWarningToggle:OnChanged(function()
+	staminaWarningActive = Options.StaminaWarning.Value
+
+	if staminaWarningActive then
+		startStaminaWarning()
+	else
+		if staminaWarningCleanup then
+			staminaWarningCleanup()
+			staminaWarningCleanup = nil
+		end
+
+		Library:Notify({
+			Title = '🔄 Stamina Warning Disabled',
+			Content = 'Visual overlay has been removed',
+			Duration = 3,
+		})
+	end
+end)
+
+player.CharacterAdded:Connect(function()
+	if staminaWarningActive then
+		task.wait(1)
+		startStaminaWarning()
+		print('🔄 Stamina Warning auto-restarted after respawn')
+	end
+end)
+		end -- End Stamina Warning scope
+
+-- ========================================
+-- INFINITE STAMINA (REAL DISPLAY + AUTO DETECT MAX)
+-- ========================================
+		do -- Isolated scope for Infinite Stamina
+
+Tabs.Misc:CreateSection('♾️ Infinite Stamina')
+
+Tabs.Misc:CreateParagraph('InfStaminaInfo', {
+	Title = 'Infinite Stamina',
+	Content = 'Infinite stamina, but shows your real stamina bar value.',
+})
+
+local infStaminaEnabled = false
+
+local function getMaxStaminaFromUI()
+	local player = game:GetService('Players').LocalPlayer
+	local success, maxValue = pcall(function()
+		local txt = player
+			:WaitForChild('PlayerGui')
+			:WaitForChild('TemporaryUI')
+			:WaitForChild('PlayerInfo')
+			:WaitForChild('Bars')
+			:WaitForChild('Stamina')
+			:WaitForChild('Amount').Text
+		-- Extract "XX/110" → 110
+		local right = string.match(txt, '/(%d+)')
+		return tonumber(right)
+	end)
+	return success and maxValue or 100
+	end
+
+		local function setStaminaImmediate()
+			-- Immediately set stamina to max (for respawn safety)
+			local ok, staminaModule = pcall(function()
+				local Sprinting = game:GetService('ReplicatedStorage')
+					:WaitForChild('Systems', 5)
+					:WaitForChild('Character', 5)
+					:WaitForChild('Game', 5)
+					:WaitForChild('Sprinting', 5)
+				return require(Sprinting)
+			end)
+
+			if ok and staminaModule then
+				local maxStam = getMaxStaminaFromUI()
+				staminaModule.MaxStamina = maxStam
+				staminaModule.MinStamina = -100
+				staminaModule.StaminaLossDisabled = false
+				staminaModule.Stamina = maxStam
+				if staminaModule.StaminaChanged then
+					staminaModule.StaminaChanged:Fire()
+				end
+				return true
+			end
+			return false
+end
+
+local function startInfStamina()
+	if infStaminaEnabled then
+		return
+	end
+	infStaminaEnabled = true
+
+			-- Set stamina immediately when enabled
+			setStaminaImmediate()
+
+	task.spawn(function()
+		while infStaminaEnabled do
+			task.wait(0.1)
+			local ok, staminaModule = pcall(function()
+				local Sprinting = game:GetService('ReplicatedStorage')
+					:WaitForChild('Systems')
+					:WaitForChild('Character')
+					:WaitForChild('Game')
+					:WaitForChild('Sprinting')
+				return require(Sprinting)
+			end)
+
+			if ok and staminaModule then
+				local maxStam = getMaxStaminaFromUI()
+				staminaModule.MaxStamina = maxStam
+				staminaModule.MinStamina = -100
+				staminaModule.StaminaLossDisabled = false
+
+				-- maintain stamina near max while allowing real display
+				if staminaModule.Stamina < maxStam * 0.9 then
+					staminaModule.Stamina = maxStam
+					if staminaModule.StaminaChanged then
+						staminaModule.StaminaChanged:Fire()
+					end
+				end
+			end
+		end
+	end)
+
+	Library:Notify({
+		Title = '✅ Infinite Stamina Enabled',
+		Content = 'Infinite stamina active (auto-detects 100/110).',
+		Duration = 3,
+	})
+end
+
+local function stopInfStamina()
+	infStaminaEnabled = false
+	Library:Notify({
+		Title = '🛑 Infinite Stamina Disabled',
+		Content = 'Normal stamina restored.',
+		Duration = 3,
+	})
+end
+
+UI.InfStaminaToggle = Tabs.Misc:CreateToggle('InfStaminaToggle', {
+	Title = 'Enable Infinite Stamina',
+	Description = 'Infinite stamina, real value still displayed',
+	Default = false,
+})
+
+UI.InfStaminaToggle:OnChanged(function()
+	if Options.InfStaminaToggle.Value then
+		startInfStamina()
+	else
+		stopInfStamina()
+	end
+end)
+
+		-- Respawn-safe: Set stamina immediately after respawn
+		player.CharacterAdded:Connect(function(character)
+	if Options.InfStaminaToggle.Value then
+				-- Wait for character to fully load
+				task.wait(2)
+
+				-- Try to set stamina immediately multiple times for safety
+				for i = 1, 5 do
+					local success = setStaminaImmediate()
+					if success then
+						Library:Notify({
+							Title = '♻️ Stamina Reset on Respawn',
+							Content = 'Infinite stamina re-applied after respawn.',
+							Duration = 2,
+						})
+						break
+					end
+					task.wait(1)
+				end
+	end
+end)
+		end -- End Infinite Stamina scope
+
+-- Auto Coinflip Section
+		do -- Isolated scope for Auto Coinflip
+Tabs.Misc:CreateSection('💰 Auto Coinflip')
+
+local coinflipActive = false
+local coinflipThread = nil
+local targetCharges = 3
+
+UI.TargetChargesSlider = Tabs.Misc:CreateSlider('TargetCharges', {
+	Title = 'Target Charges',
+	Description = 'Stop coinflip when reaching this many charges',
+	Default = 3,
+	Min = 1,
+	Max = 3,
+	Rounding = 1,
+	Callback = function(Value)
+		targetCharges = Value
+		print('🎯 Target charges set to:', Value)
+	end,
+})
+
+-- Define functions before using them in callbacks
+local function startCoinflip()
+	if coinflipThread then
+		task.cancel(coinflipThread)
+		coinflipThread = nil
+	end
+
+	coinflipThread = task.spawn(function()
+		local success, gui = pcall(function()
+			return player
+				:WaitForChild('PlayerGui', 5)
+				:WaitForChild('MainUI', 5)
+				:WaitForChild('AbilityContainer', 5)
+		end)
+
+		if not success or not gui then
+			Library:Notify({
+				Title = '❌ Coinflip Failed',
+				Content = 'Could not find ability UI',
+				Duration = 4,
+			})
+			coinflipActive = false
+			return
+		end
+
+		local coinFlipSuccess, coinFlip = pcall(function()
+			return gui:WaitForChild('CoinFlip', 5)
+		end)
+
+		local shootSuccess, shootCharges = pcall(function()
+			return gui:WaitForChild('Shoot', 5):WaitForChild('Charges', 5)
+		end)
+
+		if not coinFlipSuccess or not coinFlip then
+			Library:Notify({
+				Title = '❌ Coinflip Failed',
+				Content = 'Could not find CoinFlip button',
+				Duration = 4,
+			})
+			coinflipActive = false
+			return
+		end
+
+		if not shootSuccess or not shootCharges then
+			Library:Notify({
+				Title = '❌ Coinflip Failed',
+				Content = 'Could not find Shoot charges',
+				Duration = 4,
+			})
+			coinflipActive = false
+			return
+		end
+
+		Library:Notify({
+			Title = '✅ Auto Coinflip Enabled',
+			Content = 'Clicking until ' .. targetCharges .. ' charges',
+			Duration = 3,
+		})
+
+		while coinflipActive do
+			local currentCharges = tonumber(shootCharges.Text) or 0
+			if currentCharges < targetCharges then
+				pcall(function()
+					firesignal(coinFlip.MouseButton1Click)
+				end)
+			else
+				Library:Notify({
+					Title = '🎯 Target Reached',
+					Content = 'Charges reached '
+						.. targetCharges
+						.. ', stopping',
+					Duration = 3,
+				})
+				coinflipActive = false
+				break
+			end
+			task.wait(0.25)
+		end
+	end)
+end
+
+local function stopCoinflip()
+	if coinflipThread then
+		task.cancel(coinflipThread)
+		coinflipThread = nil
+	end
+
+	Library:Notify({
+		Title = '🔄 Auto Coinflip Disabled',
+		Content = 'Coinflip automation stopped',
+		Duration = 3,
+	})
+end
+
+-- Now create the Keybind after functions are defined
+UI.CoinflipKeybind = Tabs.Misc:CreateKeybind('CoinflipKeybind', {
+	Title = 'Toggle Keybind',
+	Mode = 'Toggle',
+	Default = 'C',
+	Callback = function(Value)
+		-- Toggle coinflip when keybind is pressed
+		coinflipActive = Value
+		if Options.AutoCoinflip then
+			Options.AutoCoinflip:SetValue(coinflipActive)
+		end
+
+		if coinflipActive then
+			startCoinflip()
+			print('🎮 Auto Coinflip enabled via keybind')
+		else
+			stopCoinflip()
+			print('🎮 Auto Coinflip disabled via keybind')
+		end
+	end,
+	ChangedCallback = function(New)
+		print('Coinflip keybind changed to:', New)
+	end,
+})
+
+UI.CoinflipToggle = Tabs.Misc:CreateToggle('AutoCoinflip', {
+	Title = 'Enable Auto Coinflip',
+	Description = 'Auto-click until charges reached',
+	Default = false,
+})
+
+UI.CoinflipToggle:OnChanged(function()
+	coinflipActive = Options.AutoCoinflip.Value
+
+	if coinflipActive then
+		startCoinflip()
+	else
+		stopCoinflip()
+	end
+end)
+		end -- End Auto Coinflip scope
+
+-- Chance Aim Helper Section
+		do -- Isolated scope for Chance Aim Helper
+Tabs.Misc:CreateSection('🎯 Chance Aim Helper')
+
+Tabs.Misc:CreateParagraph('AimHelperInfo', {
+	Title = 'Visual proximity indicator for chance abilities',
+	Content = "Shows a forward stick (2x2x90) that turns red when near any Killer's HumanoidRootPart. Yaw-only rotation based on humanoid facing direction.",
+})
+
+local aimHelperActive = false
+local aimStick = nil
+local aimConnection = nil
+
+local function findTorso(char)
+	if not char then
+		return nil
+	end
+	for _, n in ipairs({
+		'HumanoidRootPart',
+		'UpperTorso',
+		'Torso',
+		'LowerTorso',
+		'Chest',
+		'Spine',
+		'BodyRoot',
+	}) do
+		local p = char:FindFirstChild(n)
+		if p and p:IsA('BasePart') then
+			return p
+		end
+	end
+	for _, p in ipairs(char:GetChildren()) do
+		if p:IsA('BasePart') then
+			return p
+		end
+	end
+	return nil
+end
+
+local function isTouchingKillerHRP(part)
+	if not part then
+		return false
+	end
+
+	local partCF, partSize = part.CFrame, part.Size
+	local halfLen = partSize.Z / 2
+	local frontPos = (partCF.Position + partCF.LookVector * halfLen)
+	local backPos = (partCF.Position - partCF.LookVector * halfLen)
+
+	local killersFolder = nil
+	pcall(function()
+		local playersFolder = workspace:FindFirstChild('Players')
+		if playersFolder then
+			killersFolder = playersFolder:FindFirstChild('Killers')
+		end
+	end)
+
+	if not killersFolder then
+		return false
+	end
+
+	for _, killer in ipairs(killersFolder:GetChildren()) do
+		if killer:IsA('Model') then
+			local hrp = killer:FindFirstChild('HumanoidRootPart')
+			if hrp and hrp:IsA('BasePart') then
+				local limbPos = hrp.Position
+				local lineDir = (frontPos - backPos).Unit
+				local proj = (limbPos - backPos):Dot(lineDir)
+				local closest = backPos
+					+ lineDir
+								* math.clamp(
+									proj,
+									0,
+									(frontPos - backPos).Magnitude
+								)
+				local dist = (limbPos - closest).Magnitude
+
+				if dist < 5 then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+local function destroyAimStick()
+	if aimConnection then
+		aimConnection:Disconnect()
+		aimConnection = nil
+	end
+	if aimStick then
+		aimStick:Destroy()
+		aimStick = nil
+	end
+end
+
+local function createAimStick()
+	destroyAimStick()
+
+	local character = player.Character
+	if not character then
+		warn('⚠️ No character found for chance aim helper')
+		Library:Notify({
+			Title = '❌ Chance Aim Helper Failed',
+			Content = 'Character not found. Try again after spawning.',
+			Duration = 4,
+		})
+		return
+	end
+
+	local torso = findTorso(character)
+	if not torso then
+		warn('⚠️ No torso found for chance aim helper')
+		Library:Notify({
+			Title = '❌ Chance Aim Helper Failed',
+			Content = 'Could not find character torso',
+			Duration = 4,
+		})
+		return
+	end
+
+	print('✅ Creating chance aim helper stick...')
+
+	aimStick = Instance.new('Part')
+	aimStick.Name = 'ForwardStick'
+	aimStick.Size = Vector3.new(1.7, 1.7, 90)
+	aimStick.Anchored = true
+	aimStick.CanCollide = false
+	aimStick.Material = Enum.Material.Neon
+	aimStick.Color = Color3.fromRGB(150, 150, 150)
+	aimStick.Transparency = 0.9
+	aimStick.Parent = workspace
+
+	print('✅ Stick created and parented to workspace')
+
+	aimConnection = RunService.RenderStepped:Connect(function()
+		if not aimStick or not aimHelperActive then
+			return
+		end
+
+		local currentChar = player.Character
+		local currentTorso = findTorso(currentChar)
+		if not currentTorso or not currentTorso.Parent then
+			return
+		end
+
+		local pos = currentTorso.Position
+		local humanoidLook = currentTorso.CFrame.LookVector
+		humanoidLook = Vector3.new(humanoidLook.X, 0, humanoidLook.Z).Unit
+		local cf = CFrame.new(pos, pos + humanoidLook)
+
+		aimStick.CFrame = cf * CFrame.new(0, 0, -aimStick.Size.Z / 2)
+
+		if isTouchingKillerHRP(aimStick) then
+			aimStick.Color = Color3.fromRGB(255, 0, 0)
+		else
+			aimStick.Color = Color3.fromRGB(150, 150, 150)
+		end
+	end)
+
+	print('✅ RenderStepped connection established')
+
+	Library:Notify({
+		Title = '✅ Chance Aim Helper Enabled',
+		Content = 'Visual indicator is now active',
+		Duration = 3,
+	})
+end
+
+UI.AimHelperToggle = Tabs.Misc:CreateToggle('ChanceAimHelper', {
+	Title = 'Enable Chance Aim Helper',
+	Description = 'Show visual proximity indicator for chance abilities',
+	Default = false,
+})
+
+UI.AimHelperToggle:OnChanged(function()
+	aimHelperActive = Options.ChanceAimHelper.Value
+
+	if aimHelperActive then
+		createAimStick()
+	else
+		destroyAimStick()
+		Library:Notify({
+			Title = '🔄 Chance Aim Helper Disabled',
+			Content = 'Visual indicator removed',
+			Duration = 3,
+		})
+	end
+end)
+
+player.CharacterAdded:Connect(function()
+	if aimHelperActive then
+		task.wait(1)
+		createAimStick()
+		print('🔄 Chance Aim Helper auto-restarted after respawn')
+	end
+end)
+		end -- End Chance Aim Helper scope
+
+-- ========================================
+-- SHAKE CAMERA
+-- ========================================
+		do -- Isolated scope for Shake Camera
+Tabs.Misc:CreateSection('📹 Shake Camera')
+
+Tabs.Misc:CreateParagraph('ShakeCameraInfo', {
+	Title = 'Camera shake based on killer proximity',
+	Content = 'Camera shakes more intensely as killers get closer to you. Adjust max shake intensity and starting distance.',
+})
+
+-- ShakeCamera State
+local shakeCameraActive = false
+local shakeCameraConnection = nil
+local maxShakeIntensity = 0.5
+local shakeStartDistance = 50
+local currentShakeIntensity = 0
+
+-- Helper function to find closest killer
+local function findClosestKiller()
+	local character = player.Character
+	if not character then
+		return nil, 0
+	end
+
+	local humanoidRootPart = character:FindFirstChild('HumanoidRootPart')
+	if not humanoidRootPart then
+		return nil, 0
+	end
+
+	local playerPos = humanoidRootPart.Position
+
+	local killersFolder = workspace:FindFirstChild('Players')
+	if killersFolder then
+		killersFolder = killersFolder:FindFirstChild('Killers')
+	end
+
+	if not killersFolder then
+		return nil, 0
+	end
+
+	local closestDist = math.huge
+	local closestKiller = nil
+
+	for _, killerModel in ipairs(killersFolder:GetChildren()) do
+		if killerModel:IsA('Model') then
+					local killerRoot = killerModel:FindFirstChild(
+						'HumanoidRootPart'
+					) or killerModel:FindFirstChild('Torso')
+			if killerRoot then
+				local distance = (playerPos - killerRoot.Position).Magnitude
+				if distance < closestDist then
+					closestDist = distance
+					closestKiller = killerModel
+				end
+			end
+		end
+	end
+
+	return closestKiller, closestDist == math.huge and 0 or closestDist
+end
+
+-- Main shake camera function
+local function applyCameraShake()
+	if not shakeCameraActive then
+		return
+	end
+
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return
+	end
+
+	local _, distance = findClosestKiller()
+
+	if distance > 0 and distance <= shakeStartDistance then
+		-- Calculate shake intensity based on distance
+		-- Closer = stronger shake (inverted ratio)
+		local ratio = 1 - (distance / shakeStartDistance) -- 0 at max distance, 1 at 0 distance
+		currentShakeIntensity = maxShakeIntensity * ratio
+
+		-- Apply random shake to camera
+		local offsetX = (math.random() - 0.5) * currentShakeIntensity * 2
+		local offsetY = (math.random() - 0.5) * currentShakeIntensity * 2
+		local offsetZ = (math.random() - 0.5) * currentShakeIntensity * 0.5
+
+				camera.CFrame = camera.CFrame
+					* CFrame.new(offsetX, offsetY, offsetZ)
+	else
+		currentShakeIntensity = 0
+	end
+end
+
+-- Start shake camera
+local function startShakeCamera()
+	if shakeCameraConnection then
+		shakeCameraConnection:Disconnect()
+		shakeCameraConnection = nil
+	end
+
+	shakeCameraConnection = RunService.RenderStepped:Connect(function()
+		if shakeCameraActive then
+			pcall(applyCameraShake)
+		end
+	end)
+
+	Library:Notify({
+		Title = '✅ Shake Camera Enabled',
+		Content = string.format(
+			'Camera will shake when killers are within %.0f studs',
+			shakeStartDistance
+		),
+		Duration = 3,
+	})
+end
+
+-- Stop shake camera
+local function stopShakeCamera()
+	if shakeCameraConnection then
+		shakeCameraConnection:Disconnect()
+		shakeCameraConnection = nil
+	end
+
+	currentShakeIntensity = 0
+
+	Library:Notify({
+		Title = '🔄 Shake Camera Disabled',
+		Content = 'Camera shake has been stopped',
+		Duration = 3,
+	})
+end
+
+-- Max Shake Intensity Input
+Tabs.Misc:CreateInput('MaxShakeIntensity', {
+	Title = 'Max Shake Intensity',
+	Description = 'Maximum camera shake strength (0.1 - 5.0)',
+	Default = '0.5',
+	Numeric = true,
+	Finished = true,
+	Placeholder = '0.5',
+	Callback = function(Value)
+		local newIntensity = tonumber(Value)
+		if newIntensity and newIntensity >= 0.1 and newIntensity <= 5.0 then
+			maxShakeIntensity = newIntensity
+			print('📹 Max shake intensity set to:', newIntensity)
+		elseif newIntensity and newIntensity > 5.0 then
+			Library:Notify({
+				Title = '⚠️ Value Too High',
+				Content = 'Max intensity capped at 5.0 to prevent extreme shaking',
+				Duration = 3,
+			})
+			maxShakeIntensity = 5.0
+			if Options.MaxShakeIntensity then
+				Options.MaxShakeIntensity:SetValue('5.0')
+			end
+		elseif newIntensity and newIntensity < 0.1 then
+			Library:Notify({
+				Title = '⚠️ Value Too Low',
+				Content = 'Min intensity is 0.1',
+				Duration = 3,
+			})
+			maxShakeIntensity = 0.1
+			if Options.MaxShakeIntensity then
+				Options.MaxShakeIntensity:SetValue('0.1')
+			end
+		end
+	end,
+})
+
+-- Shake Start Distance Input
+Tabs.Misc:CreateInput('ShakeStartDistance', {
+	Title = 'Shake Start Distance (studs)',
+	Description = 'Distance when shake begins (10 - 100 studs)',
+	Default = '50',
+	Numeric = true,
+	Finished = true,
+	Placeholder = '50',
+	Callback = function(Value)
+		local newDistance = tonumber(Value)
+		if newDistance and newDistance >= 10 and newDistance <= 100 then
+			shakeStartDistance = newDistance
+			print('📹 Shake start distance set to:', newDistance, 'studs')
+		elseif newDistance and newDistance > 100 then
+			Library:Notify({
+				Title = '⚠️ Value Too High',
+				Content = 'Max distance capped at 100 studs',
+				Duration = 3,
+			})
+			shakeStartDistance = 100
+			if Options.ShakeStartDistance then
+				Options.ShakeStartDistance:SetValue('100')
+			end
+		elseif newDistance and newDistance < 10 then
+			Library:Notify({
+				Title = '⚠️ Value Too Low',
+				Content = 'Min distance is 10 studs',
+				Duration = 3,
+			})
+			shakeStartDistance = 10
+			if Options.ShakeStartDistance then
+				Options.ShakeStartDistance:SetValue('10')
+			end
+		end
+	end,
+})
+
+-- Current Shake Display
+local shakeDisplay = Tabs.Misc:CreateParagraph('CurrentShakeInfo', {
+	Title = '📊 Current Shake Status',
+	Content = 'Shake Camera is disabled',
+})
+
+-- Update shake display in real-time
+task.spawn(function()
+	while task.wait(0.1) do
+		if shakeCameraActive then
+			local _, distance = findClosestKiller()
+			if distance > 0 and distance <= shakeStartDistance then
+				shakeDisplay:SetValue(
+					string.format(
+						'Active | Distance: %.1f studs | Intensity: %.2f / %.2f',
+						distance,
+						currentShakeIntensity,
+						maxShakeIntensity
+					)
+				)
+			else
+				shakeDisplay:SetValue(
+					string.format(
+						'Active | No killers within %.0f studs | Intensity: 0.00',
+						shakeStartDistance
+					)
+				)
+			end
+		else
+			shakeDisplay:SetValue('Shake Camera is disabled')
+		end
+	end
+end)
+
+-- Toggle Control
+UI.ShakeCameraToggle = Tabs.Misc:CreateToggle('ShakeCamera', {
+	Title = 'Enable Shake Camera',
+	Description = 'Shake camera based on killer proximity',
+	Default = false,
+})
+
+UI.ShakeCameraToggle:OnChanged(function()
+	shakeCameraActive = Options.ShakeCamera.Value
+
+	if shakeCameraActive then
+		startShakeCamera()
+	else
+		stopShakeCamera()
+	end
+end)
+
+-- Auto-restart on respawn
+player.CharacterAdded:Connect(function()
+	if shakeCameraActive then
+		task.wait(1)
+		startShakeCamera()
+		print('🔄 Shake Camera auto-restarted after respawn')
+	end
+end)
+		end -- End Shake Camera scope
+
+-- ========================================
+-- GTA V DEATH SCREEN
+-- ========================================
+		do -- Isolated scope for GTA V Death Screen
+Tabs.Misc:CreateSection('💀 GTA V Death Screen')
+
+Tabs.Misc:CreateParagraph('DeathScreenInfo', {
+	Title = 'Cinematic death overlay',
+	Content = "Shows GTA V style 'WASTED' screen when you die. Includes fade, blur, killer info, and death sound. Press P to close manually.",
+})
+
+-- Death Screen State
+local deathScreenActive = false
+local deathScreenConnection = nil
+
+-- Death Screen Config
+local DEATH_CONFIG = {
+	fadeInTime = 4,
+	holdTime = 4,
+	fadeOutTime = 6,
+	backgroundOpacity = 0.4,
+	wastedText = 'WASTED',
+	textColor = Color3.fromRGB(210, 20, 20),
+	strokeColor = Color3.fromRGB(0, 0, 0),
+	blurIntensity = 25,
+	tintRed = Color3.fromRGB(255, 40, 40),
+	contrast = 0.25,
+	soundPath = 'forvids/Lobby/died.mp3',
+
+	-- 🕯 Memorial phrases (respectful/serious)
+	memorialPhrases = {
+		'🕯 in memoriam:',
+		'in memory of',
+		'in loving memory of',
+		'in memoriam of',
+		'gone but not forgotten',
+		'forever remembered',
+		'honoring the fallen',
+		'remembering',
+		'rest in peace',
+		'gone too soon',
+		'may they rest',
+		'the legend of',
+		'never forgotten',
+		'their story ends here',
+		'the silence remains for',
+		'farewell to',
+		'the end of',
+		'one last time for',
+		'gone, but the echoes remain —',
+		'the fallen soul of',
+		'for those we lost —',
+		'eternal rest for',
+		'the memory lingers —',
+		'the last page of',
+		'once alive, now remembered —',
+		"this one's for",
+		'the final trace of',
+		'shadows hold the name of',
+		'laid to rest —',
+		'the spirit of',
+
+		-- 🌌 Poetic/cinematic
+		'the story of',
+		'the final chapter of',
+		'lights out for',
+		'fadeout for',
+		'dusk descends on',
+		'curtain falls on',
+		'the song ends for',
+		'the echo fades for',
+		'the light has dimmed on',
+		'the dusk claims',
+		'the horizon closes for',
+		'the journey ends for',
+		'the world forgets',
+		'the last spark of',
+		'the end of the line —',
+		'whispers of',
+		'the void calls to',
+		'ashes remain of',
+		'the night remembers',
+		'the last moment of',
+		'vanished into dusk —',
+		'the echo of',
+		'the name carved in shadow —',
+		'lost to time —',
+		'frozen in memory —',
+
+		-- 😔 Modern/somber aesthetic
+		'offline forever —',
+		'disconnected:',
+		'logged off permanently —',
+		'user not found —',
+		'last seen:',
+		'player not responding —',
+		'account deleted —',
+		'respawn unavailable —',
+		'save file corrupted —',
+		'access denied for',
+		'player not in this world —',
+		'terminal session closed —',
+		'backup failed —',
+		'heartbeat signal lost —',
+		'system shutdown —',
+		'screen faded to black —',
+		'the world stopped for',
+		'memory ended —',
+		'file archived —',
+		'ping timeout —',
+		'process completed —',
+		'end of simulation for',
+		'last login —',
+		'gone from the server —',
+
+		-- 🔥 Cool/stylized
+		'archived file:',
+		'terminated instance —',
+		'corrupted data:',
+		'debug record —',
+		'crash log for',
+		'system exit:',
+		'memory leak detected —',
+		"process_end('",
+		'shutdown signal for',
+		'deleted cache —',
+		'user:',
+		'entity offline —',
+		'ghost record —',
+		'subject_terminated —',
+		'anomaly logged —',
+		'operation concluded —',
+		'profile archived —',
+		'debug: final frame of',
+		'fatal error on user',
+		'transmission ended —',
+		'trace lost —',
+		'blackout entry —',
+		'legacy entry —',
+		'obsolete file —',
+		'access revoked —',
+
+		-- 🧠 Meta/4th-wall break
+		'thank you for playing,',
+		'campaign complete —',
+		'player statistics saved for',
+		'demo concluded —',
+		'prototype expired —',
+		'end of line —',
+		'rollback executed on',
+		'story mode: complete —',
+		'achievement unlocked: death —',
+		'game over for',
+		'next patch note: remove',
+		'lore entry closed —',
+		'unstable build: user lost —',
+		'end screen for',
+		'permanent maintenance —',
+		'bug fixed: player removed —',
+		'simulation over —',
+		'runtime halted —',
+		'project archived —',
+		'credits roll for —',
+	},
+
+	-- 💀 Death cause phrases
+	deathPhrases = {
+		-- 💀 Cinematic/horror tone
+		'was claimed by',
+		'was hunted down by',
+		'fell victim to',
+		'was taken by',
+		'was dragged into the dark by',
+		'was consumed by',
+		'was caught in the fog of',
+		'met their fate before',
+		"couldn't outrun",
+		'was pulled into the abyss by',
+		'was silenced forever by',
+		'vanished in the hands of',
+		'was cornered by',
+		'lost the final chase to',
+		'was caught screaming by',
+		'was executed by',
+		'was found and ended by',
+		'tried to hide, but was found by',
+		'was torn apart by',
+		'left bleeding in the dark by',
+
+		-- 🌒 Eerie/poetic
+		'disappeared beneath the moonlight of',
+		'fell into the grasp of',
+		'became a whisper under',
+		'lost themselves in the night of',
+		'was erased beneath the shadow of',
+		'faded into silence before',
+		'drifted into the void with',
+		'met the cold embrace of',
+		'was taken by the night itself through',
+		'lost their breath in the dark to',
+		'became one with the fog around',
+		'vanished beneath the echo of',
+		'was consumed by the silence of',
+		'left no trace after facing',
+		'became a memory inside',
+		'joined the fallen under',
+		'was outlived by',
+		'faded beneath the heartbeat of',
+		'was swallowed by the mist around',
+		'fell to the stillness of',
+
+		-- ⚡ Survivor-game tension
+		'lost the chase to',
+		'was overpowered by',
+		'was caught off guard by',
+		"couldn't make the vault before",
+		'failed the final skill check against',
+		'tripped under pressure from',
+		'was outsmarted by',
+		"couldn't break free from",
+		'got trapped by',
+		'ran out of stamina near',
+		'was too slow for',
+		'got stunned too late before',
+		'was cornered and finished by',
+		'slipped at the last moment near',
+		'made too much noise and got caught by',
+		"didn't reach the exit before",
+		'fell inches from escape under',
+		'bled out before',
+		'was downed once and for all by',
+		'gave up the struggle against',
+
+		-- 🩸 Brutal/punishing
+		'was dismantled by',
+		'was slaughtered by',
+		'was executed without mercy by',
+		'was broken and left by',
+		'was dragged lifeless by',
+		'became the next trophy of',
+		'joined the body count of',
+		'got hunted like prey by',
+		"couldn't survive the onslaught of",
+		'was sacrificed by',
+		'was claimed for the ritual of',
+		'was ripped apart by',
+		'became another offering to',
+		'ended painfully by',
+		'was hunted mercilessly by',
+		'their scream echoed through',
+		"the killer's blade found",
+		'was erased without trace by',
+		'became part of the massacre led by',
+		'was shredded by',
+
+		-- 🕹 Meta-style (glitchy/dreamcore)
+		'runtime error occurred near',
+		'fatal process terminated by',
+		'corrupted memory encountered with',
+		'data loss confirmed by',
+		'simulation collapsed around',
+		'thread ended during chase with',
+		'entity deletion executed by',
+		'desync event triggered by',
+		'process crash involving',
+		'anomaly detected around',
+		'unstable instance terminated under',
+		'fatal event: player erased through',
+		'system runtime ended after',
+		'server desync caused by',
+		'core memory fragmented under',
+		'data void generated through',
+		'error 404: life not found after',
+		'execution path ended near',
+		'variable "hope" set to nil by',
+		'connection lost after facing',
+	},
+
+	killerImages = {
+		['Slasher'] = { 'Slasher.png', 'SlasherTitle.png' },
+		['JohnDoe'] = { 'JD.png', 'JDtitle.png' },
+		['1x1x1x1'] = { '1x.png', '1xtitle.png' },
+		['c00lkidd'] = { 'ck.png', 'cktitle.png' },
+		['Noli'] = { 'no.png', 'notitle.png' },
+	},
+}
+
+-- Detect which killer is present
+local function detectKiller()
+	local killersFolder = workspace:FindFirstChild('Players')
+	if killersFolder then
+		killersFolder = killersFolder:FindFirstChild('Killers')
+	end
+
+	if not killersFolder then
+		return nil
+	end
+
+	for killerName, _ in pairs(DEATH_CONFIG.killerImages) do
+		local killerModel = killersFolder:FindFirstChild(killerName)
+		if killerModel then
+			return killerName
+		end
+	end
+
+	return nil
+end
+
+-- Play wasted screen
+local function playWastedScreen()
+	if player:FindFirstChild('WastedOverlayActive') then
+		return
+	end
+
+	Instance.new('BoolValue', player).Name = 'WastedOverlayActive'
+
+	local killerName = detectKiller()
+	local thumbnailPath, titlePath
+
+	if killerName and DEATH_CONFIG.killerImages[killerName] then
+		local images = DEATH_CONFIG.killerImages[killerName]
+		thumbnailPath = 'forvids/Lobby/' .. images[1]
+		titlePath = 'forvids/Lobby/' .. images[2]
+	else
+		thumbnailPath = 'forvids/Lobby/Slasher.png'
+		titlePath = 'forvids/Lobby/SlasherTitle.png'
+	end
+
+	-- Post-FX
+	local cc = Instance.new('ColorCorrectionEffect')
+	cc.Saturation = 0
+	cc.Contrast = 0
+	cc.Brightness = 0
+	cc.TintColor = Color3.fromRGB(255, 255, 255)
+	cc.Parent = Lighting
+
+	local blur = Instance.new('BlurEffect')
+	blur.Size = 0
+	blur.Parent = Lighting
+
+	-- Sound
+	local deathSound = Instance.new('Sound')
+	deathSound.SoundId = getcustomasset(DEATH_CONFIG.soundPath)
+	deathSound.Volume = 8
+	deathSound.PlayOnRemove = false
+	deathSound.Parent = SoundService
+	deathSound:Play()
+
+	-- GUI
+	local gui = Instance.new('ScreenGui')
+	gui.IgnoreGuiInset = true
+	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 999999
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	gui.Parent = player:WaitForChild('PlayerGui')
+
+	local bg = Instance.new('Frame')
+	bg.BackgroundColor3 = Color3.new(0, 0, 0)
+	bg.BackgroundTransparency = 1
+	bg.BorderSizePixel = 0
+	bg.Size = UDim2.fromScale(1, 1)
+	bg.ZIndex = 999997
+	bg.Parent = gui
+
+	local wasted = Instance.new('TextLabel')
+	wasted.BackgroundTransparency = 1
+	wasted.Text = DEATH_CONFIG.wastedText
+	wasted.Font = Enum.Font.GothamBlack
+	wasted.TextScaled = true
+	wasted.TextColor3 = DEATH_CONFIG.textColor
+	wasted.TextTransparency = 1
+	wasted.TextStrokeTransparency = 0
+	wasted.TextStrokeColor3 = DEATH_CONFIG.strokeColor
+	wasted.AnchorPoint = Vector2.new(0.5, 0.5)
+	wasted.Position = UDim2.fromScale(0.5, 0.5)
+	wasted.Size = UDim2.fromScale(0.6, 0.2)
+	wasted.ZIndex = 999999
+	wasted.Parent = gui
+
+	-- Get random phrases
+	local randomMemorial = DEATH_CONFIG.memorialPhrases[math.random(
+		1,
+		#DEATH_CONFIG.memorialPhrases
+	)]
+			local randomDeath = DEATH_CONFIG.deathPhrases[math.random(
+				1,
+				#DEATH_CONFIG.deathPhrases
+			)]
+	local killerDisplayName = killerName or 'the killer'
+
+	local topText = Instance.new('TextLabel')
+	topText.BackgroundTransparency = 1
+	topText.Text = randomMemorial .. ' ' .. player.Name
+	topText.Font = Enum.Font.GothamSemibold
+	topText.TextScaled = true
+	topText.TextColor3 = Color3.fromRGB(230, 230, 230)
+	topText.TextStrokeTransparency = 0.3
+	topText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	topText.TextTransparency = 1
+	topText.AnchorPoint = Vector2.new(0.5, 1)
+	topText.Position = UDim2.fromScale(0.5, 0.45)
+	topText.Size = UDim2.fromScale(0.5, 0.05)
+	topText.ZIndex = 999999
+	topText.Parent = gui
+
+	local bottomText = Instance.new('TextLabel')
+	bottomText.BackgroundTransparency = 1
+	bottomText.Text = randomDeath .. ' ' .. killerDisplayName
+	bottomText.Font = Enum.Font.GothamSemibold
+	bottomText.TextScaled = true
+	bottomText.TextColor3 = Color3.fromRGB(230, 230, 230)
+	bottomText.TextStrokeTransparency = 0.3
+	bottomText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	bottomText.TextTransparency = 1
+	bottomText.AnchorPoint = Vector2.new(0.5, 0)
+	bottomText.Position = UDim2.fromScale(0.5, 0.55)
+	bottomText.Size = UDim2.fromScale(0.5, 0.05)
+	bottomText.ZIndex = 999999
+	bottomText.Parent = gui
+
+	-- Killer images
+	local killerTitle = Instance.new('ImageLabel')
+	killerTitle.BackgroundTransparency = 1
+	killerTitle.Image = getcustomasset(titlePath)
+	killerTitle.ImageTransparency = 1
+	killerTitle.AnchorPoint = Vector2.new(0.5, 0)
+	killerTitle.Position = UDim2.fromScale(0.5, 0.62)
+	killerTitle.Size = UDim2.fromScale(0.4, 0.325)
+	killerTitle.ZIndex = 999999
+	killerTitle.Parent = gui
+
+	local killerTitleGlow = Instance.new('ImageLabel')
+	killerTitleGlow.BackgroundTransparency = 1
+	killerTitleGlow.Image = getcustomasset(titlePath)
+	killerTitleGlow.ImageTransparency = 1
+	killerTitleGlow.ImageColor3 = Color3.fromRGB(255, 50, 50)
+	killerTitleGlow.AnchorPoint = Vector2.new(0.5, 0)
+	killerTitleGlow.Position = UDim2.fromScale(0.5, 0.62)
+	killerTitleGlow.Size = UDim2.fromScale(0.4, 0.325)
+	killerTitleGlow.ZIndex = 999998
+	killerTitleGlow.Parent = gui
+
+	local killerThumbnail = Instance.new('ImageLabel')
+	killerThumbnail.BackgroundTransparency = 1
+	killerThumbnail.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	killerThumbnail.BorderSizePixel = 0
+	killerThumbnail.BorderColor3 = Color3.fromRGB(200, 200, 200)
+	killerThumbnail.Image = getcustomasset(thumbnailPath)
+	killerThumbnail.ImageTransparency = 1
+	killerThumbnail.AnchorPoint = Vector2.new(0, 0.5)
+	killerThumbnail.Position = UDim2.fromScale(0.72, 0.5)
+	killerThumbnail.Size = UDim2.fromScale(0.25, 0.25)
+	killerThumbnail.ZIndex = 999999
+	killerThumbnail.Parent = gui
+
+	local killerThumbnailGlow = Instance.new('ImageLabel')
+	killerThumbnailGlow.BackgroundTransparency = 1
+	killerThumbnailGlow.Image = getcustomasset(thumbnailPath)
+	killerThumbnailGlow.ImageTransparency = 1
+	killerThumbnailGlow.ImageColor3 = Color3.fromRGB(255, 50, 50)
+	killerThumbnailGlow.AnchorPoint = Vector2.new(0, 0.5)
+	killerThumbnailGlow.Position = UDim2.fromScale(0.72, 0.5)
+	killerThumbnailGlow.Size = UDim2.fromScale(0.25, 0.25)
+	killerThumbnailGlow.ZIndex = 999998
+	killerThumbnailGlow.Parent = gui
+
+	-- Tween helper
+	local function tween(obj, time, props, easingStyle, easingDirection)
+		local info = TweenInfo.new(
+			time,
+			easingStyle or Enum.EasingStyle.Quad,
+			easingDirection or Enum.EasingDirection.InOut
+		)
+		local tweenObj = TweenService:Create(obj, info, props)
+		tweenObj:Play()
+		return tweenObj
+	end
+
+	-- Set lobby music volume to 0 (no monitoring needed)
+	local function muteLobbyMusic()
+		local themes = workspace:FindFirstChild('Themes')
+		if themes then
+			local lobby = themes:FindFirstChild('lobby')
+			if lobby and lobby:IsA('Sound') then
+				lobby.Volume = 0
+			end
+		end
+	end
+
+	-- Cleanup
+	local function clean()
+		if deathSound then
+			deathSound:Destroy()
+		end
+		if gui then
+			gui:Destroy()
+		end
+		if cc then
+			cc:Destroy()
+		end
+		if blur then
+			blur:Destroy()
+		end
+		local flag = player:FindFirstChild('WastedOverlayActive')
+		if flag then
+			flag:Destroy()
+		end
+	end
+
+	-- Manual close (press P)
+	local conn
+	conn = UserInputService.InputBegan:Connect(function(input, gp)
+		if gp then
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.P then
+			if conn then
+				conn:Disconnect()
+			end
+			clean()
+		end
+	end)
+
+	-- Mute lobby music
+	muteLobbyMusic()
+
+	-- Animation sequence
+	tween(cc, DEATH_CONFIG.fadeInTime, {
+		Saturation = -1,
+		Contrast = DEATH_CONFIG.contrast,
+		TintColor = DEATH_CONFIG.tintRed,
+	})
+	tween(
+		blur,
+		DEATH_CONFIG.fadeInTime * 0.8,
+		{ Size = DEATH_CONFIG.blurIntensity }
+	)
+	tween(
+		bg,
+		DEATH_CONFIG.fadeInTime,
+		{ BackgroundTransparency = 1 - DEATH_CONFIG.backgroundOpacity }
+	)
+	tween(wasted, DEATH_CONFIG.fadeInTime * 0.6, { TextTransparency = 0 })
+	tween(topText, DEATH_CONFIG.fadeInTime * 0.8, { TextTransparency = 0 })
+			tween(
+				bottomText,
+				DEATH_CONFIG.fadeInTime * 0.8,
+				{ TextTransparency = 0 }
+			)
+
+	task.wait(2.3)
+	local originalSize = wasted.Size
+	tween(
+		wasted,
+		0.1,
+		{ Size = UDim2.fromScale(0.95, 0.22), TextStrokeTransparency = 0 },
+		Enum.EasingStyle.Quad,
+		Enum.EasingDirection.Out
+	)
+	task.wait(0.1)
+	tween(
+		wasted,
+		0.15,
+		{ Size = originalSize, TextStrokeTransparency = 0.3 },
+		Enum.EasingStyle.Quad,
+		Enum.EasingDirection.In
+	)
+
+	task.wait(0.1)
+	local originalTitleSize = killerTitle.Size
+	local originalThumbnailSize = killerThumbnail.Size
+	local originalGlowTitleSize = killerTitleGlow.Size
+	local originalGlowThumbnailSize = killerThumbnailGlow.Size
+
+	tween(
+		killerTitle,
+		0.08,
+		{ ImageTransparency = 0, Size = UDim2.fromScale(0.43, 0.355) },
+		Enum.EasingStyle.Quad,
+		Enum.EasingDirection.Out
+	)
+	tween(killerThumbnail, 0.08, {
+		ImageTransparency = 0,
+		BackgroundTransparency = 0,
+		BorderSizePixel = 3,
+		Size = UDim2.fromScale(0.28, 0.28),
+	}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	tween(
+		killerTitleGlow,
+		0.08,
+		{ ImageTransparency = 0.3, Size = UDim2.fromScale(0.46, 0.385) },
+		Enum.EasingStyle.Quad,
+		Enum.EasingDirection.Out
+	)
+	tween(
+		killerThumbnailGlow,
+		0.08,
+		{ ImageTransparency = 0.3, Size = UDim2.fromScale(0.30, 0.30) },
+		Enum.EasingStyle.Quad,
+		Enum.EasingDirection.Out
+	)
+	task.wait(0.08)
+
+	tween(
+		killerTitle,
+		0.12,
+		{ Size = originalTitleSize },
+		Enum.EasingStyle.Quad,
+		Enum.EasingDirection.In
+	)
+	tween(
+		killerThumbnail,
+		0.12,
+		{ Size = originalThumbnailSize },
+		Enum.EasingStyle.Quad,
+		Enum.EasingDirection.In
+	)
+	tween(
+		killerTitleGlow,
+		0.12,
+		{ ImageTransparency = 1, Size = originalGlowTitleSize },
+		Enum.EasingStyle.Quad,
+		Enum.EasingDirection.In
+	)
+	tween(
+		killerThumbnailGlow,
+		0.12,
+		{ ImageTransparency = 1, Size = originalGlowThumbnailSize },
+		Enum.EasingStyle.Quad,
+		Enum.EasingDirection.In
+	)
+
+	task.wait(
+		(DEATH_CONFIG.fadeInTime + DEATH_CONFIG.holdTime)
+			- 2.5
+			- 0.25
+			- 0.1
+			- 0.08
+			- 0.12
+	)
+
+			tween(cc, DEATH_CONFIG.fadeOutTime, {
+			Saturation = 0,
+			Contrast = 0,
+			TintColor = Color3.fromRGB(255, 255, 255),
+			})
+	tween(blur, DEATH_CONFIG.fadeOutTime, { Size = 0 })
+	tween(bg, DEATH_CONFIG.fadeOutTime, { BackgroundTransparency = 1 })
+	tween(wasted, DEATH_CONFIG.fadeOutTime, { TextTransparency = 1 })
+	tween(topText, DEATH_CONFIG.fadeOutTime, { TextTransparency = 1 })
+	tween(bottomText, DEATH_CONFIG.fadeOutTime, { TextTransparency = 1 })
+	tween(killerTitle, DEATH_CONFIG.fadeOutTime, { ImageTransparency = 1 })
+	tween(killerThumbnail, DEATH_CONFIG.fadeOutTime, {
+		ImageTransparency = 1,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+	})
+			tween(
+				killerTitleGlow,
+				DEATH_CONFIG.fadeOutTime,
+				{ ImageTransparency = 1 }
+			)
+	tween(
+		killerThumbnailGlow,
+		DEATH_CONFIG.fadeOutTime,
+		{ ImageTransparency = 1 }
+	)
+
+	-- Restore lobby music volume
+	local themes = workspace:FindFirstChild('Themes')
+	if themes then
+		local lobby = themes:FindFirstChild('lobby')
+		if lobby and lobby:IsA('Sound') then
+			tween(lobby, DEATH_CONFIG.fadeOutTime, { Volume = 1 })
+		end
+	end
+
+	task.wait(DEATH_CONFIG.fadeOutTime)
+	if conn then
+		conn:Disconnect()
+	end
+	clean()
+end
+
+-- Start death screen monitoring
+local function startDeathScreen()
+	local character = player.Character or player.CharacterAdded:Wait()
+	local humanoid = character:WaitForChild('Humanoid')
+
+	if deathScreenConnection then
+		deathScreenConnection:Disconnect()
+	end
+
+	deathScreenConnection = humanoid.HealthChanged:Connect(function(health)
+		if
+			health <= 0
+			and deathScreenActive
+			and not player:FindFirstChild('WastedOverlayActive')
+		then
+			playWastedScreen()
+		end
+	end)
+
+	-- Check if already dead
+	if
+		humanoid.Health <= 0
+		and not player:FindFirstChild('WastedOverlayActive')
+	then
+		playWastedScreen()
+	end
+
+	Library:Notify({
+		Title = '✅ GTA V Death Screen Enabled',
+		Content = 'WASTED screen will show on death (Press P to close)',
+		Duration = 3,
+	})
+end
+
+-- Stop death screen monitoring
+local function stopDeathScreen()
+	if deathScreenConnection then
+		deathScreenConnection:Disconnect()
+		deathScreenConnection = nil
+	end
+
+	Library:Notify({
+		Title = '🔄 GTA V Death Screen Disabled',
+		Content = 'Death screen disabled',
+		Duration = 3,
+	})
+end
+
+-- Toggle Control
+UI.DeathScreenToggle = Tabs.Misc:CreateToggle('GTADeathScreen', {
+	Title = 'Enable GTA V Death Screen',
+	Description = 'Show cinematic WASTED overlay when you die',
+	Default = false,
+})
+
+UI.DeathScreenToggle:OnChanged(function()
+	deathScreenActive = Options.GTADeathScreen.Value
+
+	if deathScreenActive then
+		startDeathScreen()
+	else
+		stopDeathScreen()
+	end
+end)
+
+-- Auto-restart on respawn
+player.CharacterAdded:Connect(function()
+	if deathScreenActive then
+		task.wait(1)
+		startDeathScreen()
+	end
+end)
+		end -- End GTA V Death Screen scope
+
+-- ========================================
+-- KILLER DETECTION & AUTO DAGGER
+-- ========================================
+-- Features:
+-- ✅ Auto-fires Dagger ability when conditions are met
+-- ✅ TwoTime character verification (auto-disables if not TwoTime)
+-- ✅ Adjustable detection range (distance to killer)
+-- ✅ Adjustable angle threshold (direction accuracy)
+-- ✅ Real-time distance display to closest killer
+-- ✅ Debug mode with detailed console output
+-- ✅ Only triggers when behind killer (not in front)
+-- ✅ Respawn-safe with auto-restart
+-- ========================================
+		do -- Isolated scope for Killer Detection
+Tabs.Misc:CreateSection('🎯 Killer Detection')
+
+Tabs.Misc:CreateParagraph('KillerDetectorInfo', {
+	Title = 'Auto Dagger when killers are nearby',
+	Content = 'Detects nearby killers and fires Dagger ability when looking in the same direction (behind killer only). Only works for TwoTime character. Will auto-disable if character verification fails.',
+})
+
+-- Killer Detection Configuration
+local KILLER_NAMES = { '1x1x1x1', 'Noli', 'JohnDoe', 'c00lkidd', 'Slasher' }
+local ANGLE_THRESHOLD = 50 -- degrees
+local COOLDOWN_TIME = 0.5
+
+-- Killer Detection State
+local killerDetectorActive = false
+local lastQPressTime = 0
+local detectionRange = 30
+local detectionConnection = nil
+local debugMode = false
+local closestKillerDistance = 0
+local closestKillerName = 'None'
+local killerDebugData = {}
+
+-- Helper function to get angle between two vectors
+local function getAngleBetweenVectors(v1, v2)
+	local dotProduct = v1.Unit:Dot(v2.Unit)
+	dotProduct = math.clamp(dotProduct, -1, 1)
+	local angleRadians = math.acos(dotProduct)
+	return math.deg(angleRadians)
+end
+
+-- Helper function to check if player is in front of killer
+local function isInFrontOfKiller(playerPos, killerPos, killerLookVector)
+	local toPlayer = (playerPos - killerPos).Unit
+	local angle = getAngleBetweenVectors(killerLookVector, toPlayer)
+	return angle < 90 -- If angle is less than 90 degrees, player is in front
+end
+
+-- Helper function to fire Dagger ability
+local function fireDagger()
+	local currentTime = tick()
+	if currentTime - lastQPressTime >= COOLDOWN_TIME then
+		local success, daggerButton = pcall(function()
+			return player
+				:WaitForChild('PlayerGui', 5)
+				:WaitForChild('MainUI', 5)
+				:WaitForChild('AbilityContainer', 5)
+				:WaitForChild('Dagger', 5)
+		end)
+
+		if success and daggerButton then
+			pcall(function()
+				firesignal(daggerButton.MouseButton1Click)
+			end)
+			lastQPressTime = currentTime
+			return true
+		end
+		return false
+	end
+	return false
+end
+
+-- Helper function to verify TwoTime character
+local function verifyTwoTimeCharacter()
+	local character = player.Character
+	if not character then
+		return false
+	end
+
+	local survivorsFolder = workspace:FindFirstChild('Players')
+		and workspace.Players:FindFirstChild('Survivors')
+	local twoTime = survivorsFolder
+		and survivorsFolder:FindFirstChild('TwoTime')
+	local humanoid = character:FindFirstChildOfClass('Humanoid')
+
+	if not twoTime then
+		return false
+	end
+
+	local twoTimeHum = twoTime:FindFirstChildOfClass('Humanoid')
+
+	-- Method 1: Direct humanoid match
+	if twoTimeHum and humanoid == twoTimeHum then
+		return true
+	end
+
+	-- Method 2: Character is descendant of TwoTime
+	if character:IsDescendantOf(twoTime) then
+		return true
+	end
+
+	-- Method 3: Humanoid is descendant of TwoTime
+	if humanoid and humanoid:IsDescendantOf(twoTime) then
+		return true
+	end
+
+	-- Method 4: Check if character name matches TwoTime
+	if character.Name == 'TwoTime' then
+		return true
+	end
+
+	-- Method 5: Check if player name matches TwoTime
+	if player.Name == 'TwoTime' then
+		return true
+	end
+
+	return false
+end
+
+-- Main detection function
+local function checkForKillers()
+	if not killerDetectorActive then
+		return
+	end
+
+	local character = player.Character
+	if not character then
+		return
+	end
+
+	local humanoidRootPart = character:FindFirstChild('HumanoidRootPart')
+	if not humanoidRootPart then
+		return
+	end
+
+	-- Check if player is TwoTime
+	if not verifyTwoTimeCharacter() then
+		if debugMode then
+			print('❌ Not playing as TwoTime - disabling detector')
+		end
+		-- Auto-disable the toggle
+		killerDetectorActive = false
+		if Options.KillerDetector then
+			Options.KillerDetector:SetValue(false)
+		end
+		Library:Notify({
+			Title = '⚠️ Character Verification Failed',
+			Content = 'You are not playing as TwoTime. Auto Dagger disabled.',
+			Duration = 5,
+		})
+		return
+	end
+
+	local playerPos = humanoidRootPart.Position
+	local playerLookVector = humanoidRootPart.CFrame.LookVector
+
+	-- Check if workspace.Players.Killers exists
+	local killersFolder = workspace:FindFirstChild('Players')
+	if killersFolder then
+		killersFolder = killersFolder:FindFirstChild('Killers')
+	end
+
+	if not killersFolder then
+		closestKillerDistance = 0
+		closestKillerName = 'None'
+		return
+	end
+
+	-- Track closest killer for debug
+	local closestDist = math.huge
+	local closestName = 'None'
+
+	-- Clear previous debug data
+	killerDebugData = {}
+
+	-- Check each killer model
+	for _, killerName in ipairs(KILLER_NAMES) do
+		local killerModel = killersFolder:FindFirstChild(killerName)
+		if killerModel then
+					local killerRoot = killerModel:FindFirstChild(
+						'HumanoidRootPart'
+					) or killerModel:FindFirstChild('Torso')
+			if killerRoot then
+				local killerPos = killerRoot.Position
+				local distance = (playerPos - killerPos).Magnitude
+
+				-- Track closest killer (always update regardless of range)
+				if distance < closestDist then
+					closestDist = distance
+					closestName = killerName
+				end
+
+				local killerLookVector = killerRoot.CFrame.LookVector
+
+				-- Check if looking in the same direction
+						local angle = getAngleBetweenVectors(
+							playerLookVector,
+							killerLookVector
+						)
+
+				-- Check if NOT in front of killer
+						local inFront = isInFrontOfKiller(
+							playerPos,
+							killerPos,
+							killerLookVector
+						)
+
+				-- Store debug data for GUI display (always, regardless of debug mode)
+				table.insert(killerDebugData, {
+					name = killerName,
+					distance = distance,
+					angle = angle,
+					inFront = inFront,
+					inRange = distance <= detectionRange,
+				})
+
+				-- Debug mode: show ALL killers detected in console
+				if debugMode then
+					print(
+						string.format(
+							'🔍 DEBUG | Killer: %s | Distance: %.1f | Angle: %.1f° | InFront: %s | InRange: %s',
+							killerName,
+							distance,
+							angle,
+							tostring(inFront),
+							tostring(distance <= detectionRange)
+						)
+					)
+				end
+
+				-- Check if within range for auto-dagger
+				if distance <= detectionRange then
+					if angle <= ANGLE_THRESHOLD and not inFront then
+						local pressed = fireDagger()
+						if pressed then
+							print(
+								string.format(
+									'✅ DAGGER FIRED! Killer: %s | Distance: %.1f studs | Angle: %.1f°',
+									killerName,
+									distance,
+									angle
+								)
+							)
+						end
+						-- Update closest killer info before returning
+						closestKillerDistance = distance
+						closestKillerName = killerName
+						return
+					end
+				end
+			end
+		end
+	end
+
+	-- Update closest killer info (always update at the end)
+	closestKillerDistance = closestDist == math.huge and 0 or closestDist
+	closestKillerName = closestName
+end
+
+-- Start killer detection
+local function startKillerDetection()
+	if detectionConnection then
+		detectionConnection:Disconnect()
+		detectionConnection = nil
+	end
+
+	detectionConnection = RunService.Heartbeat:Connect(function()
+		if killerDetectorActive then
+			pcall(checkForKillers)
+		end
+	end)
+
+	Library:Notify({
+		Title = '✅ Killer Detector Enabled',
+		Content = 'Auto Dagger is now active (TwoTime only)',
+		Duration = 3,
+	})
+end
+
+-- Stop killer detection
+local function stopKillerDetection()
+	if detectionConnection then
+		detectionConnection:Disconnect()
+		detectionConnection = nil
+	end
+
+	Library:Notify({
+		Title = '🔄 Killer Detector Disabled',
+		Content = 'Auto Dagger has been stopped',
+		Duration = 3,
+	})
+end
+
+-- Detection Range Input
+Tabs.Misc:CreateInput('KillerDetectionRange', {
+	Title = 'Detection Range (studs)',
+	Description = 'Max distance to auto stab killers',
+	Default = '10',
+	Numeric = true,
+	Finished = true,
+	Placeholder = '10',
+	Callback = function(Value)
+		local newRange = tonumber(Value)
+		if newRange and newRange > 0 then
+			if newRange > 15 then
+				-- Show warning dialog
+				Window:Dialog({
+					Title = '⚠️ High Range Warning',
+					Content = string.format(
+						'⚠️ Warning: Stab range too high! (%d studs)\n\nRecommended to keep below 15 studs — higher values may cause unstable targeting.\n\nDo you want to continue with %d studs?',
+						newRange,
+						newRange
+					),
+					Buttons = {
+						{
+							Title = 'Yes',
+							Callback = function()
+								detectionRange = newRange
+								print(
+									'🎯 Detection range set to:',
+									newRange,
+									'(warning accepted)'
+								)
+							end,
+						},
+						{
+							Title = 'No',
+							Callback = function()
+								-- Reset to previous value
+								if Options.KillerDetectionRange then
+									Options.KillerDetectionRange:SetValue(
+										tostring(detectionRange)
+									)
+								end
+								print(
+									'⚠️ Range change cancelled, keeping:',
+									detectionRange
+								)
+							end,
+						},
+					},
+				})
+			else
+				detectionRange = newRange
+				print('🎯 Detection range set to:', newRange)
+			end
+		end
+	end,
+})
+
+-- Angle Threshold Input
+Tabs.Misc:CreateInput('KillerAngleThreshold', {
+	Title = 'Direction Angle (degrees)',
+	Description = 'Max angle difference to trigger stab (lower = stricter)',
+	Default = '50',
+	Numeric = true,
+	Finished = true,
+	Placeholder = '50',
+	Callback = function(Value)
+		local newAngle = tonumber(Value)
+		if newAngle and newAngle > 0 and newAngle <= 180 then
+			if newAngle > 70 then
+				-- Show warning dialog
+				Window:Dialog({
+					Title = '⚠️ Wide Angle Warning',
+					Content = string.format(
+						'⚠️ Warning: Stab angle too wide! (%d degrees)\n\nRecommended to keep below 70° — larger angles may lead to erratic aim.\n\nDo you want to continue with %d degrees?',
+						newAngle,
+						newAngle
+					),
+					Buttons = {
+						{
+							Title = 'Yes',
+							Callback = function()
+								ANGLE_THRESHOLD = newAngle
+								print(
+									'🎯 Angle threshold set to:',
+									newAngle,
+									'degrees (warning accepted)'
+								)
+							end,
+						},
+						{
+							Title = 'No',
+							Callback = function()
+								-- Reset to previous value
+								if Options.KillerAngleThreshold then
+									Options.KillerAngleThreshold:SetValue(
+										tostring(ANGLE_THRESHOLD)
+									)
+								end
+								print(
+									'⚠️ Angle change cancelled, keeping:',
+									ANGLE_THRESHOLD,
+									'degrees'
+								)
+							end,
+						},
+					},
+				})
+			else
+				ANGLE_THRESHOLD = newAngle
+				print('🎯 Angle threshold set to:', newAngle, 'degrees')
+			end
+		end
+	end,
+})
+
+-- Dynamic Distance Display
+local distanceDisplay = Tabs.Misc:CreateParagraph('DistanceToKiller', {
+	Title = '📍 Closest Killer Distance',
+	Content = 'Waiting for data...',
+})
+
+-- Live Debug Display (shows all killers in real-time)
+local debugDisplay = Tabs.Misc:CreateParagraph('LiveDebugInfo', {
+	Title = '🔍 Live Debug Info',
+	Content = 'Debug mode disabled - Enable below to see real-time killer data',
+})
+
+-- Update distance display in real-time
+task.spawn(function()
+	while task.wait(0.05) do
+		if killerDetectorActive and closestKillerDistance > 0 then
+			distanceDisplay:SetValue(
+				string.format(
+					'Killer: %s | Distance: %.1f studs | Range: %.0f studs',
+					closestKillerName,
+					closestKillerDistance,
+					detectionRange
+				)
+			)
+		elseif killerDetectorActive then
+			distanceDisplay:SetValue('No killers detected nearby')
+		else
+			distanceDisplay:SetValue('Detector is disabled')
+		end
+
+		-- Update debug display
+		if debugMode and killerDetectorActive then
+			if #killerDebugData > 0 then
+				local debugText = ''
+				for i, data in ipairs(killerDebugData) do
+					debugText = debugText
+						.. string.format(
+							'%s: %.1f studs | Angle: %.1f° | Front: %s | InRange: %s\n',
+							data.name,
+							data.distance,
+							data.angle,
+							data.inFront and 'Yes' or 'No',
+							data.inRange and 'Yes' or 'No'
+						)
+				end
+				debugDisplay:SetValue(debugText)
+			else
+				debugDisplay:SetValue('No killers found in workspace')
+			end
+		elseif debugMode then
+			debugDisplay:SetValue(
+				'Detector is disabled - Enable detector to see live data'
+			)
+		else
+			debugDisplay:SetValue(
+				'Debug mode disabled - Enable below to see real-time killer data'
+			)
+		end
+	end
+end)
+
+-- Debug Mode Toggle
+Tabs.Misc:CreateToggle('KillerDetectorDebug', {
+	Title = 'Debug Mode',
+	Description = 'Show detailed detection info in GUI and console',
+	Default = false,
+	Callback = function(Value)
+		debugMode = Value
+		if debugMode then
+			print('🔍 Killer Detector Debug Mode: ENABLED')
+			Library:Notify({
+				Title = '🔍 Debug Mode Enabled',
+				Content = 'Live killer data now visible in GUI panel above',
+				Duration = 3,
+			})
+		else
+			print('🔍 Killer Detector Debug Mode: DISABLED')
+			killerDebugData = {} -- clear debug data
+		end
+	end,
+})
+
+-- Toggle Control
+UI.KillerDetectorToggle = Tabs.Misc:CreateToggle('KillerDetector', {
+	Title = 'Enable Killer Detector',
+	Description = 'Auto fire Dagger when killer is behind you (TwoTime only)',
+	Default = false,
+})
+
+UI.KillerDetectorToggle:OnChanged(function()
+	killerDetectorActive = Options.KillerDetector.Value
+
+	if killerDetectorActive then
+		-- Verify TwoTime before enabling
+		if not verifyTwoTimeCharacter() then
+			Library:Notify({
+				Title = '⚠️ Not Playing as TwoTime',
+				Content = 'Killer Detector only works when playing as TwoTime character. Please select TwoTime first.',
+				Duration = 6,
+			})
+			killerDetectorActive = false
+			Options.KillerDetector:SetValue(false)
+			return
+		end
+		startKillerDetection()
+	else
+		stopKillerDetection()
+	end
+end)
+
+-- Auto-restart on respawn
+player.CharacterAdded:Connect(function()
+	if killerDetectorActive then
+		task.wait(1)
+		print('🔄 Killer Detector auto-restarted after respawn')
+	end
+end)
+		end -- End Killer Detection scope
+
+-- ========================================
+-- THEME REPLACEMENTS
+-- ========================================
+		do -- Isolated scope for Theme Replacements
+Tabs.Misc:CreateSection('🎵 Theme Replacements')
+
+-- Old Noli Chase State
+local oldNoliActive = false
+local originalSounds = {} -- Store original sound IDs for restoration
+local noliConnections = {}
+
+-- Replacement mapping (original → replacement)
+local NOLI_REPLACEMENTS = {
+	['rbxassetid://84531768750039'] = 'rbxassetid://137984398736588',
+	['rbxassetid://105569529052440'] = 'rbxassetid://101639399549593',
+	['rbxassetid://92391154089183'] = 'rbxassetid://139278573219074',
+	['rbxassetid://70685065006591'] = 'rbxassetid://79001697227075',
+}
+
+-- Function to store original sound ID
+local function storeOriginalSound(sound)
+	if sound:IsA('Sound') and not originalSounds[sound] then
+		originalSounds[sound] = sound.SoundId
+	end
+end
+
+-- Function to replace sound with old Noli version
+local function tryReplaceNoliSound(sound)
+	if not sound:IsA('Sound') then
+		return
+	end
+
+	-- Store original first
+	storeOriginalSound(sound)
+
+	-- Replace if mapping exists
+	if NOLI_REPLACEMENTS[sound.SoundId] then
+		local timePosition = sound.TimePosition
+		local wasPlaying = sound.Playing
+		local volume = sound.Volume
+
+		sound.SoundId = NOLI_REPLACEMENTS[sound.SoundId]
+		sound.TimePosition = timePosition
+		sound.Volume = volume
+
+		if wasPlaying then
+			sound:Play()
+		end
+
+		print(
+			'🎵 Replaced Noli sound: '
+				.. originalSounds[sound]
+				.. ' → '
+				.. sound.SoundId
+		)
+	end
+end
+
+-- Function to restore original sound
+local function restoreOriginalNoliSound(sound)
+	if not sound:IsA('Sound') then
+		return
+	end
+
+	local originalId = originalSounds[sound]
+	if originalId then
+		local timePosition = sound.TimePosition
+		local wasPlaying = sound.Playing
+		local volume = sound.Volume
+
+		sound.SoundId = originalId
+		sound.TimePosition = timePosition
+		sound.Volume = volume
+
+		if wasPlaying then
+			sound:Play()
+		end
+
+		print('🔄 Restored original Noli sound: ' .. originalId)
+	end
+end
+
+-- Function to scan and replace all existing sounds
+local function scanAndReplaceNoliSounds()
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if oldNoliActive then
+			tryReplaceNoliSound(descendant)
+		end
+	end
+end
+
+-- Function to restore all sounds to original
+local function restoreAllNoliSounds()
+	for sound, _ in pairs(originalSounds) do
+		if sound and sound.Parent then
+			restoreOriginalNoliSound(sound)
+		end
+	end
+end
+
+-- Start Old Noli Chase
+local function startOldNoliChase()
+	print(
+		"hello, no this script isnt gone this message is to prove the script is working. Since scriptblox keeps shutting down alot I decided to put this here so uhmm yeah enjoy noli's old chase!"
+	)
+
+	-- Clear previous connections
+	for _, connection in pairs(noliConnections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	noliConnections = {}
+
+	-- Replace existing sounds
+	scanAndReplaceNoliSounds()
+
+	-- Monitor new sounds added
+	noliConnections.descendantAdded = workspace.DescendantAdded:Connect(
+		function(descendant)
+			if oldNoliActive then
+				task.wait() -- short delay to ensure SoundId is set
+				tryReplaceNoliSound(descendant)
+			end
+		end
+	)
+
+	Library:Notify({
+		Title = '🎵 Old Noli Chase Enabled',
+		Content = 'Classic Noli chase music is now active!',
+		Duration = 3,
+	})
+end
+
+-- Stop Old Noli Chase
+local function stopOldNoliChase()
+	-- Disconnect monitoring
+	for _, connection in pairs(noliConnections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	noliConnections = {}
+
+	-- Restore all sounds to original
+	restoreAllNoliSounds()
+
+	Library:Notify({
+		Title = '🔄 Old Noli Chase Disabled',
+		Content = 'Original Noli sounds have been restored',
+		Duration = 3,
+	})
+end
+
+-- Toggle Control
+UI.OldNoliToggle = Tabs.Misc:CreateToggle('OldNoliChase', {
+	Title = 'Enable Old Noli Chase',
+	Description = 'Replace current Noli sounds with classic old versions',
+	Default = false,
+})
+
+UI.OldNoliToggle:OnChanged(function()
+	oldNoliActive = Options.OldNoliChase.Value
+
+	if oldNoliActive then
+		startOldNoliChase()
+	else
+		stopOldNoliChase()
+	end
+end)
+
+-- ========================================
+-- 1X OLD THEME
+-- ========================================
+
+-- 1x Old Theme State
+local old1xThemeActive = false
+local original1xSounds = {} -- Store original sound IDs for restoration
+local theme1xConnections = {}
+
+-- Replacement mapping (original → custom MP3)
+local THEME_1X_REPLACEMENTS = {
+	['rbxassetid://139957641994343'] = 'forvids/Theme/1xr1.mp3',
+	['rbxassetid://107607873139123'] = 'forvids/Theme/1xr2.mp3',
+	['rbxassetid://105551772469406'] = 'forvids/Theme/1xr3.mp3',
+	['rbxassetid://97690757653206'] = 'forvids/Theme/1xr4.mp3',
+}
+
+-- Function to store original 1x theme sound ID
+local function storeOriginal1xSound(sound)
+	if sound:IsA('Sound') and not original1xSounds[sound] then
+		original1xSounds[sound] = sound.SoundId
+	end
+end
+
+-- Function to replace sound with custom 1x theme version
+local function tryReplace1xThemeSound(sound)
+	if not sound:IsA('Sound') then
+		return
+	end
+
+	-- Store original first
+	storeOriginal1xSound(sound)
+
+	-- Replace if mapping exists
+	if THEME_1X_REPLACEMENTS[sound.SoundId] then
+		local timePosition = sound.TimePosition
+		local wasPlaying = sound.Playing
+		local volume = sound.Volume
+
+		local customAssetId =
+			getcustomasset(THEME_1X_REPLACEMENTS[sound.SoundId])
+		sound.SoundId = customAssetId
+		sound.TimePosition = timePosition
+		sound.Volume = volume
+
+		if wasPlaying then
+			sound:Play()
+		end
+
+		print(
+			'🎵 Replaced 1x theme sound: '
+				.. original1xSounds[sound]
+				.. ' → '
+				.. customAssetId
+		)
+	end
+end
+
+-- Function to restore original 1x theme sound
+local function restoreOriginal1xSound(sound)
+	local originalId = original1xSounds[sound]
+	if originalId then
+		local timePosition = sound.TimePosition
+		local wasPlaying = sound.Playing
+		local volume = sound.Volume
+
+		sound.SoundId = originalId
+		sound.TimePosition = timePosition
+		sound.Volume = volume
+
+		if wasPlaying then
+			sound:Play()
+		end
+
+		print('🔄 Restored original 1x theme sound: ' .. originalId)
+	end
+end
+
+-- Function to scan and replace all existing 1x theme sounds
+local function scanAndReplace1xThemeSounds()
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if old1xThemeActive then
+			tryReplace1xThemeSound(descendant)
+		end
+	end
+end
+
+-- Function to restore all 1x theme sounds to original
+local function restoreAll1xThemeSounds()
+	for sound, _ in pairs(original1xSounds) do
+		if sound and sound.Parent then
+			restoreOriginal1xSound(sound)
+		end
+	end
+end
+
+-- Start 1x Old Theme
+local function start1xOldTheme()
+	print(
+		'🎵 1x Old Theme activated! Custom MP3 files loaded via getcustomasset() are now playing.'
+	)
+
+	-- Clear previous connections
+	for _, connection in pairs(theme1xConnections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	theme1xConnections = {}
+
+	-- Replace existing sounds
+	scanAndReplace1xThemeSounds()
+
+	-- Monitor new sounds added
+	theme1xConnections.descendantAdded = workspace.DescendantAdded:Connect(
+		function(descendant)
+			if old1xThemeActive then
+				task.wait() -- short delay to ensure SoundId is set
+				tryReplace1xThemeSound(descendant)
+			end
+		end
+	)
+
+	Library:Notify({
+		Title = '🎵 1x Old Theme Enabled',
+		Content = 'Custom 1x theme music is now active!',
+		Duration = 3,
+	})
+end
+
+-- Stop 1x Old Theme
+local function stop1xOldTheme()
+	-- Disconnect monitoring
+	for _, connection in pairs(theme1xConnections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	theme1xConnections = {}
+
+	-- Restore all sounds to original
+	restoreAll1xThemeSounds()
+
+	Library:Notify({
+		Title = '🔄 1x Old Theme Disabled',
+		Content = 'Original 1x theme sounds have been restored',
+		Duration = 3,
+	})
+end
+
+-- Toggle Control
+UI.Old1xThemeToggle = Tabs.Misc:CreateToggle('Old1xTheme', {
+	Title = 'Enable 1x Old Theme',
+	Description = 'Replace current 1x theme sounds with custom MP3 versions',
+	Default = false,
+})
+
+UI.Old1xThemeToggle:OnChanged(function()
+	old1xThemeActive = Options.Old1xTheme.Value
+
+	if old1xThemeActive then
+		start1xOldTheme()
+	else
+		stop1xOldTheme()
+	end
+end)
+
+-- ========================================
+-- MAFIOSO THEME
+-- ========================================
+
+-- Mafioso Theme State
+local mafiosoThemeActive = false
+local originalMafiosoSounds = {} -- Store original sound IDs for restoration
+local mafiosoConnections = {}
+
+-- Replacement mapping (original → custom MP3)
+local MAFIOSO_REPLACEMENTS = {
+	['rbxassetid://75554737667196'] = 'forvids/Theme/m1.mp3',
+	['rbxassetid://121567985915317'] = 'forvids/Theme/m2.mp3',
+	['rbxassetid://133222944971198'] = 'forvids/Theme/m3.mp3',
+	['rbxassetid://84250831671130'] = 'forvids/Theme/m4.mp3',
+}
+
+-- Function to store original Mafioso theme sound ID
+local function storeOriginalMafiosoSound(sound)
+	if sound:IsA('Sound') and not originalMafiosoSounds[sound] then
+		originalMafiosoSounds[sound] = sound.SoundId
+	end
+end
+
+-- Function to replace sound with custom Mafioso theme version
+local function tryReplaceMafiosoSound(sound)
+	if not sound:IsA('Sound') then
+		return
+	end
+
+	-- Store original first
+	storeOriginalMafiosoSound(sound)
+
+	-- Replace if mapping exists
+	if MAFIOSO_REPLACEMENTS[sound.SoundId] then
+		local timePosition = sound.TimePosition
+		local wasPlaying = sound.Playing
+		local volume = sound.Volume
+
+		local customAssetId =
+			getcustomasset(MAFIOSO_REPLACEMENTS[sound.SoundId])
+		sound.SoundId = customAssetId
+		sound.TimePosition = timePosition
+		sound.Volume = volume
+
+		if wasPlaying then
+			sound:Play()
+		end
+
+		print(
+			'🎵 Replaced Mafioso theme sound: '
+				.. originalMafiosoSounds[sound]
+				.. ' → '
+				.. customAssetId
+		)
+	end
+end
+
+-- Function to restore original Mafioso theme sound
+local function restoreOriginalMafiosoSound(sound)
+	local originalId = originalMafiosoSounds[sound]
+	if originalId then
+		local timePosition = sound.TimePosition
+		local wasPlaying = sound.Playing
+		local volume = sound.Volume
+
+		sound.SoundId = originalId
+		sound.TimePosition = timePosition
+		sound.Volume = volume
+
+		if wasPlaying then
+			sound:Play()
+		end
+
+		print('🔄 Restored original Mafioso theme sound: ' .. originalId)
+	end
+end
+
+-- Function to scan and replace all existing Mafioso theme sounds
+local function scanAndReplaceMafiosoSounds()
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if mafiosoThemeActive then
+			tryReplaceMafiosoSound(descendant)
+		end
+	end
+end
+
+-- Function to restore all Mafioso theme sounds to original
+local function restoreAllMafiosoSounds()
+	for sound, _ in pairs(originalMafiosoSounds) do
+		if sound and sound.Parent then
+			restoreOriginalMafiosoSound(sound)
+		end
+	end
+end
+
+-- Start Mafioso Theme
+local function startMafiosoTheme()
+	print(
+		'🎵 Mafioso Theme activated! Custom MP3 files loaded via getcustomasset() are now playing.'
+	)
+
+	-- Clear previous connections
+	for _, connection in pairs(mafiosoConnections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	mafiosoConnections = {}
+
+	-- Replace existing sounds
+	scanAndReplaceMafiosoSounds()
+
+	-- Monitor new sounds added
+	mafiosoConnections.descendantAdded = workspace.DescendantAdded:Connect(
+		function(descendant)
+			if mafiosoThemeActive then
+				task.wait() -- short delay to ensure SoundId is set
+				tryReplaceMafiosoSound(descendant)
+			end
+		end
+	)
+
+	Library:Notify({
+		Title = '🎵 Mafioso Theme Enabled',
+		Content = 'Custom Mafioso theme music is now active!',
+		Duration = 3,
+	})
+end
+
+-- Stop Mafioso Theme
+local function stopMafiosoTheme()
+	-- Disconnect monitoring
+	for _, connection in pairs(mafiosoConnections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	mafiosoConnections = {}
+
+	-- Restore all sounds to original
+	restoreAllMafiosoSounds()
+
+	Library:Notify({
+		Title = '🔄 Mafioso Theme Disabled',
+		Content = 'Original Mafioso theme sounds have been restored',
+		Duration = 3,
+	})
+end
+
+-- Toggle Control
+UI.MafiosoThemeToggle = Tabs.Misc:CreateToggle('MafiosoTheme', {
+	Title = 'Enable Mafioso Theme',
+	Description = 'Replace current Mafioso theme sounds with custom MP3 versions',
+	Default = false,
+})
+
+UI.MafiosoThemeToggle:OnChanged(function()
+	mafiosoThemeActive = Options.MafiosoTheme.Value
+
+	if mafiosoThemeActive then
+		startMafiosoTheme()
+	else
+		stopMafiosoTheme()
+	end
+end)
+
+-- ========================================
+-- C00LKIDD THEME
+-- ========================================
+
+-- c00lkidd Theme State
+local c00lkiddThemeActive = false
+local originalC00lkiddSounds = {} -- Store original sound IDs for restoration
+local c00lkiddConnections = {}
+
+-- Replacement mapping (original → custom MP3)
+local C00LKIDD_REPLACEMENTS = {
+	['rbxassetid://123676748918993'] = 'forvids/Theme/c1.mp3',
+	['rbxassetid://117756121527078'] = 'forvids/Theme/c2.mp3',
+	['rbxassetid://113960555777390'] = 'forvids/Theme/c3.mp3',
+	['rbxassetid://72867661507332'] = 'forvids/Theme/c4.mp3',
+}
+
+-- Function to store original c00lkidd theme sound ID
+local function storeOriginalC00lkiddSound(sound)
+	if sound:IsA('Sound') and not originalC00lkiddSounds[sound] then
+		originalC00lkiddSounds[sound] = sound.SoundId
+	end
+end
+
+-- Function to replace sound with custom c00lkidd theme version
+local function tryReplaceC00lkiddSound(sound)
+	if not sound:IsA('Sound') then
+		return
+	end
+
+	-- Store original first
+	storeOriginalC00lkiddSound(sound)
+
+	-- Replace if mapping exists
+	if C00LKIDD_REPLACEMENTS[sound.SoundId] then
+		local timePosition = sound.TimePosition
+		local wasPlaying = sound.Playing
+		local volume = sound.Volume
+
+		local customAssetId =
+			getcustomasset(C00LKIDD_REPLACEMENTS[sound.SoundId])
+		sound.SoundId = customAssetId
+		sound.TimePosition = timePosition
+		sound.Volume = volume
+
+		if wasPlaying then
+			sound:Play()
+		end
+
+		print(
+			'🎵 Replaced c00lkidd theme sound: '
+				.. originalC00lkiddSounds[sound]
+				.. ' → '
+				.. customAssetId
+		)
+	end
+end
+
+-- Function to restore original c00lkidd theme sound
+local function restoreOriginalC00lkiddSound(sound)
+	local originalId = originalC00lkiddSounds[sound]
+	if originalId then
+		local timePosition = sound.TimePosition
+		local wasPlaying = sound.Playing
+		local volume = sound.Volume
+
+		sound.SoundId = originalId
+		sound.TimePosition = timePosition
+		sound.Volume = volume
+
+		if wasPlaying then
+			sound:Play()
+		end
+
+		print('🔄 Restored original c00lkidd theme sound: ' .. originalId)
+	end
+end
+
+-- Function to scan and replace all existing c00lkidd theme sounds
+local function scanAndReplaceC00lkiddSounds()
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if c00lkiddThemeActive then
+			tryReplaceC00lkiddSound(descendant)
+		end
+	end
+end
+
+-- Function to restore all c00lkidd theme sounds to original
+local function restoreAllC00lkiddSounds()
+	for sound, _ in pairs(originalC00lkiddSounds) do
+		if sound and sound.Parent then
+			restoreOriginalC00lkiddSound(sound)
+		end
+	end
+end
+
+-- Start c00lkidd Theme
+local function startC00lkiddTheme()
+	print(
+		'🎵 c00lkidd Theme activated! Custom MP3 files loaded via getcustomasset() are now playing.'
+	)
+
+	-- Clear previous connections
+	for _, connection in pairs(c00lkiddConnections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	c00lkiddConnections = {}
+
+	-- Replace existing sounds
+	scanAndReplaceC00lkiddSounds()
+
+	-- Monitor new sounds added
+	c00lkiddConnections.descendantAdded = workspace.DescendantAdded:Connect(
+		function(descendant)
+			if c00lkiddThemeActive then
+				task.wait() -- short delay to ensure SoundId is set
+				tryReplaceC00lkiddSound(descendant)
+			end
+		end
+	)
+
+	Library:Notify({
+		Title = '🎵 c00lkidd Theme Enabled',
+		Content = 'Custom c00lkidd theme music is now active!',
+		Duration = 3,
+	})
+end
+
+-- Stop c00lkidd Theme
+local function stopC00lkiddTheme()
+	-- Disconnect monitoring
+	for _, connection in pairs(c00lkiddConnections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	c00lkiddConnections = {}
+
+	-- Restore all sounds to original
+	restoreAllC00lkiddSounds()
+
+	Library:Notify({
+		Title = '🔄 c00lkidd Theme Disabled',
+		Content = 'Original c00lkidd theme sounds have been restored',
+		Duration = 3,
+	})
+end
+
+-- Toggle Control
+UI.C00lkiddThemeToggle = Tabs.Misc:CreateToggle('C00lkiddTheme', {
+	Title = 'Enable c00lkidd Theme',
+	Description = 'Replace current c00lkidd theme sounds with custom MP3 versions',
+	Default = false,
+})
+
+UI.C00lkiddThemeToggle:OnChanged(function()
+	c00lkiddThemeActive = Options.C00lkiddTheme.Value
+
+	if c00lkiddThemeActive then
+		startC00lkiddTheme()
+	else
+		stopC00lkiddTheme()
+	end
+end)
+		end -- End Theme Replacements scope
+
+-- ========================================
+-- CHANCE GUNSHOT SOUND CHANGE
+-- ========================================
+		do -- Isolated scope for Chance Gunshot
+		Tabs.Misc:CreateSection('🎯 Chance Related')
+
+Tabs.Misc:CreateParagraph('ChanceGunshotInfo', {
+	Title = 'Custom gunshot sound for Chance ability',
+	Content = 'Replace the default Chance gunshot sound (ID: 94081182837305) with your custom sound. Enter any Roblox sound ID in the textbox below.',
+})
+
+-- Chance Gunshot State
+local chanceGunshotActive = false
+local customGunshotId = ''
+local customGunshotVolume = 2 -- Default volume
+local originalGunshotSounds = {} -- Store original sound IDs for restoration
+local gunshotConnections = {}
+
+-- Legacy variables (kept for compatibility, but no longer used)
+local wtfSoundActive = false
+local wtfAnimationId = 'rbxassetid://86371356500204'
+local wtfSoundPath = 'rbxassetid://getcustomasset(/forvids/sfx/WTF.mp3)'
+local wtfAnimationConnection = nil
+
+	-- Note: Gunshot Sound Save System functions are now defined in the shared section above MISC TAB
+
+-- Function to store original gunshot sound ID and volume
+local function storeOriginalGunshotSound(sound)
+	if
+		sound:IsA('Sound')
+		and not originalGunshotSounds[sound]
+		and isTargetGunshotSound(sound.SoundId)
+	then
+		originalGunshotSounds[sound] = {
+			soundId = sound.SoundId,
+			volume = sound.Volume,
+		}
+		print(
+			'🔍 Stored original gunshot sound for restoration: '
+				.. sound.SoundId
+		)
+	end
+end
+
+-- Function to replace gunshot sound with custom version
+local function tryReplaceGunshotSound(sound)
+	if not sound:IsA('Sound') then
+		return
+	end
+	if customGunshotId == '' then
+		return
+	end
+
+	-- Replace if it matches target ID
+	if isTargetGunshotSound(sound.SoundId) then
+		-- Store original first (only for matching sounds)
+		storeOriginalGunshotSound(sound)
+		local wasPlaying = sound.Playing
+		local parent = sound.Parent
+
+		-- Format the custom ID properly
+		local formattedId = customGunshotId
+		if not formattedId:match('^rbxassetid://') then
+			formattedId = 'rbxassetid://' .. formattedId
+		end
+
+		-- Always remove original sound and create new instance
+		if parent then
+			-- Remove the original sound
+			sound:Destroy()
+
+			-- Create new Sound instance
+			local newSound = Instance.new('Sound')
+			newSound.SoundId = formattedId
+			newSound.Volume = customGunshotVolume
+			newSound.Parent = parent
+
+			-- Play the sound if the original was playing
+			if wasPlaying then
+				newSound:Play()
+			end
+
+			-- Remove the sound when it finishes playing
+			local connection
+			connection = newSound.Ended:Connect(function()
+				if connection then
+					connection:Disconnect()
+				end
+				if newSound and newSound.Parent then
+					newSound:Destroy()
+				end
+			end)
+
+			print(
+				'🔫 Created new gunshot sound instance: '
+					.. formattedId
+					.. ' (will auto-remove when finished)'
+			)
+		end
+	end
+end
+
+-- Function to restore original gunshot sound
+local function restoreOriginalGunshotSound(sound)
+	if not sound:IsA('Sound') then
+		return
+	end
+
+	local originalData = originalGunshotSounds[sound]
+	if originalData then
+		local timePosition = sound.TimePosition
+		local wasPlaying = sound.Playing
+
+		sound.SoundId = originalData.soundId
+		sound.TimePosition = timePosition
+		sound.Volume = originalData.volume -- Restore original volume
+
+		if wasPlaying then
+			sound:Play()
+		end
+
+		print(
+			'🔄 Restored original Chance gunshot sound: '
+				.. originalData.soundId
+		)
+	end
+end
+
+-- Function to scan and replace all existing gunshot sounds
+local function scanAndReplaceGunshotSounds()
+	for _, descendant in ipairs(workspace:GetDescendants()) do
+		if chanceGunshotActive then
+			tryReplaceGunshotSound(descendant)
+		end
+	end
+end
+
+-- Function to restore all gunshot sounds to original
+local function restoreAllGunshotSounds()
+	for sound, originalData in pairs(originalGunshotSounds) do
+		if
+			sound
+			and sound.Parent
+			and isTargetGunshotSound(originalData.soundId)
+		then
+			restoreOriginalGunshotSound(sound)
+		end
+	end
+	-- Clear the storage after restoration
+	originalGunshotSounds = {}
+end
+
+-- Function to update volume of all active custom gunshot sounds
+local function updateAllGunshotVolumes()
+	for sound, originalData in pairs(originalGunshotSounds) do
+				if
+					sound
+					and sound.Parent
+					and sound.SoundId ~= originalData.soundId
+				then
+			-- This is a custom sound, update its volume
+			sound.Volume = customGunshotVolume
+		end
+	end
+end
+
+-- Start Chance Gunshot replacement
+local function startChanceGunshot()
+	if customGunshotId == '' then
+		Library:Notify({
+			Title = '⚠️ No Sound ID Provided',
+			Content = 'Please enter a sound ID in the textbox above first!',
+			Duration = 4,
+		})
+		chanceGunshotActive = false
+		if Options.ChanceGunshot then
+			Options.ChanceGunshot:SetValue(false)
+		end
+		return
+	end
+
+	-- Clear previous connections
+	for _, connection in pairs(gunshotConnections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	gunshotConnections = {}
+
+	-- Replace existing sounds
+	scanAndReplaceGunshotSounds()
+
+	-- Monitor new sounds added
+	gunshotConnections.descendantAdded = workspace.DescendantAdded:Connect(
+		function(descendant)
+			if chanceGunshotActive then
+				task.wait() -- short delay to ensure SoundId is set
+				tryReplaceGunshotSound(descendant)
+			end
+		end
+	)
+
+	Library:Notify({
+		Title = '🔫 Custom Gunshot Enabled',
+				Content = 'Chance gunshot sound replaced with ID: '
+					.. customGunshotId,
+		Duration = 3,
+	})
+end
+
+-- Stop Chance Gunshot replacement
+local function stopChanceGunshot()
+	-- Disconnect monitoring
+	for _, connection in pairs(gunshotConnections) do
+		if connection then
+			connection:Disconnect()
+		end
+	end
+	gunshotConnections = {}
+
+	-- Restore all sounds to original
+	restoreAllGunshotSounds()
+
+	Library:Notify({
+		Title = '🔄 Custom Gunshot Disabled',
+		Content = 'Original Chance gunshot sound restored',
+		Duration = 3,
+	})
+end
+		end -- End Chance Gunshot scope
+
+-- ========================================
+		-- SHARED SOUND DETECTION (used by all sound systems)
+-- ========================================
+		local SUCCESS_PITCH_SOUND = 'rbxassetid://104239877200025' -- Game's success sound to detect
+		local FAILED_PITCH_SOUND = 'rbxassetid://101120969540575' -- Game's failed sound to detect
+		local SUCCESS_REPLACEMENT_SOUND = 'rbxassetid://3954788070' -- Our replacement for success
+		local FAILED_REPLACEMENT_SOUND = 'rbxassetid://3779045779' -- Our replacement for failed
+
+		-- Function to check if a sound is a success sound
+		local function isSuccessSound(soundId)
+			return soundId == SUCCESS_PITCH_SOUND
+		end
+
+		-- Function to check if a sound is a failed sound
+		local function isFailedSound(soundId)
+			return soundId == FAILED_PITCH_SOUND
+		end
+
+	-- ========================================
+		-- CHANCE PITCHING SOUND SYSTEM
+	-- ========================================
+		do -- Isolated scope for Chance Pitching
+		-- Pitching State Variables
+		local pitchingActive = false
+		local pitchingDebug = false
+		local pitchingConnections = {}
+		local currentPitchSuccess = 1 -- Pitch for success sound
+		local currentPitchFailed = 1 -- Pitch for failed sound
+		local lastSoundType = nil -- Track last sound type: 'success', 'failed', or 'other'
+		local PITCH_INCREMENT = 0.1
+
+		-- Debug print function
+		local function debugPrint(message)
+			if pitchingDebug then
+				print('[PITCH DEBUG] ' .. message)
+			end
+		end
+
+		-- Function to replace sound with success sound
+		local function replaceSoundWithSuccess(sound)
+			local parent = sound.Parent
+			if not parent then
+				return
+			end
+
+			local wasPlaying = sound.Playing
+
+			-- Destroy the original sound
+			sound:Destroy()
+
+			-- Use success replacement sound
+			local newSound = Instance.new('Sound')
+			newSound.SoundId = SUCCESS_REPLACEMENT_SOUND
+			newSound.Volume = 0.5
+			newSound.Parent = parent
+
+			-- Add pitch shift effect
+			local pitchShift = Instance.new('PitchShiftSoundEffect')
+			pitchShift.Octave = currentPitchSuccess
+			pitchShift.Parent = newSound
+
+			print(
+				'✅ Success! Playing success sound with pitch shift: '
+					.. string.format('%.1f', currentPitchSuccess)
+			)
+
+			-- Play the sound if original was playing
+			if wasPlaying then
+				newSound:Play()
+			end
+
+			-- Clean up when done
+			newSound.Ended:Connect(function()
+				if newSound and newSound.Parent then
+					newSound:Destroy()
+				end
+			end)
+		end
+
+		-- Function to replace sound with failed sound
+		local function replaceSoundWithFailed(sound)
+			local parent = sound.Parent
+			if not parent then
+				return
+			end
+
+			local wasPlaying = sound.Playing
+
+			-- Destroy the original sound
+			sound:Destroy()
+
+			-- Use failed replacement sound
+			local newSound = Instance.new('Sound')
+			newSound.SoundId = FAILED_REPLACEMENT_SOUND
+			newSound.Volume = 0.5
+			newSound.Parent = parent
+
+			-- Add pitch shift effect
+			local pitchShift = Instance.new('PitchShiftSoundEffect')
+			pitchShift.Octave = currentPitchFailed
+			pitchShift.Parent = newSound
+
+			print(
+				'❌ Failed! Playing failed sound with pitch shift: '
+					.. string.format('%.1f', currentPitchFailed)
+			)
+
+			-- Play the sound if original was playing
+			if wasPlaying then
+				newSound:Play()
+			end
+
+			-- Clean up when done
+			newSound.Ended:Connect(function()
+				if newSound and newSound.Parent then
+					newSound:Destroy()
+				end
+			end)
+		end
+
+		-- Function to handle sound detection
+		local function handleSound(sound)
+			if not sound:IsA('Sound') then
+				return
+			end
+			if not pitchingActive then
+				return
+			end
+
+			-- Wait a moment for SoundId to be set
+			task.wait()
+
+			local soundId = sound.SoundId
+
+			-- Ignore our own replaced sounds (they don't break or continue streaks)
+			if
+				soundId == SUCCESS_REPLACEMENT_SOUND
+				or soundId == FAILED_REPLACEMENT_SOUND
+			then
+				debugPrint('🔇 Ignoring our own replacement sound')
+				return
+			end
+
+			-- Check if it's a success sound
+			if isSuccessSound(soundId) then
+				-- Check if this is consecutive success sound
+				if lastSoundType == 'success' then
+					-- Consecutive success, increment pitch
+					currentPitchSuccess = currentPitchSuccess + PITCH_INCREMENT
+					debugPrint(
+						'🔼 Consecutive success! Pitch increased to: '
+							.. string.format('%.1f', currentPitchSuccess)
+					)
+				elseif lastSoundType == 'failed' then
+					-- Switched from failed to success, reset success pitch
+					currentPitchSuccess = 1.0
+					debugPrint(
+						'🔄 Switched from failed to success, pitch reset to 1.0'
+					)
+				else
+					-- First success sound or after 'other', reset to 1.0
+					currentPitchSuccess = 1.0
+					debugPrint('🔄 New success sequence, pitch reset to 1.0')
+				end
+
+				debugPrint('')
+				debugPrint(
+					'╔════════════════════════════════════════╗'
+				)
+				debugPrint('║   ✅ SUCCESS SOUND DETECTED            ║')
+				debugPrint(
+					'╚════════════════════════════════════════╝'
+				)
+				debugPrint('Sound ID: ' .. soundId)
+				debugPrint('Sound Parent: ' .. tostring(sound.Parent))
+				debugPrint(
+					'Current pitch: ' .. string.format('%.1f', currentPitchSuccess)
+				)
+				debugPrint('')
+
+				-- Replace with success sound
+				replaceSoundWithSuccess(sound)
+
+				debugPrint(
+					'╚════════════════════════════════════════╝'
+				)
+				debugPrint('')
+
+				-- Update last sound type
+				lastSoundType = 'success'
+
+			-- Check if it's a failed sound
+			elseif isFailedSound(soundId) then
+				-- Check if this is consecutive failed sound
+				if lastSoundType == 'failed' then
+					-- Consecutive failed, increment pitch
+					currentPitchFailed = currentPitchFailed + PITCH_INCREMENT
+					debugPrint(
+						'🔼 Consecutive failure! Pitch increased to: '
+							.. string.format('%.1f', currentPitchFailed)
+					)
+				elseif lastSoundType == 'success' then
+					-- Switched from success to failed, reset failed pitch
+					currentPitchFailed = 1.0
+					debugPrint(
+						'🔄 Switched from success to failed, pitch reset to 1.0'
+					)
+				else
+					-- First failed sound or after 'other', reset to 1.0
+					currentPitchFailed = 1.0
+					debugPrint('🔄 New failure sequence, pitch reset to 1.0')
+				end
+
+				debugPrint('')
+				debugPrint(
+					'╔════════════════════════════════════════╗'
+				)
+				debugPrint('║   ❌ FAILED SOUND DETECTED             ║')
+				debugPrint(
+					'╚════════════════════════════════════════╝'
+				)
+				debugPrint('Sound ID: ' .. soundId)
+				debugPrint('Sound Parent: ' .. tostring(sound.Parent))
+				debugPrint(
+					'Current pitch: ' .. string.format('%.1f', currentPitchFailed)
+				)
+				debugPrint('')
+
+				-- Replace with failed sound
+				replaceSoundWithFailed(sound)
+
+				debugPrint(
+					'╚════════════════════════════════════════╝'
+				)
+				debugPrint('')
+
+				-- Update last sound type
+				lastSoundType = 'failed'
+			else
+				-- Other sound detected, but DON'T break the streak
+				-- Only target sounds (success/failed) break each other's streaks
+				debugPrint('🔊 Other sound detected (ignored, streak continues)')
+			end
+		end
+
+		-- Function to scan for existing sounds
+		local function scanForSounds()
+			for _, descendant in ipairs(workspace:GetDescendants()) do
+				if pitchingActive then
+					handleSound(descendant)
+				end
+			end
+		end
+
+		-- Start pitching system
+		local function startPitching()
+			-- Disable Zenith Combo if active
+			if zenithComboActive then
+				zenithComboActive = false
+				stopZenithCombo()
+				Options.ZenithCombo:SetValue(false)
+				Library:Notify({
+					Title = '⚠️ Zenith Combo Disabled',
+					Content = 'Zenith Combo disabled to enable Streakness system',
+					Duration = 3,
+				})
+			end
+
+			-- Reset pitch when starting
+			currentPitchSuccess = 1
+			currentPitchFailed = 1
+
+			-- Clear previous connections
+			for _, connection in pairs(pitchingConnections) do
+				if connection then
+					connection:Disconnect()
+				end
+			end
+			pitchingConnections = {}
+
+			-- Scan existing sounds
+			scanForSounds()
+
+			-- Monitor new sounds
+			pitchingConnections.descendantAdded = workspace.DescendantAdded:Connect(
+				function(descendant)
+					if pitchingActive then
+						handleSound(descendant)
+					end
+				end
+			)
+
+			Library:Notify({
+				Title = '🎵 Pitching System Enabled',
+				Content = 'Weakness detection active - pitch increases by 0.05 per consecutive hit',
+				Duration = 3,
+			})
+		end
+
+		-- Stop pitching system
+		local function stopPitching()
+			-- Disconnect all connections
+			for _, connection in pairs(pitchingConnections) do
+				if connection then
+					connection:Disconnect()
+				end
+			end
+			pitchingConnections = {}
+
+			-- Reset pitch
+			currentPitchWeakness = 1
+			currentPitchNormal = 1
+			lastTargetSoundTime = 0
+			lastSoundType = nil
+
+			Library:Notify({
+				Title = '🔄 Pitching System Disabled',
+				Content = 'Pitch system stopped',
+				Duration = 3,
+			})
+		end
+		end -- End Chance Pitching scope
+
+		-- ========================================
+		-- ZENITH COMBO SOUND SYSTEM
+		-- ========================================
+		-- Zenith Combo State Variables (accessible from UI controls below)
+		local zenithComboActive = false
+		local zenithComboConnections = {}
+		local comboCounter = 0 -- Tracks combo from 1 to 16
+		local lastComboType = nil -- Tracks 'success' or 'failed' to detect combo breaks
+		local zenithComboVolume = 1.2 -- Volume for Zenith combo sounds
+
+		-- Function to get combo sound path
+		local function getComboSoundPath(comboNum, isPower)
+			-- Map combo counter to actual sound numbers
+			-- Success: 1,2,4,6,8,10,12,14,16 (more gradual progression)
+			-- Failed: 1-16 (keeps all power sounds for variety)
+			local actualNum = comboNum
+			if not isPower then
+				-- Success sound mapping
+				local successMap = { 1, 2, 4, 6, 8, 10, 12, 14, 16 }
+				actualNum = successMap[math.min(comboNum, #successMap)]
+			end
+
+			if isPower then
+				return string.format(
+					'forvids/sfx/combo/combo_%d_power.ogg',
+					actualNum
+				)
+			else
+				return string.format('forvids/sfx/combo/combo_%d.ogg', actualNum)
+			end
+		end
+
+		-- Function to replace sound with Zenith combo sound
+		local function replaceWithZenithCombo(sound, isSuccess)
+			local parent = sound.Parent
+			if not parent then
+				return
+			end
+
+			local wasPlaying = sound.Playing
+			local currentComboType = isSuccess and 'success' or 'failed'
+
+			-- Check if combo type changed (success -> failed or failed -> success)
+			if lastComboType and lastComboType ~= currentComboType then
+				-- Combo broke! Reset counter
+				comboCounter = 0
+				print(
+					string.format(
+						'💥 Combo broke! Switched from %s to %s - Counter reset',
+						lastComboType,
+						currentComboType
+					)
+				)
+			end
+
+			-- Update last combo type
+			lastComboType = currentComboType
+
+			-- Increment combo counter (1-16 range, STICK at 16 when reached)
+			comboCounter = comboCounter + 1
+			if comboCounter > 16 then
+				comboCounter = 16 -- Stay at 16 instead of cycling
+				print('🏆 Max combo reached! Staying at 16')
+			end
+
+			-- Choose sound based on success/failed
+			local soundPath = getComboSoundPath(comboCounter, not isSuccess) -- failed uses power
+
+			-- Destroy the original sound
+			sound:Destroy()
+
+			-- Create new sound with combo sound
+			local newSound = Instance.new('Sound')
+			newSound.SoundId = getcustomasset(soundPath)
+			newSound.Volume = zenithComboVolume
+			newSound.Parent = parent
+
+			local statusEmoji = isSuccess and '✅' or '❌'
+			local comboType = isSuccess and 'regular' or 'power'
+			print(
+				string.format(
+					'%s Zenith Combo #%d (%s): %s',
+					statusEmoji,
+					comboCounter,
+					comboType,
+					soundPath
+				)
+			)
+
+			-- Play the sound if original was playing
+			if wasPlaying then
+				newSound:Play()
+			end
+
+			-- Clean up when done
+			newSound.Ended:Connect(function()
+				if newSound and newSound.Parent then
+					newSound:Destroy()
+				end
+			end)
+		end
+
+		-- Function to handle Zenith combo sound replacement
+		local function handleZenithComboSound(sound)
+			if not zenithComboActive then
+				return
+			end
+
+			local soundId = sound.SoundId
+
+			-- Check if it's a success or failed sound
+			if isSuccessSound(soundId) then
+				replaceWithZenithCombo(sound, true)
+			elseif isFailedSound(soundId) then
+				replaceWithZenithCombo(sound, false)
+			end
+		end
+
+		-- Start Zenith combo system
+		local function startZenithCombo()
+			-- Disable pitching system if active
+			if pitchingActive then
+				pitchingActive = false
+				stopPitching()
+				Options.Pitching:SetValue(false)
+				Library:Notify({
+					Title = '⚠️ Streakness Disabled',
+					Content = 'Streakness system disabled to enable Zenith Combo sounds',
+					Duration = 3,
+				})
+			end
+
+			-- Reset combo counter and type
+			comboCounter = 0
+			lastComboType = nil
+
+			-- Monitor for sounds
+			zenithComboConnections.descendantAdded = workspace.DescendantAdded:Connect(
+				function(descendant)
+					if descendant:IsA('Sound') then
+						task.wait()
+						handleZenithComboSound(descendant)
+					end
+				end
+			)
+
+			-- Check existing sounds
+			for _, descendant in ipairs(workspace:GetDescendants()) do
+				if descendant:IsA('Sound') then
+					task.spawn(function()
+						handleZenithComboSound(descendant)
+					end)
+				end
+			end
+
+			Library:Notify({
+				Title = '🎯 Zenith Combo Enabled',
+				Content = 'Combo sounds active - combos cycle from 1 to 16',
+				Duration = 3,
+			})
+		end
+
+		-- Stop Zenith combo system
+		local function stopZenithCombo()
+			for _, connection in pairs(zenithComboConnections) do
+				if connection then
+					connection:Disconnect()
+				end
+			end
+			zenithComboConnections = {}
+
+			-- Reset combo counter and type
+			comboCounter = 0
+			lastComboType = nil
+
+			Library:Notify({
+				Title = '🔄 Zenith Combo Disabled',
+				Content = 'Combo system stopped',
+				Duration = 3,
+			})
+		end
+
+		-- ========================================
+		-- UNIFIED ANIMATION SOUND SYSTEM
+		-- ========================================
+		do -- Isolated scope for Animation Sound System
+-- WTF SOUND CONFIGURATION
+local WTF_SOUND_CONFIG = {
+	['rbxassetid://86371356500204'] = {
+		type = 'file',
+		path = 'forvids/sfx/WTF.mp3',
+		timePosition = 0,
+		name = 'WTF',
+	},
+
+	['rbxassetid://133607163653602'] = {
+		type = 'file',
+		path = 'forvids/sfx/oof.mp3',
+		timePosition = 0,
+		name = 'oof',
+	},
+
+	['rbxassetid://134958187822107'] = {
+		type = 'file',
+		path = 'forvids/sfx/AW.mp3',
+		timePosition = 0,
+		name = 'AW',
+	},
+
+	['rbxassetid://71685573690338'] = {
+		type = 'file',
+		path = 'forvids/sfx/BOOM.mp3',
+		timePosition = 0,
+		name = 'BOOM',
+	},
+
+	['rbxassetid://103711888609229'] = {
+		type = 'file',
+		path = 'forvids/sfx/AW.mp3',
+		timePosition = 0,
+		name = 'AW',
+	},
+
+	['rbxassetid://108014891454394'] = {
+		type = 'file',
+		path = 'forvids/sfx/AW.mp3',
+		timePosition = 0,
+		name = 'AW',
+	},
+
+	['rbxassetid://111351142668768'] = {
+		type = 'soundid',
+		soundId = 'rbxassetid://134944482196784',
+		timePosition = 0,
+		name = 'oof',
+	},
+
+	['rbxassetid://138008678294576'] = {
+		type = 'soundid',
+		soundId = 'rbxassetid://134944482196784',
+		timePosition = 0,
+		name = 'oof',
+	},
+}
+
+-- TETRIO SOUND CONFIGURATION
+local TETRIO_SOUND_CONFIG = {
+	['rbxassetid://133607163653602'] = {
+		type = 'file',
+		path = 'forvids/sfx/tetrio/hyperalert.ogg',
+		timePosition = 0,
+		name = 'TETRIO_HYPERALERT',
+	},
+
+	['rbxassetid://138008678294576'] = {
+		type = 'file',
+		path = 'forvids/sfx/tetrio/bombdetonate.ogg',
+		timePosition = 0,
+		name = 'TETRIO_BOMBDETONATE',
+	},
+
+	['rbxassetid://108014891454394'] = {
+		type = 'file',
+		path = 'forvids/sfx/tetrio/failure.ogg',
+		timePosition = 0,
+		name = 'TETRIO_FAILURE',
+	},
+
+	['rbxassetid://71685573690338'] = {
+		type = 'file',
+		path = 'forvids/sfx/tetrio/clearbtb.ogg',
+		timePosition = 0,
+		name = 'TETRIO_CLEARBTB',
+	},
+}
+
+-- Active sound system state
+local wtfSoundActive = false
+local tetrioSoundActive = false
+local animSoundConnection = nil
+local playingAnimations = {}
+
+-- Get the currently active sound config
+local function getActiveSoundConfig()
+	if tetrioSoundActive then
+		return TETRIO_SOUND_CONFIG
+	elseif wtfSoundActive then
+		return WTF_SOUND_CONFIG
+	end
+	return {}
+end
+
+-- Play sound for animation
+local function playAnimationSound(animId)
+	local activeSoundConfig = getActiveSoundConfig()
+	local soundConfig = activeSoundConfig[animId]
+	if not soundConfig then
+		return
+	end
+
+	local success, result = pcall(function()
+		local sound = Instance.new('Sound')
+
+		-- Set sound source based on type
+		if soundConfig.type == 'file' then
+			sound.SoundId = getcustomasset(soundConfig.path)
+		elseif soundConfig.type == 'soundid' then
+			sound.SoundId = soundConfig.soundId
+		end
+
+		sound.Volume = customGunshotVolume or 2
+		sound.TimePosition = soundConfig.timePosition or 0
+		sound.Parent = game.Workspace
+		sound:Play()
+
+		-- Clean up after playing
+		sound.Ended:Connect(function()
+			sound:Destroy()
+		end)
+
+		print('🔊 Playing sound: ' .. soundConfig.name)
+	end)
+
+	if not success then
+		warn(
+			'❌ Failed to play sound for '
+				.. animId
+				.. ': '
+				.. tostring(result)
+		)
+	end
+end
+
+-- Detect animations and play sounds on start
+local function detectAnimations()
+	local player = game.Players.LocalPlayer
+	if not player or not player.Character then
+		return
+	end
+
+	local humanoid = player.Character:FindFirstChild('Humanoid')
+	if not humanoid then
+		return
+	end
+
+	local tracks = humanoid:GetPlayingAnimationTracks()
+	local currentlyPlaying = {}
+	local activeSoundConfig = getActiveSoundConfig()
+
+	for _, track in pairs(tracks) do
+		if track.IsPlaying then
+			local animId = track.Animation.AnimationId
+			currentlyPlaying[animId] = true
+
+			-- NEW animation detected - play sound if configured
+			if activeSoundConfig[animId] and not playingAnimations[animId] then
+				playAnimationSound(animId)
+			end
+		end
+	end
+
+	playingAnimations = currentlyPlaying
+end
+
+-- Start animation sound monitoring (respawn-safe)
+local function startAnimationSounds()
+	if animSoundConnection then
+		animSoundConnection:Disconnect()
+	end
+
+	playingAnimations = {}
+
+	-- Monitor animations every 0.5 seconds
+	local RunService = game:GetService('RunService')
+	animSoundConnection = RunService.Heartbeat:Connect(function()
+		detectAnimations()
+		task.wait(0.5)
+	end)
+
+	-- Respawn safety
+	local player = game.Players.LocalPlayer
+	if player then
+		player.CharacterAdded:Connect(function()
+			if wtfSoundActive or tetrioSoundActive then
+				task.wait(1)
+				playingAnimations = {}
+				detectAnimations()
+			end
+		end)
+	end
+
+	detectAnimations()
+	
+	-- Count active sounds
+	local activeSoundConfig = getActiveSoundConfig()
+	local soundCount = 0
+	for _ in pairs(activeSoundConfig) do
+		soundCount = soundCount + 1
+	end
+	
+	local systemName = tetrioSoundActive and 'TETRIO' or 'WTF'
+	print('🎵 ' .. systemName .. ' Sound System: ENABLED (respawn-safe)')
+	print('   Monitoring ' .. soundCount .. ' animation(s)')
+end
+
+-- Stop animation sound monitoring
+local function stopAnimationSounds()
+	if animSoundConnection then
+		animSoundConnection:Disconnect()
+		animSoundConnection = nil
+	end
+	playingAnimations = {}
+	print('🎵 Animation Sound System: DISABLED')
+end
+
+-- Dropdown for Saved Sounds
+currentGunshotDropdown = Tabs.Misc:CreateDropdown('SavedGunshotSounds', {
+	Title = 'Select Saved Gunshot Sound',
+	Description = 'Choose from your saved gunshot sounds',
+	Values = gunshotDropdownOptions,
+	Multi = false,
+	Default = 1,
+	Callback = function(Value)
+		if Value == 'Select Saved Sound' then
+			return
+		end
+
+		-- Extract sound ID from the selected option
+		local soundId = Value:match('%((%d+)%)')
+		if soundId then
+			customGunshotId = soundId
+			print('🔫 Selected gunshot sound ID:', soundId)
+
+			-- Update the manual input field
+			if GunshotSoundInput then
+				GunshotSoundInput:SetValue(soundId)
+			end
+		end
+	end,
+})
+
+-- Manual Sound ID Input (as backup)
+UI.GunshotSoundInput = Tabs.Misc:CreateInput('GunshotSoundID', {
+	Title = 'Manual Gunshot Sound ID',
+	Default = '',
+	Placeholder = 'Enter Roblox sound ID (e.g., 131961136)',
+	Numeric = true,
+	Finished = false,
+	Callback = function(Value)
+		customGunshotId = Value or ''
+		if customGunshotId ~= '' then
+			print('🔫 Manual gunshot sound ID set to:', customGunshotId)
+		end
+	end,
+})
+
+-- Volume Slider
+UI.GunshotVolumeSlider = Tabs.Misc:CreateSlider('GunshotVolume', {
+	Title = 'Custom Gunshot Volume',
+	Description = 'Adjust the volume of the custom gunshot sound',
+	Default = 2,
+	Min = 1,
+	Max = 6,
+	Rounding = 1,
+	Callback = function(Value)
+		customGunshotVolume = Value
+		print('🔊 Custom gunshot volume set to:', Value)
+
+		-- Update volume of all active custom gunshot sounds in real-time
+		if chanceGunshotActive then
+			updateAllGunshotVolumes()
+		end
+	end,
+})
+
+-- Toggle Control
+UI.ChanceGunshotToggle = Tabs.Misc:CreateToggle('ChanceGunshot', {
+	Title = 'Enable Custom Gunshot Sound',
+	Description = 'Replace Chance ability gunshot with custom sound',
+	Default = false,
+})
+
+UI.ChanceGunshotToggle:OnChanged(function()
+	chanceGunshotActive = Options.ChanceGunshot.Value
+
+	if chanceGunshotActive then
+		-- Disable other sound systems if enabled
+		if wtfSoundActive then
+			Options.WTFSoundSystem:SetValue(false)
+		end
+		if tetrioSoundActive then
+			Options.TETRIOSoundSystem:SetValue(false)
+		end
+		startChanceGunshot()
+	else
+		stopChanceGunshot()
+	end
+end)
+
+-- WTF Sound System Toggle
+UI.WTFSoundToggle = Tabs.Misc:CreateToggle('WTFSoundSystem', {
+	Title = 'WTF Sound System',
+	Description = 'Play WTF, BOOM, AW sounds when specific animations start',
+	Default = false,
+})
+
+UI.WTFSoundToggle:OnChanged(function()
+	wtfSoundActive = Options.WTFSoundSystem.Value
+
+	if wtfSoundActive then
+		-- Disable other systems if enabled
+		if chanceGunshotActive then
+			Options.ChanceGunshot:SetValue(false)
+		end
+		if tetrioSoundActive then
+			Options.TETRIOSoundSystem:SetValue(false)
+		end
+		
+		startAnimationSounds()
+
+		-- Count configured sounds
+		local soundCount = 0
+		for _ in pairs(WTF_SOUND_CONFIG) do
+			soundCount = soundCount + 1
+		end
+
+		Library:Notify({
+			Title = '🎵 WTF Sound System Enabled',
+			Content = 'Monitoring '
+				.. soundCount
+				.. ' animation(s) for WTF sound effects',
+			Duration = 3,
+		})
+	else
+		stopAnimationSounds()
+		Library:Notify({
+			Title = '🎵 WTF Sound System Disabled',
+			Content = 'Animation sound monitoring stopped',
+			Duration = 3,
+		})
+	end
+end)
+
+-- TETRIO Sound System Toggle
+UI.TETRIOSoundToggle = Tabs.Misc:CreateToggle('TETRIOSoundSystem', {
+	Title = 'TETRIO Sound System',
+	Description = 'Play TETRIO hitsounds when specific animations start',
+	Default = false,
+})
+
+UI.TETRIOSoundToggle:OnChanged(function()
+	tetrioSoundActive = Options.TETRIOSoundSystem.Value
+
+	if tetrioSoundActive then
+		-- Disable other systems if enabled
+		if chanceGunshotActive then
+			Options.ChanceGunshot:SetValue(false)
+		end
+		if wtfSoundActive then
+			Options.WTFSoundSystem:SetValue(false)
+		end
+		
+		startAnimationSounds()
+
+		-- Count configured sounds
+		local soundCount = 0
+		for _ in pairs(TETRIO_SOUND_CONFIG) do
+			soundCount = soundCount + 1
+		end
+
+		Library:Notify({
+			Title = '🎵 TETRIO Sound System Enabled',
+			Content = 'Monitoring '
+				.. soundCount
+				.. ' animation(s) for TETRIO hitsounds',
+			Duration = 3,
+		})
+	else
+		stopAnimationSounds()
+		Library:Notify({
+			Title = '🎵 TETRIO Sound System Disabled',
+			Content = 'Animation sound monitoring stopped',
+			Duration = 3,
+		})
+	end
+end)
+		end -- End Animation Sound System scope
+
+-- ========================================
+		-- REROLL EFFECT (HEALTH ROLL ANIMATION)
+-- ========================================
+		do -- Isolated scope for Reroll Effect
+		-- Reroll Effect State Variables
+		local rerollEffectActive = false
+		local rerollGui = nil
+		local rerollConnections = {}
+		local rerollContainer = nil
+	local rerollTrack = nil
+	local rerollLabels = {}
+	local rerollTierFrame = nil
+	local rerollTierTitle = nil
+	local rerollTierDesc = nil
+	local rerollMaxHealth = 0
+	local rerollActiveID = 0
+
+	-- Constants
+	local REROLL_MIN_VAL = 1
+	local REROLL_MAX_VAL = 130
+
+		-- Tier Data
+		local function getRerollTierInfo(health)
+			if health >= 125 then
+				return {
+					name = 'JACKPOT',
+					color = Color3.fromRGB(255, 255, 255),
+					font = Enum.Font.Arcade,
+					desc = 'Lightning in flesh. The casino folds. You win, reality loses.',
+					isJackpot = true,
+				}
+			elseif health >= 120 then
+				return {
+					name = 'Hot Hand',
+					color = Color3.fromRGB(255, 70, 30),
+					font = Enum.Font.GothamBlack,
+					desc = 'Luck burns bright around you. Everyone watches, waiting for the crash.',
+				}
+			elseif health >= 110 then
+				return {
+					name = 'Stack Builder',
+					color = Color3.fromRGB(70, 255, 120),
+					font = Enum.Font.GothamBold,
+					desc = 'Building piles of fortune one smirk at a time.',
+				}
+			elseif health >= 100 then
+				return {
+					name = 'Midnight Roller',
+					color = Color3.fromRGB(90, 90, 200),
+					font = Enum.Font.GothamBold,
+					desc = "You've seen too many cards, too many ghosts. Still rolling.",
+				}
+			elseif health >= 90 then
+				return {
+					name = 'High-Risk Tourist',
+					color = Color3.fromRGB(255, 180, 60),
+					font = Enum.Font.SourceSansBold,
+					desc = "Visiting the high-stakes floor like you belong there. You don't.",
+				}
+			elseif health >= 80 then
+				return {
+					name = 'Table Scrapper',
+					color = Color3.fromRGB(200, 150, 40),
+					font = Enum.Font.GothamBold,
+					desc = 'Stuck at the edge of the table, scavenging leftover luck.',
+				}
+			elseif health >= 70 then
+				return {
+					name = 'Coin Flip Casualty',
+					color = Color3.fromRGB(150, 90, 20),
+					font = Enum.Font.GothamSemibold,
+					desc = "Fate's favorite chew toy. Heads or tails—both lose.",
+				}
+		elseif health >= 60 then
+			return {
+				name = 'Penny Clinger',
+				color = Color3.fromRGB(110, 40, 10),
+				font = Enum.Font.Gotham,
+				desc = "Down to your last coin, still pretending it's strategy.",
+			}
+		elseif health >= 50 then
+			return {
+				name = 'Bankrupt Soul',
+				color = Color3.fromRGB(80, 0, 0),
+				font = Enum.Font.GothamBlack,
+				desc = "Crawled out of the casino broke and bitter. Survival's a rumor.",
+			}
+		elseif health >= 40 then
+			return {
+				name = 'Dust Dealer',
+				color = Color3.fromRGB(160, 40, 40),
+				font = Enum.Font.GothamBold,
+				desc = "You're still standing, but you're not playing—just paying.",
+			}
+		elseif health >= 30 then
+			return {
+				name = 'Bluff Ghost',
+				color = Color3.fromRGB(130, 30, 30),
+				font = Enum.Font.GothamSemibold,
+				desc = "Every breath's borrowed. The killer still owns your next move.",
+			}
+		elseif health >= 20 then
+			return {
+				name = 'Lost Ticket',
+				color = Color3.fromRGB(100, 20, 20),
+				font = Enum.Font.Gotham,
+				desc = 'You bet your pulse and the house collected. Odds were rigged from the start.',
+			}
+		elseif health >= 10 then
+			return {
+				name = 'Broken Bet',
+				color = Color3.fromRGB(70, 10, 10),
+				font = Enum.Font.GothamBold,
+				desc = "The killer cashed out your chances. You're walking debt.",
+			}
+		else
+			return {
+				name = 'Folded Hand',
+				color = Color3.fromRGB(40, 0, 0),
+				font = Enum.Font.GothamBlack,
+				desc = "The dealer didn't even look at your cards. You were finished before you played.",
+			}
+		end
+		end
+
+		-- SFX Path Functions
+		local function sfxPathForDelta(deltaAbs)
+			if deltaAbs < 12 then
+				return 'forvids/sfx/tetrio/garbagewindup_1.ogg'
+			elseif deltaAbs < 24 then
+				return 'forvids/sfx/tetrio/garbagewindup_2.ogg'
+			elseif deltaAbs < 44 then
+				return 'forvids/sfx/tetrio/garbagewindup_3.ogg'
+			else
+				return 'forvids/sfx/tetrio/garbagewindup_4.ogg'
+			end
+		end
+
+		local function playRerollGarbageSFX(deltaAbs)
+			if not rerollGui then
+				return nil
+			end
+			local s = Instance.new('Sound')
+			s.SoundId = getcustomasset(sfxPathForDelta(deltaAbs))
+			s.Volume = 1
+			s.Parent = rerollGui
+			s:Play()
+			s.Ended:Connect(function()
+				if s and s.Parent then
+					s:Destroy()
+				end
+			end)
+			return s
+		end
+
+		-- Camera shake function for health loss
+		local function cameraShake(intensity, duration)
+			task.spawn(function()
+				local camera = workspace.CurrentCamera
+				if not camera then
+					return
+				end
+
+				local startTime = tick()
+				local shakeValue = Instance.new('NumberValue')
+				shakeValue.Value = intensity
+
+				-- Fade out tween for intensity
+				local fadeTween = TweenService:Create(
+					shakeValue,
+					TweenInfo.new(
+						duration,
+						Enum.EasingStyle.Quad,
+						Enum.EasingDirection.Out
+					),
+					{ Value = 0 }
+				)
+				fadeTween:Play()
+
+				local conn
+				conn = RunService.RenderStepped:Connect(function()
+					local elapsed = tick() - startTime
+					if elapsed >= duration then
+						conn:Disconnect()
+						shakeValue:Destroy()
+						return
+					end
+
+					local currentIntensity = shakeValue.Value
+					local shake = CFrame.new(
+						math.random() * currentIntensity * 2 - currentIntensity,
+						math.random() * currentIntensity * 2 - currentIntensity,
+						math.random() * currentIntensity * 2 - currentIntensity
+					) * CFrame.Angles(
+						math.rad(
+							math.random() * currentIntensity * 10 - currentIntensity * 5
+						),
+						math.rad(
+							math.random() * currentIntensity * 10 - currentIntensity * 5
+						),
+						math.rad(
+							math.random() * currentIntensity * 10 - currentIntensity * 5
+						)
+					)
+
+					camera.CFrame = camera.CFrame * shake
+				end)
+			end)
+		end
+
+		local function playRerollDamageSFX(deltaAbs)
+			if not rerollGui then
+				return
+			end
+			local soundName = ''
+			local volume = 4
+			local shakeIntensity = 0
+
+			if deltaAbs > 0 and deltaAbs <= 12 then
+				soundName = 'damage_small'
+				shakeIntensity = 0.10
+			elseif deltaAbs >= 13 and deltaAbs <= 25 then
+				soundName = 'damage_medium'
+				shakeIntensity = 0.27
+			elseif deltaAbs > 25 then
+				soundName = 'damage_large'
+				shakeIntensity = 0.45
+
+				local s1 = Instance.new('Sound')
+				s1.SoundId = getcustomasset('forvids/sfx/tetrio/damage_large.ogg')
+				s1.Volume = volume
+				s1.Parent = rerollGui
+				s1:Play()
+				s1.Ended:Connect(function()
+					if s1 and s1.Parent then
+						s1:Destroy()
+					end
+				end)
+
+				local s2 = Instance.new('Sound')
+				s2.SoundId = getcustomasset('forvids/sfx/tetrio/damage_alert.ogg')
+				s2.Volume = volume
+				s2.Parent = rerollGui
+				s2:Play()
+				s2.Ended:Connect(function()
+					if s2 and s2.Parent then
+						s2:Destroy()
+					end
+				end)
+
+				cameraShake(shakeIntensity, 1)
+				return
+			end
+
+			if soundName ~= '' then
+				local s = Instance.new('Sound')
+				s.SoundId =
+					getcustomasset('forvids/sfx/tetrio/' .. soundName .. '.ogg')
+				s.Volume = volume
+				s.Parent = rerollGui
+				s:Play()
+				s.Ended:Connect(function()
+					if s and s.Parent then
+						s:Destroy()
+					end
+				end)
+
+				if shakeIntensity > 0 then
+					cameraShake(shakeIntensity, 1)
+				end
+			end
+		end
+
+		local function playRerollHealthGainSFX(deltaAbs)
+			if not rerollGui then
+				return
+			end
+			local soundName = ''
+			local volume = 3
+			local playbackSpeed = 1
+
+			if deltaAbs >= 0 and deltaAbs <= 10 then
+				soundName = 'zenith_levelup_a'
+			elseif deltaAbs >= 11 and deltaAbs <= 20 then
+				soundName = 'zenith_levelup_b'
+			elseif deltaAbs >= 21 and deltaAbs <= 30 then
+				soundName = 'zenith_levelup_c'
+			elseif deltaAbs >= 31 and deltaAbs <= 40 then
+				soundName = 'zenith_levelup_e'
+			elseif deltaAbs >= 41 and deltaAbs <= 50 then
+				soundName = 'zenith_levelup_g'
+			elseif deltaAbs >= 51 and deltaAbs <= 100 then
+				soundName = 'clearspin'
+				volume = 5
+				playbackSpeed = 1
+			end
+
+			if soundName ~= '' then
+				local s = Instance.new('Sound')
+				s.SoundId =
+					getcustomasset('forvids/sfx/tetrio/' .. soundName .. '.ogg')
+				s.Volume = volume
+				s.PlaybackSpeed = playbackSpeed
+				s.Parent = rerollGui
+				s:Play()
+				s.Ended:Connect(function()
+					if s and s.Parent then
+						s:Destroy()
+					end
+				end)
+
+				if soundName == 'clearspin' then
+					cameraShake(0.25, 1)
+				end
+			end
+		end
+
+		-- Helper functions
+		local function yForReroll(v)
+			if not rerollContainer then
+				return 0
+			end
+			local centerOffset = rerollContainer.AbsoluteSize.Y / 2
+			local cellH =
+				math.max(1, math.floor(rerollContainer.AbsoluteSize.Y * 1.2))
+			local valuePosition = (REROLL_MAX_VAL - v) * cellH
+			return -(valuePosition - centerOffset + cellH / 2)
+		end
+
+		local function tweenRerollTrackTo(v, dur)
+			if not rerollTrack then
+				return nil
+			end
+			return TweenService:Create(
+				rerollTrack,
+				TweenInfo.new(
+					dur,
+					Enum.EasingStyle.Quint,
+					Enum.EasingDirection.InOut
+				),
+				{
+					Position = UDim2.fromOffset(0, yForReroll(v)),
+				}
+			)
+		end
+
+		local function cancelRerollActive()
+			rerollActiveID = rerollActiveID + 1
+		end
+
+		local function showRerollTierDisplay(health)
+			if not rerollTierFrame or not rerollTierTitle or not rerollTierDesc then
+				return
+			end
+
+			task.spawn(function()
+				local tierInfo = getRerollTierInfo(health)
+
+				rerollTierTitle.Text = tierInfo.name
+				rerollTierTitle.Font = tierInfo.font
+				rerollTierTitle.TextColor3 = tierInfo.color
+				rerollTierDesc.Text = tierInfo.desc
+
+				local uiStroke = rerollTierTitle:FindFirstChild('UIStroke')
+				if tierInfo.isJackpot then
+					if not uiStroke then
+						uiStroke = Instance.new('UIStroke')
+						uiStroke.Parent = rerollTierTitle
+					end
+					uiStroke.Color = Color3.fromRGB(255, 215, 0)
+					uiStroke.Thickness = 4
+					uiStroke.Transparency = 0
+
+					task.spawn(function()
+						local pulseValue = Instance.new('NumberValue')
+						pulseValue.Value = 0
+						local startTime = tick()
+						local conn
+						conn = RunService.RenderStepped:Connect(function()
+							local elapsed = tick() - startTime
+							if elapsed > 5 or not rerollEffectActive then
+								conn:Disconnect()
+								pulseValue:Destroy()
+								return
+							end
+							local pulse = 0.5 + 0.5 * math.sin(elapsed * 4)
+							if uiStroke and uiStroke.Parent then
+								uiStroke.Thickness = 4 + 2 * pulse
+								uiStroke.Transparency = 0.2 * (1 - pulse)
+							end
+						end)
+					end)
+				elseif uiStroke then
+					uiStroke:Destroy()
+				end
+
+				rerollTierFrame.Visible = true
+
+				local fadeInVal = Instance.new('NumberValue')
+				fadeInVal.Value = 1
+				fadeInVal.Parent = rerollTierFrame
+				local conn1
+				conn1 = RunService.RenderStepped:Connect(function()
+					if
+						not rerollEffectActive
+						or not rerollTierTitle
+						or not rerollTierDesc
+					then
+						conn1:Disconnect()
+						return
+					end
+					rerollTierTitle.TextTransparency = fadeInVal.Value
+					rerollTierTitle.TextStrokeTransparency = 0.5
+						+ 0.5 * fadeInVal.Value
+					rerollTierDesc.TextTransparency = fadeInVal.Value
+					rerollTierDesc.TextStrokeTransparency = 0.7
+						+ 0.3 * fadeInVal.Value
+				end)
+				local fadeInTween = TweenService:Create(
+					fadeInVal,
+					TweenInfo.new(
+						0.5,
+						Enum.EasingStyle.Quad,
+						Enum.EasingDirection.Out
+					),
+					{ Value = 0 }
+				)
+				fadeInTween:Play()
+				fadeInTween.Completed:Wait()
+				conn1:Disconnect()
+				fadeInVal:Destroy()
+
+				task.wait(5)
+
+				if not rerollEffectActive then
+					return
+				end
+
+				local fadeOutVal = Instance.new('NumberValue')
+				fadeOutVal.Value = 0
+				fadeOutVal.Parent = rerollTierFrame
+				local conn2
+				conn2 = RunService.RenderStepped:Connect(function()
+					if
+						not rerollEffectActive
+						or not rerollTierTitle
+						or not rerollTierDesc
+					then
+						conn2:Disconnect()
+						return
+					end
+					rerollTierTitle.TextTransparency = fadeOutVal.Value
+					rerollTierTitle.TextStrokeTransparency = 0.5
+						+ 0.5 * fadeOutVal.Value
+					rerollTierDesc.TextTransparency = fadeOutVal.Value
+					rerollTierDesc.TextStrokeTransparency = 0.7
+						+ 0.3 * fadeOutVal.Value
+				end)
+				local fadeOutTween = TweenService:Create(
+					fadeOutVal,
+					TweenInfo.new(
+						0.5,
+						Enum.EasingStyle.Quad,
+						Enum.EasingDirection.In
+					),
+					{ Value = 1 }
+				)
+				fadeOutTween:Play()
+				fadeOutTween.Completed:Wait()
+				conn2:Disconnect()
+				fadeOutVal:Destroy()
+
+				if rerollTierFrame then
+					rerollTierFrame.Visible = false
+				end
+			end)
+		end
+
+		local function rollToReroll(target)
+			print('🎰 rollToReroll called with target: ' .. tostring(target))
+		target =
+			math.clamp(math.floor(target + 0.5), REROLL_MIN_VAL, REROLL_MAX_VAL)
+		print('🎰 Clamped target: ' .. target .. ', current health: ' .. rerollMaxHealth .. ', effect active: ' .. tostring(rerollEffectActive))
+		if target == rerollMaxHealth or not rerollEffectActive then
+			print('🎰 Skipping rollToReroll - target matches current or effect inactive')
+			return
+		end
+
+			local myID = rerollActiveID + 1
+			rerollActiveID = myID
+
+			local healthBar = player.PlayerGui:FindFirstChild('TemporaryUI')
+			if healthBar then
+				local bars = healthBar:FindFirstChild('PlayerInfo')
+				if bars then
+					bars = bars:FindFirstChild('Bars')
+					if bars then
+						local health = bars:FindFirstChild('Health')
+						if health then
+							health.Visible = false
+						end
+					end
+				end
+			end
+
+		local diff = target - rerollMaxHealth
+		local steps = math.abs(diff)
+		local isHealthLoss = diff < 0
+
+			task.spawn(function()
+				if not rerollEffectActive then
+					return
+				end
+				local fadeVal = Instance.new('NumberValue')
+				fadeVal.Value = 1
+				fadeVal.Parent = rerollGui or player.PlayerGui
+				local conn
+				conn = RunService.RenderStepped:Connect(function()
+					if not rerollEffectActive then
+						conn:Disconnect()
+						return
+					end
+					for _, lbl in ipairs(rerollLabels) do
+						if lbl and lbl.Parent then
+							lbl.TextTransparency = 0.5 + 0.5 * fadeVal.Value
+							lbl.TextStrokeTransparency = 0.4 + 0.6 * fadeVal.Value
+						end
+					end
+				end)
+				local t = TweenService:Create(
+					fadeVal,
+					TweenInfo.new(
+						0.8,
+						Enum.EasingStyle.Quad,
+						Enum.EasingDirection.Out
+					),
+					{ Value = 0 }
+				)
+				t:Play()
+				t.Completed:Wait()
+				conn:Disconnect()
+				fadeVal:Destroy()
+			end)
+
+			local garbageSound = playRerollGarbageSFX(steps)
+
+			if isHealthLoss and garbageSound then
+				task.spawn(function()
+					garbageSound.Ended:Wait()
+					if rerollEffectActive then
+						playRerollDamageSFX(steps)
+					end
+				end)
+			end
+
+			task.wait(1)
+
+			if myID ~= rerollActiveID or not rerollEffectActive then
+				return
+			end
+			local duration = 3
+			local tw = tweenRerollTrackTo(target, duration)
+			if tw then
+				-- Stop the spam hiding when tween starts
+				if rerollConnections.spamHideMessage then
+					rerollConnections.spamHideMessage:Disconnect()
+					rerollConnections.spamHideMessage = nil
+					print('🛑 Stopped spam hiding - tween animation started')
+				end
+				
+				tw:Play()
+			tw.Completed:Wait()
+		end
+		if myID ~= rerollActiveID or not rerollEffectActive then
+			return
+		end
+		rerollMaxHealth = target
+
+		if not isHealthLoss then
+			playRerollHealthGainSFX(steps)
+		end
+
+			task.spawn(function()
+				if not rerollEffectActive then
+					return
+				end
+
+				local healthBar = player.PlayerGui:FindFirstChild('TemporaryUI')
+				if healthBar then
+					local bars = healthBar:FindFirstChild('PlayerInfo')
+					if bars then
+						bars = bars:FindFirstChild('Bars')
+						if bars then
+							local health = bars:FindFirstChild('Health')
+							if health then
+								local originalPosition = health.Position
+
+								health.Position = UDim2.new(
+									originalPosition.X.Scale,
+									originalPosition.X.Offset,
+									originalPosition.Y.Scale + 2,
+									originalPosition.Y.Offset
+								)
+								health.Visible = true
+
+								task.wait()
+
+								local healthSlideTween = TweenService:Create(
+									health,
+									TweenInfo.new(
+										0.8,
+										Enum.EasingStyle.Quad,
+										Enum.EasingDirection.Out
+									),
+									{ Position = originalPosition }
+								)
+								healthSlideTween:Play()
+							end
+						end
+					end
+				end
+
+				local fadeVal = Instance.new('NumberValue')
+				fadeVal.Value = 0
+				fadeVal.Parent = rerollGui or player.PlayerGui
+				local conn
+				conn = RunService.RenderStepped:Connect(function()
+					if not rerollEffectActive then
+						conn:Disconnect()
+						return
+					end
+					for _, lbl in ipairs(rerollLabels) do
+						if lbl and lbl.Parent then
+							lbl.TextTransparency = 0.5 + 0.5 * fadeVal.Value
+							lbl.TextStrokeTransparency = 0.4 + 0.6 * fadeVal.Value
+						end
+					end
+				end)
+				local t = TweenService:Create(
+					fadeVal,
+					TweenInfo.new(
+						0.8,
+						Enum.EasingStyle.Quad,
+						Enum.EasingDirection.In
+					),
+					{ Value = 1 }
+				)
+				t:Play()
+				t.Completed:Wait()
+				conn:Disconnect()
+				fadeVal:Destroy()
+
+				if rerollEffectActive then
+					showRerollTierDisplay(target)
+				end
+			end)
+		end
+
+		local function createRerollGUI()
+			if rerollGui then
+				return
+			end
+
+			rerollGui = Instance.new('ScreenGui')
+			rerollGui.Name = 'HealthRollUI'
+			rerollGui.IgnoreGuiInset = true
+			rerollGui.ResetOnSpawn = false
+			rerollGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+			rerollGui.DisplayOrder = 999
+			rerollGui.Parent = player.PlayerGui
+
+			rerollContainer = Instance.new('Frame')
+			rerollContainer.AnchorPoint = Vector2.new(0.5, 0.5)
+			rerollContainer.Position = UDim2.fromScale(0.5, 0.5)
+			rerollContainer.Size = UDim2.fromScale(0.32, 0.18)
+			rerollContainer.BackgroundTransparency = 1
+			rerollContainer.ClipsDescendants = true
+			rerollContainer.Parent = rerollGui
+
+			rerollTierFrame = Instance.new('Frame')
+			rerollTierFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+			rerollTierFrame.Position = UDim2.fromScale(0.5, 0.5)
+			rerollTierFrame.Size = UDim2.fromScale(0.5, 0.3)
+			rerollTierFrame.BackgroundTransparency = 1
+			rerollTierFrame.Visible = false
+			rerollTierFrame.Parent = rerollGui
+
+			rerollTierTitle = Instance.new('TextLabel')
+			rerollTierTitle.AnchorPoint = Vector2.new(0.5, 0)
+			rerollTierTitle.Position = UDim2.fromScale(0.5, 0.25)
+			rerollTierTitle.Size = UDim2.fromScale(0.9, 0.25)
+			rerollTierTitle.BackgroundTransparency = 1
+			rerollTierTitle.Text = ''
+			rerollTierTitle.TextScaled = true
+			rerollTierTitle.TextStrokeTransparency = 0.5
+			rerollTierTitle.TextTransparency = 1
+			rerollTierTitle.Parent = rerollTierFrame
+
+			rerollTierDesc = Instance.new('TextLabel')
+			rerollTierDesc.AnchorPoint = Vector2.new(0.5, 0)
+			rerollTierDesc.Position = UDim2.fromScale(0.5, 0.55)
+			rerollTierDesc.Size = UDim2.fromScale(0.85, 0.15)
+			rerollTierDesc.BackgroundTransparency = 1
+			rerollTierDesc.Text = ''
+			rerollTierDesc.TextScaled = true
+			rerollTierDesc.Font = Enum.Font.GothamMedium
+			rerollTierDesc.TextColor3 = Color3.fromRGB(200, 200, 200)
+			rerollTierDesc.TextStrokeTransparency = 0.7
+			rerollTierDesc.TextTransparency = 1
+			rerollTierDesc.Parent = rerollTierFrame
+
+			rerollTrack = Instance.new('Frame')
+			rerollTrack.BackgroundTransparency = 1
+			rerollTrack.Size = UDim2.fromOffset(0, 0)
+			rerollTrack.Position = UDim2.fromOffset(0, 0)
+			rerollTrack.Parent = rerollContainer
+
+			local layout = Instance.new('UIListLayout')
+			layout.FillDirection = Enum.FillDirection.Vertical
+			layout.SortOrder = Enum.SortOrder.LayoutOrder
+			layout.Parent = rerollTrack
+
+			task.wait()
+
+			local cellH =
+				math.max(1, math.floor(rerollContainer.AbsoluteSize.Y * 1.2))
+			rerollLabels = {}
+
+			for n = REROLL_MAX_VAL, REROLL_MIN_VAL, -1 do
+				local l = Instance.new('TextLabel')
+				l.BackgroundTransparency = 1
+				l.Size = UDim2.fromOffset(rerollContainer.AbsoluteSize.X, cellH)
+				l.Text = tostring(n)
+				l.TextScaled = true
+				l.Font = Enum.Font.GothamBold
+				l.TextColor3 = Color3.fromRGB(255, 0, 0)
+				l.TextTransparency = 1
+				l.TextStrokeTransparency = 1
+				l.Parent = rerollTrack
+				table.insert(rerollLabels, l)
+			end
+
+			rerollTrack.Size = UDim2.fromOffset(
+				rerollContainer.AbsoluteSize.X,
+				cellH * #rerollLabels
+			)
+
+			for _, lbl in ipairs(rerollLabels) do
+				lbl.TextTransparency = 1
+				lbl.TextStrokeTransparency = 1
+			end
+		end
+
+		local function destroyRerollGUI()
+			if rerollGui then
+				rerollGui:Destroy()
+				rerollGui = nil
+			end
+			rerollContainer = nil
+			rerollTrack = nil
+			rerollLabels = {}
+			rerollTierFrame = nil
+			rerollTierTitle = nil
+			rerollTierDesc = nil
+		end
+
+		local function setupRerollCharacter()
+			local character = player.Character
+			if not character then
+				return
+			end
+
+	local humanoid = character:FindFirstChildOfClass('Humanoid')
+	if not humanoid then
+		return
+	end
+
+	-- Use MaxHealth if toggle is enabled, otherwise use current Health
+	local healthToShow = humanoid.Health
+	if Options.RerollShowMaxHealth and Options.RerollShowMaxHealth.Value then
+		healthToShow = humanoid.MaxHealth
+	end
+
+	rerollMaxHealth = math.clamp(
+		math.floor(healthToShow + 0.5),
+		REROLL_MIN_VAL,
+		REROLL_MAX_VAL
+	)
+	if rerollTrack then
+		rerollTrack.Position =
+			UDim2.fromOffset(0, yForReroll(rerollMaxHealth))
+	end
+
+			-- Reroll charge monitoring variables
+			local lastHealthChangeTime = 0
+			local lastRerollCharges = nil
+			
+			-- Set up reroll charge monitoring
+			local function setupRerollChargeMonitoring()
+				local mainUI = player.PlayerGui:FindFirstChild('MainUI')
+				if mainUI then
+					local abilityContainer = mainUI:FindFirstChild('AbilityContainer')
+					if abilityContainer then
+						local rerollAbility = abilityContainer:FindFirstChild('Reroll')
+						if rerollAbility then
+							local chargesLabel = rerollAbility:FindFirstChild('Charges')
+							if chargesLabel then
+								-- Store initial charges
+								lastRerollCharges = tonumber(chargesLabel.Text) or 0
+								
+								-- Monitor charges changes
+								if rerollConnections.chargesChanged then
+									rerollConnections.chargesChanged:Disconnect()
+								end
+								
+								rerollConnections.chargesChanged = chargesLabel:GetPropertyChangedSignal('Text'):Connect(function()
+									if not rerollEffectActive then
+										return
+									end
+									
+									local currentCharges = tonumber(chargesLabel.Text) or 0
+									local currentTime = tick()
+									
+									-- Check if charges decreased to 0 and health changed within 0.3 seconds
+									if currentCharges == 0 and lastRerollCharges and lastRerollCharges > 0 then
+										local timeSinceHealthChange = currentTime - lastHealthChangeTime
+										
+										-- Check if player is dead - do not trigger reroll on death
+										if humanoid.Health <= 0 then
+											print('💀 Player died - reroll ability ignored')
+											return
+										end
+										
+									if timeSinceHealthChange <= 0.3 then
+										print('🎰 Reroll ability used! Charges: ' .. lastRerollCharges .. ' → 0, Health changed ' .. string.format('%.2f', timeSinceHealthChange) .. 's ago')
+										
+										-- Trigger reroll effect from current health to new health
+										-- Use MaxHealth if toggle is enabled, otherwise use current Health
+										local healthToShow = humanoid.Health
+										if Options.RerollShowMaxHealth and Options.RerollShowMaxHealth.Value then
+											healthToShow = humanoid.MaxHealth
+										end
+										
+										local newVal = math.clamp(
+											math.floor(healthToShow + 0.5),
+											REROLL_MIN_VAL,
+											REROLL_MAX_VAL
+										)
+										
+										cancelRerollActive()
+										rollToReroll(newVal)
+									end
+									end
+									
+									lastRerollCharges = currentCharges
+								end)
+								
+								print('🎰 Reroll charge monitoring enabled')
+							end
+						end
+					end
+				end
+			end
+
+			if rerollConnections.healthChanged then
+				rerollConnections.healthChanged:Disconnect()
+			end
+
+		rerollConnections.healthChanged = humanoid
+			:GetPropertyChangedSignal('Health')
+			:Connect(function()
+				if not rerollEffectActive then
+					return
+				end
+				
+				-- Update health change timestamp
+				lastHealthChangeTime = tick()
+				
+				-- Check if player died - do not show reroll on death
+				if humanoid.Health <= 0 then
+					print('💀 Player died - reroll effect disabled')
+					return
+				end
+				
+			-- Use MaxHealth if toggle is enabled, otherwise use current Health
+			local healthToShow = humanoid.Health
+			if Options.RerollShowMaxHealth and Options.RerollShowMaxHealth.Value then
+				healthToShow = humanoid.MaxHealth
+			end
+			
+			local newVal = math.clamp(
+				math.floor(healthToShow + 0.5),
+				REROLL_MIN_VAL,
+				REROLL_MAX_VAL
+			)
+			if newVal == rerollMaxHealth then
+				return
+			end
+			cancelRerollActive()
+			rollToReroll(newVal)
+			end)
+
+			-- Set up reroll charge monitoring
+			setupRerollChargeMonitoring()
+
+			print('🎰 Reroll Effect connected to character')
+		end
+
+		local function startRerollEffect()
+			rerollEffectActive = true
+
+			createRerollGUI()
+
+			if player.Character then
+				setupRerollCharacter()
+			end
+
+			if rerollConnections.characterAdded then
+				rerollConnections.characterAdded:Disconnect()
+			end
+
+		rerollConnections.characterAdded = player.CharacterAdded:Connect(
+			function()
+				print('🔄 CharacterAdded event triggered - checking reroll effect status')
+				if not rerollEffectActive then
+					print('❌ Reroll effect is not active, skipping respawn sequence')
+					return
+				end
+
+			-- Wait for character to fully load and check health
+			task.wait(0.2)
+			local character = player.Character
+			if character then
+				local humanoid = character:FindFirstChildOfClass('Humanoid')
+				if humanoid and humanoid.Health > 130 then
+					print('💯 Player respawned with health over 130 (' .. humanoid.Health .. ') - skipping reroll effect')
+					return
+				end
+			end
+
+				print('✅ Reroll effect is active, starting respawn sequence')
+				cancelRerollActive()
+				
+				-- Add respawn safety to regular reroll system
+				task.spawn(function()
+					task.wait(0.1) -- Small delay to ensure character is fully loaded
+					if rerollEffectActive and player.Character then
+						print('🛡️ Setting up regular reroll monitoring for respawn safety')
+						setupRerollCharacter() -- Set up regular reroll monitoring immediately for respawn safety
+					else
+						print('❌ Cannot set up reroll monitoring - effect inactive or no character')
+					end
+				end)
+
+				-- Hide the specific health bar during reroll effect
+				local function hideRespawnUI()
+					print('🚫 Attempting to hide health bar during reroll effect...')
+					
+					-- Hide the specific health bar: PlayerGui.TemporaryUI.PlayerInfo.Bars.Health
+					local temporaryUI = player.PlayerGui:FindFirstChild('TemporaryUI')
+					if temporaryUI then
+						local playerInfo = temporaryUI:FindFirstChild('PlayerInfo')
+						if playerInfo then
+							local bars = playerInfo:FindFirstChild('Bars')
+							if bars then
+								local health = bars:FindFirstChild('Health')
+								if health then
+									health.Visible = false
+									print('🚫 Hidden health bar: PlayerGui.TemporaryUI.PlayerInfo.Bars.Health')
+								else
+									print('❌ Health element not found in Bars')
+								end
+								
+								-- Set up listener for when health bar is added during respawn
+								if rerollConnections.healthBarAdded then
+									rerollConnections.healthBarAdded:Disconnect()
+								end
+								
+								rerollConnections.healthBarAdded = bars.ChildAdded:Connect(function(child)
+									if child.Name == 'Health' and rerollEffectActive then
+										print('🚫 Health bar added during respawn - hiding it immediately')
+										child.Visible = false
+									end
+								end)
+								
+								-- Keep spamming hide message until tween starts
+								if rerollConnections.spamHideMessage then
+									rerollConnections.spamHideMessage:Disconnect()
+								end
+								
+								local RunService = game:GetService('RunService')
+								local spamStartTime = tick()
+								rerollConnections.spamHideMessage = RunService.Heartbeat:Connect(function()
+									if not rerollEffectActive then
+										return
+									end
+									
+									local health = bars:FindFirstChild('Health')
+									if health and health.Visible then
+										health.Visible = false
+										print('🚫🚫🚫 SPAMMING: Health bar detected and hidden - ' .. string.format('%.1f', tick() - spamStartTime) .. 's')
+									end
+								end)
+								
+							else
+								print('❌ Bars element not found in PlayerInfo')
+							end
+						else
+							print('❌ PlayerInfo element not found in TemporaryUI')
+						end
+					else
+						print('❌ TemporaryUI not found in PlayerGui')
+					end
+				end
+				
+				local function restoreRespawnUI()
+					print('✅ Attempting to restore health bar after reroll movement...')
+					
+					-- Restore the specific health bar: PlayerGui.TemporaryUI.PlayerInfo.Bars.Health
+					local temporaryUI = player.PlayerGui:FindFirstChild('TemporaryUI')
+					if temporaryUI then
+						local playerInfo = temporaryUI:FindFirstChild('PlayerInfo')
+						if playerInfo then
+							local bars = playerInfo:FindFirstChild('Bars')
+							if bars then
+								local health = bars:FindFirstChild('Health')
+								if health then
+									health.Visible = true
+									print('✅ Restored health bar: PlayerGui.TemporaryUI.PlayerInfo.Bars.Health')
+								else
+									print('❌ Health element not found in Bars during restore')
+								end
+							else
+								print('❌ Bars element not found in PlayerInfo during restore')
+							end
+						else
+							print('❌ PlayerInfo element not found in TemporaryUI during restore')
+						end
+					else
+						print('❌ TemporaryUI not found in PlayerGui during restore')
+					end
+					
+				end
+
+				-- Hide respawn UI immediately
+				hideRespawnUI()
+				
+				-- Wait 7 seconds as requested (keep spamming hide during this entire time)
+				print('⏰ Waiting 7 seconds before starting reroll animation...')
+				task.wait(7)
+
+			print('⏰ 7 seconds elapsed, checking if reroll effect is still active...')
+			if rerollEffectActive then
+				print('✅ Reroll effect still active, starting reroll animation')
+				
+				-- Stop spamming health bar hide NOW (when reroll animation starts)
+				if rerollConnections.spamHideMessage then
+					rerollConnections.spamHideMessage:Disconnect()
+					rerollConnections.spamHideMessage = nil
+					print('🛑 Stopped spamming health bar hide (reroll animation starting)')
+				end
+				
+				-- Disconnect the health bar added listener
+				if rerollConnections.healthBarAdded then
+					rerollConnections.healthBarAdded:Disconnect()
+					rerollConnections.healthBarAdded = nil
+					print('🛑 Stopped health bar added listener (reroll animation starting)')
+				end
+				
+				-- Restore UI now that animation is starting
+				restoreRespawnUI()
+				
+				-- Set up character and start reroll from current health
+				local character = player.Character
+				if character then
+					print('✅ Character found: ' .. character.Name)
+				local humanoid = character:FindFirstChildOfClass('Humanoid')
+				if humanoid then
+				print('✅ Humanoid found, current health: ' .. humanoid.Health)
+					
+			-- Store the ACTUAL health (where we want to animate TO)
+			-- Use MaxHealth if toggle is enabled, otherwise use current Health
+			local healthToShow = humanoid.Health
+			if Options.RerollShowMaxHealth and Options.RerollShowMaxHealth.Value then
+				healthToShow = humanoid.MaxHealth
+			end
+			
+			local actualHealth = math.clamp(
+				math.floor(healthToShow + 0.5),
+				REROLL_MIN_VAL,
+				REROLL_MAX_VAL
+			)
+				
+			-- RESPAWN REROLL ALWAYS STARTS FROM 1 (lowest possible health)
+			rerollMaxHealth = 1
+			if rerollTrack then
+				rerollTrack.Position = UDim2.fromOffset(0, yForReroll(1))
+			end
+			
+			print('🎰 Respawn reroll will animate: 1 → ' .. actualHealth)
+							
+							-- Note: Regular health monitoring is already set up by setupRerollCharacter()
+							-- No need for duplicate health change connection here
+							
+							-- Set up reroll charge monitoring for respawn sequence too
+							local lastHealthChangeTime = 0
+							local lastRerollCharges = nil
+							
+							local function setupRespawnRerollChargeMonitoring()
+								local mainUI = player.PlayerGui:FindFirstChild('MainUI')
+								if mainUI then
+									local abilityContainer = mainUI:FindFirstChild('AbilityContainer')
+									if abilityContainer then
+										local rerollAbility = abilityContainer:FindFirstChild('Reroll')
+										if rerollAbility then
+											local chargesLabel = rerollAbility:FindFirstChild('Charges')
+											if chargesLabel then
+												lastRerollCharges = tonumber(chargesLabel.Text) or 0
+												
+												if rerollConnections.respawnChargesChanged then
+													rerollConnections.respawnChargesChanged:Disconnect()
+												end
+												
+												rerollConnections.respawnChargesChanged = chargesLabel:GetPropertyChangedSignal('Text'):Connect(function()
+													if not rerollEffectActive then
+														return
+													end
+													
+													local currentCharges = tonumber(chargesLabel.Text) or 0
+													local currentTime = tick()
+													
+													if currentCharges == 0 and lastRerollCharges and lastRerollCharges > 0 then
+														local timeSinceHealthChange = currentTime - lastHealthChangeTime
+														
+														-- Check if player is dead - do not trigger reroll on death
+														if humanoid.Health <= 0 then
+															print('💀 Player died during respawn - reroll ability ignored')
+															return
+														end
+														
+													if timeSinceHealthChange <= 0.3 then
+													print('🎰 Respawn Reroll ability used! Triggering reroll sequence')
+													
+												-- Store current health before reroll animation starts
+												local healthBeforeReroll = rerollMaxHealth
+												
+												-- Get actual current health after reroll
+												-- Use MaxHealth if toggle is enabled, otherwise use current Health
+												local healthToShow = humanoid.Health
+												if Options.RerollShowMaxHealth and Options.RerollShowMaxHealth.Value then
+													healthToShow = humanoid.MaxHealth
+												end
+												
+													local actualHealth = math.clamp(
+														math.floor(healthToShow + 0.5),
+														REROLL_MIN_VAL,
+														REROLL_MAX_VAL
+													)
+														
+														-- Start from the current reroll health (not 50, but the actual current value)
+														-- This ensures subsequent rerolls during respawn start from the right value
+														print('🎰 Second reroll during respawn - animating from ' .. healthBeforeReroll .. ' to ' .. actualHealth)
+														
+														rollToReroll(actualHealth)
+													end
+													end
+													
+													lastRerollCharges = currentCharges
+												end)
+											end
+										end
+									end
+								end
+							end
+							
+							-- Set up health change timestamp tracking for respawn reroll ability detection
+							if rerollConnections.respawnHealthChanged then
+								rerollConnections.respawnHealthChanged:Disconnect()
+							end
+							
+							rerollConnections.respawnHealthChanged = humanoid
+								:GetPropertyChangedSignal('Health')
+								:Connect(function()
+									if not rerollEffectActive then
+										return
+									end
+									
+									-- Update health change timestamp for reroll ability detection
+									lastHealthChangeTime = tick()
+									
+									-- Note: Actual reroll triggering is handled by the regular health monitoring
+									-- This connection is only for timestamp tracking for reroll ability detection
+								end)
+							
+						setupRespawnRerollChargeMonitoring()
+						
+			-- Animate from 1 to actual health on respawn (FIRST REROLL)
+			print('🎰 Starting RESPAWN reroll animation: 1 → ' .. actualHealth)
+				
+				-- Make sure health bar is visible before animation starts
+				task.wait(0.1)
+				local tempUI = player.PlayerGui:FindFirstChild('TemporaryUI')
+				if tempUI then
+					local playerInfo = tempUI:FindFirstChild('PlayerInfo')
+					if playerInfo then
+						local bars = playerInfo:FindFirstChild('Bars')
+						if bars then
+							local health = bars:FindFirstChild('Health')
+							if health then
+								health.Visible = true
+								print('✅✅ FORCED health bar visible before animation!')
+							end
+						end
+					end
+				end
+				
+				rollToReroll(actualHealth)
+				
+				print('🔄 Reroll Effect respawn sequence complete!')
+						else
+							print('❌ No humanoid found in character')
+						end
+					else
+						print('❌ No character found after 7 second wait')
+					end
+				else
+					print('❌ Reroll effect became inactive during 7 second wait')
+				end
+			end
+		)
+
+			Library:Notify({
+				Title = '🎰 Reroll Effect Enabled',
+				Content = 'Health changes will show casino-style rolling animation',
+				Duration = 3,
+			})
+		end
+
+		local function stopRerollEffect()
+			rerollEffectActive = false
+
+			for _, connection in pairs(rerollConnections) do
+				if connection then
+					connection:Disconnect()
+				end
+			end
+			rerollConnections = {}
+
+			cancelRerollActive()
+
+			destroyRerollGUI()
+
+			local healthBar = player.PlayerGui:FindFirstChild('TemporaryUI')
+			if healthBar then
+				local bars = healthBar:FindFirstChild('PlayerInfo')
+				if bars then
+					bars = bars:FindFirstChild('Bars')
+					if bars then
+						local health = bars:FindFirstChild('Health')
+						if health then
+							health.Visible = true
+						end
+					end
+				end
+			end
+
+			Library:Notify({
+				Title = '🎰 Reroll Effect Disabled',
+				Content = 'Health display returned to normal',
+				Duration = 3,
+			})
+		end
+
+	UI.RerollEffectToggle = Tabs.Misc:CreateToggle('RerollEffect', {
+		Title = 'Reroll Effect',
+		Description = 'Casino-style rolling animation for health changes (Respawn Safe)',
+		Default = false,
+	})
+
+	UI.RerollEffectToggle:OnChanged(function()
+		rerollEffectActive = Options.RerollEffect.Value
+
+		if rerollEffectActive then
+			startRerollEffect()
+		else
+			stopRerollEffect()
+		end
+	end)
+
+	UI.RerollShowMaxHealthToggle = Tabs.Misc:CreateToggle('RerollShowMaxHealth', {
+		Title = 'Show Max Health Only',
+		Description = 'Display max health instead of current health in reroll effect',
+		Default = false,
+	})
+	end -- End of Reroll Effect isolated scope
+
+		-- ========================================
+		-- CHANCE STREAKNESS SECTION
+		-- ========================================
+		do -- Isolated scope for Chance Streakness
+		Tabs.Misc:CreateSection('Chance Streakness')
+
+		-- Success Sound ID Input
+		UI.SuccessSoundInput = Tabs.Misc:CreateInput('SuccessSoundID', {
+			Title = 'Success Sound ID',
+			Description = 'The sound ID to replace for success hits',
+			Default = '3954788070',
+			Placeholder = 'Enter sound ID (numbers only)',
+		})
+
+		UI.SuccessSoundInput:OnChanged(function()
+			local value = Options.SuccessSoundID.Value
+			if value and value ~= '' then
+				SUCCESS_REPLACEMENT_SOUND = 'rbxassetid://' .. value
+				print(
+					'✅ Success replacement sound updated to: '
+						.. SUCCESS_REPLACEMENT_SOUND
+				)
+			end
+		end)
+
+		-- Failed Sound ID Input
+		UI.FailedSoundInput = Tabs.Misc:CreateInput('FailedSoundID', {
+			Title = 'Failed Sound ID',
+			Description = 'The sound ID to replace for failed hits',
+			Default = '3779045779',
+			Placeholder = 'Enter sound ID (numbers only)',
+		})
+
+		UI.FailedSoundInput:OnChanged(function()
+			local value = Options.FailedSoundID.Value
+			if value and value ~= '' then
+				FAILED_REPLACEMENT_SOUND = 'rbxassetid://' .. value
+				print(
+					'❌ Failed replacement sound updated to: '
+						.. FAILED_REPLACEMENT_SOUND
+				)
+			end
+		end)
+
+		-- Pitching Toggle
+		UI.PitchingToggle = Tabs.Misc:CreateToggle('Pitching', {
+			Title = 'Enable Streakness',
+			Description = "Pitch increases by 0.05 per consecutive success/failed hit (streaks don't break on random sounds)",
+			Default = false,
+		})
+
+		UI.PitchingToggle:OnChanged(function()
+			pitchingActive = Options.Pitching.Value
+
+			if pitchingActive then
+				startPitching()
+			else
+				stopPitching()
+			end
+		end)
+
+		-- Pitching Debug Toggle
+		UI.PitchingDebugToggle = Tabs.Misc:CreateToggle('PitchingDebug', {
+			Title = 'Streakness Debug',
+			Description = 'Show detailed debug information in console for streak detection',
+			Default = false,
+		})
+
+		UI.PitchingDebugToggle:OnChanged(function()
+			pitchingDebug = Options.PitchingDebug.Value
+
+			if pitchingDebug then
+				print('')
+				print(
+					'╔════════════════════════════════════════╗'
+				)
+				print('║  🔍 STREAK DEBUG MODE ENABLED          ║')
+				print(
+					'╚════════════════════════════════════════╝'
+				)
+				print('[PITCH DEBUG] Detailed information will be shown in console')
+				print(
+					'[PITCH DEBUG] Play success/failed sounds to see streak detection'
+				)
+				print('')
+			else
+				print('🔍 [PITCH DEBUG] Debug mode disabled')
+			end
+		end)
+
+		-- Zenith Combo Toggle
+		UI.ZenithComboToggle = Tabs.Misc:CreateToggle('ZenithCombo', {
+			Title = 'Use Zenith Combo Sound',
+			Description = 'Replace success/failed sounds with Zenith combo sounds (1-16 stack). Success uses regular, failed uses power.',
+			Default = false,
+		})
+
+		UI.ZenithComboToggle:OnChanged(function()
+			zenithComboActive = Options.ZenithCombo.Value
+
+			if zenithComboActive then
+				startZenithCombo()
+			else
+				stopZenithCombo()
+			end
+		end)
+
+		-- Zenith Combo Volume Slider
+		UI.ZenithComboVolumeSlider = Tabs.Misc:CreateSlider('ZenithComboVolume', {
+			Title = 'Zenith Combo Volume',
+			Description = 'Adjust the volume for Zenith combo sounds',
+			Default = 1.2,
+			Min = 0,
+			Max = 5,
+			Rounding = 1,
+		})
+
+		UI.ZenithComboVolumeSlider:OnChanged(function()
+			zenithComboVolume = Options.ZenithComboVolume.Value
+		end)
+		end -- End Chance Streakness scope
+	end -- End MISC TAB scope
+
+	-- ========================================
+	-- SETTINGS TAB
+	-- ========================================
+	do
+-- GunShot SoundID Saver Section
+Tabs.Settings:CreateSection('🔫 GunShot SoundID Saver')
+
+Tabs.Settings:CreateParagraph('GunshotSaverInfo', {
+	Title = 'Save and manage gunshot sounds',
+	Content = 'Save your favorite gunshot sound IDs with custom names for easy access. Saved sounds will appear in the dropdown menu in the main gunshot section.',
+})
+
+-- Variables for gunshot saver
+local gunshotSaveName = ''
+local gunshotSaveSoundId = ''
+
+-- Name Input
+UI.GunshotSaveNameInput = Tabs.Settings:CreateInput('GunshotSaveName', {
+	Title = 'Sound Name',
+	Default = '',
+	Placeholder = 'Enter a name for this sound (e.g., AK-47, Pistol)',
+	Numeric = false,
+	Finished = false,
+	Callback = function(Value)
+		gunshotSaveName = Value or ''
+	end,
+})
+
+-- Sound ID Input
+local GunshotSaveSoundIdInput =
+	Tabs.Settings:CreateInput('GunshotSaveSoundId', {
+		Title = 'Sound ID',
+		Default = '',
+		Placeholder = 'Enter Roblox sound ID (e.g., 131961136)',
+		Numeric = true,
+		Finished = false,
+		Callback = function(Value)
+			gunshotSaveSoundId = Value or ''
+		end,
+	})
+
+-- Save Button
+local GunshotSaveButton = Tabs.Settings:CreateButton({
+	Title = '💾 Save Gunshot Sound',
+	Description = 'Save the sound with the specified name and ID',
+	Callback = function()
+		local success, message =
+			addGunshotSound(gunshotSaveName, gunshotSaveSoundId)
+
+		if success then
+			Library:Notify({
+				Title = '✅ Success',
+				Content = message,
+				Duration = 3,
+			})
+
+			-- Clear inputs after successful save
+			gunshotSaveName = ''
+			gunshotSaveSoundId = ''
+			GunshotSaveNameInput:SetValue('')
+			GunshotSaveSoundIdInput:SetValue('')
+		else
+			Library:Notify({
+				Title = '❌ Error',
+				Content = message,
+				Duration = 5,
+			})
+		end
+	end,
+})
+
+-- ========================================
+
+-- Remove Sound Section
+Tabs.Settings:CreateSection('🗑️ Remove Gunshot Sounds')
+
+Tabs.Settings:CreateParagraph('GunshotRemoveInfo', {
+	Title = 'Remove saved gunshot sounds',
+	Content = 'Select a saved gunshot sound from the dropdown and click remove to delete it permanently from your saved sounds list.',
+})
+
+	-- Note: removeGunshotSound and updateRemoveDropdownOptions are now defined in the shared section above MISC TAB
+
+-- Variable for remove sound selection
+local gunshotRemoveSelection = ''
+
+-- Remove Sound Dropdown
+		UI.GunshotRemoveDropdown =
+			Tabs.Settings:CreateDropdown('RemoveGunshotSound', {
+	Title = 'Select Sound to Remove',
+	Description = 'Choose a saved sound to delete',
+	Values = { 'Select Sound to Remove' },
+	Multi = false,
+	Default = 1,
+	Callback = function(Value)
+		gunshotRemoveSelection = Value or ''
+	end,
+})
+
+-- Remove Button
+UI.GunshotRemoveButton = Tabs.Settings:CreateButton({
+	Title = '🗑️ Remove Selected Sound',
+	Description = 'Permanently delete the selected sound from saved list',
+	Callback = function()
+		if
+			gunshotRemoveSelection == ''
+			or gunshotRemoveSelection == 'Select Sound to Remove'
+		then
+			Library:Notify({
+				Title = '⚠️ Warning',
+				Content = 'Please select a sound to remove first',
+				Duration = 3,
+			})
+			return
+		end
+
+		local success, message = removeGunshotSound(gunshotRemoveSelection)
+
+		if success then
+			Library:Notify({
+				Title = '✅ Success',
+				Content = message,
+				Duration = 3,
+			})
+
+			-- Reset selection
+			gunshotRemoveSelection = ''
+		else
+			Library:Notify({
+				Title = '❌ Error',
+				Content = message,
+				Duration = 5,
+			})
+		end
+	end,
+})
+
+-- ========================================
+
+-- Panic Button Section
+Tabs.Settings:CreateSection('🚨 Emergency Controls')
+
+Tabs.Settings:CreateParagraph('PanicInfo', {
+	Title = 'Panic Button',
+	Content = 'Instantly disables all active features in the GUI. Use this to quickly turn everything off.',
+})
+
+Tabs.Settings:CreateButton({
+	Title = '🚨 PANIC - Disable Everything',
+	Description = 'Turn off all active features immediately',
+	Callback = function()
+		-- Disable all music features
+		if Options.LMSMusic and Options.LMSMusic.Value then
+			Options.LMSMusic:SetValue(false)
+		end
+		if Options.LobbyMusic and Options.LobbyMusic.Value then
+			Options.LobbyMusic:SetValue(false)
+		end
+
+		-- Disable stamina warning
+		if Options.StaminaWarning and Options.StaminaWarning.Value then
+			Options.StaminaWarning:SetValue(false)
+		end
+
+		-- Disable auto coinflip
+		if Options.AutoCoinflip and Options.AutoCoinflip.Value then
+			Options.AutoCoinflip:SetValue(false)
+		end
+
+		-- Disable chance aim helper
+		if Options.ChanceAimHelper and Options.ChanceAimHelper.Value then
+			Options.ChanceAimHelper:SetValue(false)
+		end
+
+		-- Disable killer detector
+		if Options.KillerDetector and Options.KillerDetector.Value then
+			Options.KillerDetector:SetValue(false)
+		end
+
+		-- Disable shake camera
+		if Options.ShakeCamera and Options.ShakeCamera.Value then
+			Options.ShakeCamera:SetValue(false)
+		end
+
+		-- Disable GTA V death screen
+		if Options.GTADeathScreen and Options.GTADeathScreen.Value then
+			Options.GTADeathScreen:SetValue(false)
+		end
+
+		-- Disable Old Noli Chase
+		if Options.OldNoliChase and Options.OldNoliChase.Value then
+			Options.OldNoliChase:SetValue(false)
+		end
+
+		-- Disable Chance Gunshot
+		if Options.ChanceGunshot and Options.ChanceGunshot.Value then
+			Options.ChanceGunshot:SetValue(false)
+			end
+
+				-- Disable Infinite Stamina
+				if Options.InfStaminaToggle and Options.InfStaminaToggle.Value then
+					Options.InfStaminaToggle:SetValue(false)
+				end
+
+				-- Disable Reroll Effect
+				if Options.RerollEffect and Options.RerollEffect.Value then
+					Options.RerollEffect:SetValue(false)
+				end
+
+				-- Disable Old 1x Theme
+				if Options.Old1xTheme and Options.Old1xTheme.Value then
+					Options.Old1xTheme:SetValue(false)
+				end
+
+				-- Disable Mafioso Theme
+				if Options.MafiosoTheme and Options.MafiosoTheme.Value then
+					Options.MafiosoTheme:SetValue(false)
+				end
+
+				-- Disable c00lkidd Theme
+				if Options.C00lkiddTheme and Options.C00lkiddTheme.Value then
+					Options.C00lkiddTheme:SetValue(false)
+				end
+
+				-- Disable Pitching (Streakness)
+				if Options.Pitching and Options.Pitching.Value then
+					Options.Pitching:SetValue(false)
+				end
+
+				-- Disable Pitching Debug
+				if Options.PitchingDebug and Options.PitchingDebug.Value then
+					Options.PitchingDebug:SetValue(false)
+				end
+
+				-- Disable Animation Sound System
+				if
+					Options.AnimationSoundSystem
+					and Options.AnimationSoundSystem.Value
+				then
+					Options.AnimationSoundSystem:SetValue(false)
+				end
+
+				-- Disable Killer Detector Debug
+				if
+					Options.KillerDetectorDebug
+					and Options.KillerDetectorDebug.Value
+				then
+					Options.KillerDetectorDebug:SetValue(false)
+		end
+
+		Library:Notify({
+			Title = '🚨 PANIC ACTIVATED',
+			Content = 'All features have been disabled!',
+			Duration = 4,
+		})
+
+		print('🚨 PANIC BUTTON PRESSED - All features disabled')
+	end,
+})
+
+SaveManager:SetLibrary(Library)
+InterfaceManager:SetLibrary(Library)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+
+InterfaceManager:SetFolder('ForsakenUtilities')
+SaveManager:SetFolder('ForsakenUtilities/configs')
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+Window:SelectTab(1)
+
+-- Initialize gunshot sound save system after UI is created
+loadGunshotSounds()
+
+-- Initialize remove dropdown after loading sounds
+spawn(function()
+	wait(0.1) -- Small delay to ensure dropdown is created
+	updateRemoveDropdownOptions()
+end)
+	end -- End SETTINGS TAB scope
+
+Library:Notify({
+	Title = 'Forsaken Utilities',
+	Content = 'Script has been loaded successfully!',
+	Duration = 5,
+})
+
+SaveManager:LoadAutoloadConfig()
