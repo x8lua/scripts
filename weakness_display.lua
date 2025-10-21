@@ -31,10 +31,16 @@ local connections = {}
 -- Global toggle support (can be controlled via _G.WeaknessDisplayEnabled)
 _G.WeaknessDisplayEnabled = true
 task.spawn(function()
+    local lastState = scriptEnabled
     while true do
         task.wait(0.1)
         if _G.WeaknessDisplayEnabled ~= nil then
-            scriptEnabled = _G.WeaknessDisplayEnabled
+            local newState = _G.WeaknessDisplayEnabled
+            if newState ~= lastState then
+                scriptEnabled = newState
+                print(string.format("⚠️ Weakness Display: %s", scriptEnabled and "ENABLED ✓" or "DISABLED ✗"))
+                lastState = newState
+            end
         end
     end
 end)
@@ -570,3 +576,8 @@ end
 
 print("⚠️ Listening for animation", TARGET_ANIMATION_ID)
 print("Press P to destroy script")
+
+-- Mark script as successfully loaded
+_G.WeaknessDisplayLOADED = true
+print("✅ Weakness Display successfully loaded!")
+
