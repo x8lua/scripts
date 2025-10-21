@@ -11,7 +11,8 @@
     - Plays zenith.mp3 music that continues across displays
     - Press P to destroy display instantly
     - Uses same fade in SFX as weakness display
-    - Consecutive streak system with 10 ranks (2-20)
+    - Consecutive streak system with 21 ranks (1-20, then "ABSOLUTE CHANCE" for 21+)
+    - Special levelup.ogg sound for streaks 21+
     - Streak rank achievements with unique visual effects
     - Detects fail animations (138008678294576 or 108014891454394)
     - Streak broken: "Streak broken." message with gray smoke fade, health red flicker, ROW rolls to 0, card tear SFX
@@ -43,31 +44,28 @@ local SAVE_FILE = "shot_counter_data.json"
 
 -- Streak Configuration (consecutive successes)
 local STREAK_RANKS = {
-	{threshold = 2, title = "Warm Hands", message = "You're feeling it.", color = Color3.fromRGB(255, 140, 60), effect = "faint_glow"},
-	{threshold = 4, title = "Steady Pull", message = "The barrel likes you.", color = Color3.fromRGB(255, 215, 100), effect = "soft_flash"},
-	{threshold = 6, title = "Lucky Rhythm", message = "Every trigger hits right.", color = Color3.fromRGB(255, 200, 80), effect = "pulse"},
-	{threshold = 8, title = "Rolling Fate", message = "Luck's on repeat.", color = Color3.fromRGB(255, 120, 50), effect = "flicker"},
-	{threshold = 10, title = "Streak Walker", message = "They start praying you miss.", color = Color3.fromRGB(255, 80, 80), effect = "red_pulse"},
-	{threshold = 12, title = "Burning Chamber", message = "Smoke means you're doing it right.", color = Color3.fromRGB(200, 60, 40), effect = "smoke"},
-	{threshold = 14, title = "Unblinking Hand", message = "Even the killer hesitates.", color = Color3.fromRGB(255, 150, 150), effect = "reticle_flash"},
-	{threshold = 16, title = "The Dealer's Fear", message = "The house flinches.", color = Color3.fromRGB(180, 40, 40), effect = "dark_bloom"},
-	{threshold = 18, title = "High Roller", message = "You bet. The world folds.", color = Color3.fromRGB(255, 240, 180), effect = "gold_flicker"},
-	{threshold = 20, title = "Fatebreaker", message = "You shoot through probability.", color = Color3.fromRGB(255, 220, 100), effect = "lightning"},
-	{threshold = 22, title = "Ace Whisperer", message = "Luck listens when you talk.", color = Color3.fromRGB(255, 180, 90), effect = "card_shimmer"},
-	{threshold = 24, title = "Deadeye", message = "Your aim is folklore now.", color = Color3.fromRGB(255, 170, 120), effect = "spark_flash"},
-	{threshold = 26, title = "Jackpot Pulse", message = "Every shot feels inevitable.", color = Color3.fromRGB(255, 210, 140), effect = "neon_pulse"},
-	{threshold = 28, title = "Stack Shark", message = "Odds bleed in your favor.", color = Color3.fromRGB(255, 130, 70), effect = "chip_fall"},
-	{threshold = 30, title = "The Revolver Saint", message = "Holster hums with faith.", color = Color3.fromRGB(200, 80, 50), effect = "ember_bloom"},
-	{threshold = 32, title = "The Gambler's Oath", message = "No coin lands against you.", color = Color3.fromRGB(255, 230, 150), effect = "halo_glow"},
-	{threshold = 34, title = "Destiny Dealer", message = "You hand out fate by bullet.", color = Color3.fromRGB(255, 180, 80), effect = "burn_fade"},
-	{threshold = 36, title = "House Slayer", message = "The dealer forgot his script.", color = Color3.fromRGB(240, 90, 60), effect = "crimson_flash"},
-	{threshold = 38, title = "Golden Draw", message = "You shoot, the world bets.", color = Color3.fromRGB(255, 220, 160), effect = "sunburst"},
-	{threshold = 40, title = "Loaded Heaven", message = "Even gods take cover.", color = Color3.fromRGB(255, 250, 200), effect = "radiant_glow"},
-	{threshold = 42, title = "Miracle Chain", message = "Fifty-fifty became a promise.", color = Color3.fromRGB(255, 200, 100), effect = "divine_pulse"},
-	{threshold = 44, title = "Judgement Click", message = "The chamber always agrees.", color = Color3.fromRGB(255, 120, 60), effect = "shockwave"},
-	{threshold = 46, title = "Luck’s Final Word", message = "Nothing random left.", color = Color3.fromRGB(255, 255, 180), effect = "white_flicker"},
-	{threshold = 48, title = "The House’s End", message = "The table empties itself.", color = Color3.fromRGB(255, 190, 100), effect = "collapse_glow"},
-	{threshold = 50, title = "THE UNROLLED", message = "You *are* the odds now.", color = Color3.fromRGB(255, 255, 255), effect = "jackpot_burst"},
+	{threshold = 1,  title = "First Pull",        message = "The game begins.",                        color = Color3.fromRGB(200, 200, 200), effect = "flash_start", tier = 1},
+	{threshold = 2,  title = "Warm Hands",        message = "You're feeling it.",                      color = Color3.fromRGB(255, 140, 60),  effect = "faint_glow", tier = 2},
+	{threshold = 3,  title = "Steady Pull",       message = "The barrel likes you.",                   color = Color3.fromRGB(255, 215, 100), effect = "soft_flash", tier = 3},
+	{threshold = 4,  title = "Lucky Rhythm",      message = "Every trigger hits right.",               color = Color3.fromRGB(255, 200, 80),  effect = "pulse", tier = 4},
+	{threshold = 5,  title = "Rolling Fate",      message = "Luck's on repeat.",                       color = Color3.fromRGB(255, 120, 50),  effect = "flicker", tier = 5},
+	{threshold = 6,  title = "Risk Runner",       message = "You're betting with air.",                color = Color3.fromRGB(255, 150, 90),  effect = "shake_light", tier = 6},
+	{threshold = 7,  title = "Trigger Whisperer", message = "Even the gun listens.",                   color = Color3.fromRGB(255, 180, 110), effect = "spark_pulse", tier = 7},
+	{threshold = 8,  title = "Smoke Dancer",      message = "Barrel heat sings your name.",            color = Color3.fromRGB(255, 150, 80),  effect = "smoke", tier = 8},
+	{threshold = 9,  title = "Table Breaker",     message = "The house watches closely.",              color = Color3.fromRGB(255, 180, 100), effect = "card_flash", tier = 9},
+	{threshold = 10, title = "Streak Walker",     message = "They start praying you miss.",            color = Color3.fromRGB(255, 80, 80),   effect = "red_pulse", tier = 10},
+	{threshold = 11, title = "Burning Chamber",   message = "Smoke means you're doing it right.",      color = Color3.fromRGB(200, 60, 40),   effect = "smoke_flash", tier = 11},
+	{threshold = 12, title = "Unblinking Hand",   message = "Even the killer hesitates.",              color = Color3.fromRGB(255, 150, 150), effect = "reticle_flash", tier = 12},
+	{threshold = 13, title = "Loaded Prayer",     message = "Faith clicks before the hammer.",         color = Color3.fromRGB(255, 200, 140), effect = "light_burst", tier = 13},
+	{threshold = 14, title = "The Dealer's Fear", message = "The house flinches.",                     color = Color3.fromRGB(180, 40, 40),   effect = "dark_bloom", tier = 14},
+	{threshold = 15, title = "High Roller",       message = "You bet. The world folds.",               color = Color3.fromRGB(255, 240, 180), effect = "gold_flicker", tier = 15},
+	{threshold = 16, title = "Fate Tamer",        message = "Probability bends its knees.",            color = Color3.fromRGB(255, 220, 100), effect = "lightning", tier = 16},
+	{threshold = 17, title = "Card Saint",        message = "Every shot's a sermon.",                  color = Color3.fromRGB(255, 230, 150), effect = "glow_aura", tier = 17},
+	{threshold = 18, title = "Gambler King",      message = "The table belongs to you.",               color = Color3.fromRGB(255, 200, 90),  effect = "gold_flash", tier = 18},
+	{threshold = 19, title = "Fatebreaker",       message = "You shoot through probability.",          color = Color3.fromRGB(255, 255, 180), effect = "divine_flash", tier = 19},
+	{threshold = 20, title = "ABSOLUTE CHANCE",   message = "Luck can't keep up anymore.",             color = Color3.fromRGB(255, 255, 255), effect = "jackpot_burst", tier = 20},
+	-- All streaks 21+ keep same rank & trigger special SFX
+	{threshold = 21, title = "ABSOLUTE CHANCE",   message = "The dice no longer roll.",                color = Color3.fromRGB(255, 255, 255), effect = "jackpot_loop", tier = "max"},
 }
 
 
@@ -137,7 +135,7 @@ local function saveShotData()
 end
 
 -- Display streak rank achievement with visual effects
-local function displayStreakRank(rank)
+local function displayStreakRank(rank, currentRow)
 	if isDisplaying then
 		return
 	end
@@ -149,12 +147,19 @@ local function displayStreakRank(rank)
 	end
 
 	isDisplaying = true
-	print("[RANK UP] Displaying:", rank.title, "| Effect:", rank.effect)
+	print("[RANK UP] Displaying:", rank.title, "| Effect:", rank.effect, "| Row:", currentRow)
 
-	-- Play rank up SFX
+	-- Play rank up SFX (special sound for 21+ streaks)
 	local rankUpSfx = Instance.new("Sound")
+	local sfxPath = "forvids/sfx/tetrio/ratingraise.ogg"
+	
+	-- Use special levelup sound for streaks 21+
+	if currentRow and currentRow >= 21 then
+		sfxPath = "forvids/sfx/tetrio/levelup.ogg"
+	end
+	
 	local success, soundId = pcall(function()
-		return getcustomasset("forvids/sfx/tetrio/ratingraise.ogg")
+		return getcustomasset(sfxPath)
 	end)
 	if success and soundId then
 		rankUpSfx.SoundId = soundId
@@ -473,14 +478,29 @@ local function displayShotCounter()
     print("[SHOT COUNTER] Total:", shotData.total, "| Row:", shotData.row)
     
     -- Check for streak rank achievement (using ROW)
+    local rankToDisplay = nil
     for _, rank in ipairs(STREAK_RANKS) do
         if shotData.row == rank.threshold then
-            print("[STREAK RANK] Reached rank:", rank.title, "at row", shotData.row)
-            task.spawn(function()
-                displayStreakRank(rank)
-            end)
+            rankToDisplay = rank
             break
         end
+    end
+    
+    -- For streaks 21+, use the max rank (tier = "max")
+    if not rankToDisplay and shotData.row >= 21 then
+        for _, rank in ipairs(STREAK_RANKS) do
+            if rank.tier == "max" then
+                rankToDisplay = rank
+                break
+            end
+        end
+    end
+    
+    if rankToDisplay then
+        print("[STREAK RANK] Reached rank:", rankToDisplay.title, "at row", shotData.row)
+        task.spawn(function()
+            displayStreakRank(rankToDisplay, shotData.row)
+        end)
     end
     
     -- Save total to JSON
@@ -747,16 +767,31 @@ local function displayShotCounter()
         local currentRow = shotData.row
         print("[STREAK CHECK] Current row:", currentRow)
         
+        local rankToDisplay = nil
         for _, rank in ipairs(STREAK_RANKS) do
             if currentRow == rank.threshold then
-                print("[STREAK MILESTONE] Reached threshold:", rank.threshold, "- Title:", rank.title)
-                local success, err = pcall(function()
-                    displayStreakRank(rank)
-                end)
-                if not success then
-                    warn("Error displaying streak rank:", err)
-                end
+                rankToDisplay = rank
                 break
+            end
+        end
+        
+        -- For streaks 21+, use the max rank (tier = "max")
+        if not rankToDisplay and currentRow >= 21 then
+            for _, rank in ipairs(STREAK_RANKS) do
+                if rank.tier == "max" then
+                    rankToDisplay = rank
+                    break
+                end
+            end
+        end
+        
+        if rankToDisplay then
+            print("[STREAK MILESTONE] Reached threshold:", rankToDisplay.threshold, "- Title:", rankToDisplay.title)
+            local success, err = pcall(function()
+                displayStreakRank(rankToDisplay, currentRow)
+            end)
+            if not success then
+                warn("Error displaying streak rank:", err)
             end
         end
     end)
