@@ -242,7 +242,23 @@ local function displayStreakRank(rank, currentRow)
 		-- Apply visual effect based on rank.effect
 		local effectTweens = {}
 		
-		if rank.effect == "faint_glow" then
+		if rank.effect == "flash_start" then
+			-- Simple flash to start (rank 1)
+			local flashTween = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = 0.8}
+			)
+			flashTween:Play()
+			flashTween.Completed:Wait()
+			local fadeOut = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{BackgroundTransparency = 1}
+			)
+			fadeOut:Play()
+			
+		elseif rank.effect == "faint_glow" then
 			-- Faint orange glow
 			local glowTween = TweenService:Create(
 				effectFrame,
@@ -293,6 +309,70 @@ local function displayStreakRank(rank, currentRow)
 				effectFrame.BackgroundTransparency = 1
 			end)
 			
+		elseif rank.effect == "shake_light" then
+			-- Light shake with glow (rank 6)
+			local glowTween = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 3, true),
+				{BackgroundTransparency = 0.8}
+			)
+			table.insert(effectTweens, glowTween)
+			glowTween:Play()
+			
+			-- Light shake
+			task.spawn(function()
+				local originalPos = container.Position
+				for i = 1, 8 do
+					local offsetX = math.random(-3, 3)
+					local offsetY = math.random(-3, 3)
+					container.Position = UDim2.new(0.5, offsetX, 0.5, offsetY)
+					task.wait(0.08)
+				end
+				container.Position = originalPos
+			end)
+			
+		elseif rank.effect == "spark_pulse" then
+			-- Spark particles with pulse (rank 7)
+			local pulseTween = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{BackgroundTransparency = 0.75}
+			)
+			table.insert(effectTweens, pulseTween)
+			pulseTween:Play()
+			
+			-- Create spark particles
+			for i = 1, 12 do
+				task.spawn(function()
+					task.wait(math.random() * 2)
+					local spark = Instance.new("Frame")
+					spark.Size = UDim2.new(0, 8, 0, 8)
+					spark.Position = UDim2.new(0.5, 0, 0.5, 0)
+					spark.AnchorPoint = Vector2.new(0.5, 0.5)
+					spark.BackgroundColor3 = Color3.fromRGB(255, 220, 100)
+					spark.BorderSizePixel = 0
+					spark.Parent = effectFrame
+					
+					-- Random direction
+					local angle = math.random() * math.pi * 2
+					local distance = 150
+					local targetX = math.cos(angle) * distance
+					local targetY = math.sin(angle) * distance
+					
+					local sparkTween = TweenService:Create(
+						spark,
+						TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+						{
+							Position = UDim2.new(0.5, targetX, 0.5, targetY),
+							BackgroundTransparency = 1
+						}
+					)
+					sparkTween:Play()
+					task.wait(0.8)
+					spark:Destroy()
+				end)
+			end
+			
 		elseif rank.effect == "red_pulse" then
 			-- Red pulse with shake
 			local pulseTween = TweenService:Create(
@@ -314,6 +394,41 @@ local function displayStreakRank(rank, currentRow)
 				end
 				container.Position = originalPos
 			end)
+			
+		elseif rank.effect == "card_flash" then
+			-- Playing card flash (rank 9)
+			local cardFrame = Instance.new("Frame")
+			cardFrame.Size = UDim2.new(0, 120, 0, 180)
+			cardFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+			cardFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+			cardFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			cardFrame.BorderSizePixel = 3
+			cardFrame.BorderColor3 = rank.color
+			cardFrame.Parent = effectFrame
+			
+			-- Card symbol (spade/heart/club/diamond)
+			local symbolLabel = Instance.new("TextLabel")
+			symbolLabel.Size = UDim2.new(1, 0, 1, 0)
+			symbolLabel.BackgroundTransparency = 1
+			symbolLabel.Text = "♠"
+			symbolLabel.Font = Enum.Font.GothamBold
+			symbolLabel.TextSize = 80
+			symbolLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+			symbolLabel.Parent = cardFrame
+			
+			-- Flip and fade animation
+			local flipTween = TweenService:Create(
+				cardFrame,
+				TweenInfo.new(1.0, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+				{Rotation = 360, BackgroundTransparency = 1}
+			)
+			local symbolFade = TweenService:Create(
+				symbolLabel,
+				TweenInfo.new(1.0, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{TextTransparency = 1}
+			)
+			flipTween:Play()
+			symbolFade:Play()
 			
 		elseif rank.effect == "smoke" then
 			-- Smoke overlay with low boom
@@ -345,6 +460,47 @@ local function displayStreakRank(rank, currentRow)
 					smoke:Destroy()
 				end)
 			end
+			
+		elseif rank.effect == "smoke_flash" then
+			-- Smoke with bright flash (rank 11)
+			-- Flash first
+			local flashTween = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = 0.5}
+			)
+			flashTween:Play()
+			flashTween.Completed:Wait()
+			
+			-- Then smoke
+			for i = 1, 8 do
+				task.spawn(function()
+					task.wait(math.random() * 0.5)
+					local smoke = Instance.new("Frame")
+					smoke.Size = UDim2.new(0, 80, 0, 80)
+					smoke.Position = UDim2.new(math.random(15, 85) / 100, 0, math.random(15, 85) / 100, 0)
+					smoke.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+					smoke.BackgroundTransparency = 0.4
+					smoke.BorderSizePixel = 0
+					smoke.Parent = effectFrame
+					
+					local smokeTween = TweenService:Create(
+						smoke,
+						TweenInfo.new(2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+						{BackgroundTransparency = 1, Size = UDim2.new(0, 250, 0, 250)}
+					)
+					smokeTween:Play()
+					task.wait(2)
+					smoke:Destroy()
+				end)
+			end
+			
+			local fadeOut = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{BackgroundTransparency = 1}
+			)
+			fadeOut:Play()
 			
 		elseif rank.effect == "reticle_flash" then
 			-- Glowing reticle flash
@@ -378,6 +534,48 @@ local function displayStreakRank(rank, currentRow)
 				{Size = UDim2.new(0, 200, 0, 200)}
 			)
 			flashTween:Play()
+			
+		elseif rank.effect == "light_burst" then
+			-- Bright light burst (rank 13)
+			-- Central bright flash
+			local burstTween = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = 0.3, BackgroundColor3 = Color3.fromRGB(255, 255, 255)}
+			)
+			burstTween:Play()
+			burstTween.Completed:Wait()
+			
+			-- Rays shooting outward
+			for i = 1, 8 do
+				task.spawn(function()
+					local angle = (i - 1) * (math.pi * 2 / 8)
+					local ray = Instance.new("Frame")
+					ray.Size = UDim2.new(0, 15, 0, 200)
+					ray.Position = UDim2.new(0.5, 0, 0.5, 0)
+					ray.AnchorPoint = Vector2.new(0.5, 1)
+					ray.Rotation = math.deg(angle)
+					ray.BackgroundColor3 = Color3.fromRGB(255, 255, 200)
+					ray.BorderSizePixel = 0
+					ray.Parent = effectFrame
+					
+					local rayTween = TweenService:Create(
+						ray,
+						TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+						{BackgroundTransparency = 1, Size = UDim2.new(0, 15, 0, 400)}
+					)
+					rayTween:Play()
+					task.wait(0.8)
+					ray:Destroy()
+				end)
+			end
+			
+			local fadeOut = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{BackgroundTransparency = 1}
+			)
+			fadeOut:Play()
 			
 		elseif rank.effect == "dark_bloom" then
 			-- Dark red bloom
@@ -422,6 +620,181 @@ local function displayStreakRank(rank, currentRow)
 					lightning:Destroy()
 				end)
 			end
+			
+		elseif rank.effect == "glow_aura" then
+			-- Glowing aura (rank 17)
+			local auraTween = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{BackgroundTransparency = 0.6, Size = UDim2.new(2, 0, 2, 0)}
+			)
+			table.insert(effectTweens, auraTween)
+			auraTween:Play()
+			
+			-- Rotating glow particles
+			for i = 1, 6 do
+				task.spawn(function()
+					local angle = (i - 1) * (math.pi * 2 / 6)
+					local particle = Instance.new("Frame")
+					particle.Size = UDim2.new(0, 20, 0, 20)
+					particle.BackgroundColor3 = Color3.fromRGB(255, 220, 150)
+					particle.BorderSizePixel = 0
+					particle.Parent = effectFrame
+					
+					-- Orbit animation
+					for t = 0, 2.5, 0.05 do
+						local currentAngle = angle + t * 2
+						local radius = 150
+						local x = math.cos(currentAngle) * radius
+						local y = math.sin(currentAngle) * radius
+						particle.Position = UDim2.new(0.5, x, 0.5, y)
+						task.wait(0.05)
+					end
+					particle:Destroy()
+				end)
+			end
+			
+		elseif rank.effect == "gold_flash" then
+			-- Intense gold flash (rank 18)
+			local flashTween = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = 0.2, BackgroundColor3 = Color3.fromRGB(255, 215, 0)}
+			)
+			flashTween:Play()
+			flashTween.Completed:Wait()
+			
+			-- Pulsing aftermath
+			local pulseTween = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 3, true),
+				{BackgroundTransparency = 0.7}
+			)
+			table.insert(effectTweens, pulseTween)
+			pulseTween:Play()
+			
+		elseif rank.effect == "divine_flash" then
+			-- Divine white-gold flash (rank 19)
+			local divineFlash = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = 0.1, BackgroundColor3 = Color3.fromRGB(255, 255, 255)}
+			)
+			divineFlash:Play()
+			divineFlash.Completed:Wait()
+			
+			-- Cross beams of light
+			for i = 1, 4 do
+				task.spawn(function()
+					local beam = Instance.new("Frame")
+					beam.Size = UDim2.new(3, 0, 0, 8)
+					beam.Position = UDim2.new(0.5, 0, 0.5, 0)
+					beam.AnchorPoint = Vector2.new(0.5, 0.5)
+					beam.Rotation = (i - 1) * 45
+					beam.BackgroundColor3 = Color3.fromRGB(255, 250, 200)
+					beam.BorderSizePixel = 0
+					beam.Parent = effectFrame
+					
+					local beamTween = TweenService:Create(
+						beam,
+						TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+						{BackgroundTransparency = 1}
+					)
+					beamTween:Play()
+					task.wait(1.2)
+					beam:Destroy()
+				end)
+			end
+			
+			local fadeOut = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{BackgroundTransparency = 1}
+			)
+			fadeOut:Play()
+			
+		elseif rank.effect == "jackpot_burst" then
+			-- Jackpot burst (rank 20)
+			-- Triple flash burst
+			for flash = 1, 3 do
+				task.spawn(function()
+					task.wait((flash - 1) * 0.3)
+					local burstTween = TweenService:Create(
+						effectFrame,
+						TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+						{BackgroundTransparency = 0.3}
+					)
+					burstTween:Play()
+					burstTween.Completed:Wait()
+					local fadeOut = TweenService:Create(
+						effectFrame,
+						TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+						{BackgroundTransparency = 1}
+					)
+					fadeOut:Play()
+				end)
+			end
+			
+			-- Coin rain effect
+			for i = 1, 20 do
+				task.spawn(function()
+					task.wait(math.random() * 0.8)
+					local coin = Instance.new("Frame")
+					coin.Size = UDim2.new(0, 30, 0, 30)
+					coin.Position = UDim2.new(math.random() * 1, 0, -0.1, 0)
+					coin.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+					coin.BorderSizePixel = 2
+					coin.BorderColor3 = Color3.fromRGB(200, 150, 0)
+					coin.Parent = effectFrame
+					
+					local coinTween = TweenService:Create(
+						coin,
+						TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+						{Position = UDim2.new(coin.Position.X.Scale, 0, 1.2, 0), Rotation = 360}
+					)
+					coinTween:Play()
+					task.wait(1.5)
+					coin:Destroy()
+				end)
+			end
+			
+		elseif rank.effect == "jackpot_loop" then
+			-- Continuous jackpot effect (rank 21+)
+			-- Constant golden glow
+			local glowTween = TweenService:Create(
+				effectFrame,
+				TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{BackgroundTransparency = 0.5}
+			)
+			table.insert(effectTweens, glowTween)
+			glowTween:Play()
+			
+			-- Spiraling particles
+			task.spawn(function()
+				for i = 1, 25 do
+					task.wait(0.1)
+					local particle = Instance.new("Frame")
+					particle.Size = UDim2.new(0, 15, 0, 15)
+					particle.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+					particle.BorderSizePixel = 0
+					particle.Parent = effectFrame
+					
+					-- Spiral outward
+					local startAngle = math.random() * math.pi * 2
+					task.spawn(function()
+						for t = 0, 1.5, 0.05 do
+							local angle = startAngle + t * 4
+							local radius = t * 200
+							local x = math.cos(angle) * radius
+							local y = math.sin(angle) * radius
+							particle.Position = UDim2.new(0.5, x, 0.5, y)
+							particle.BackgroundTransparency = t / 1.5
+							task.wait(0.05)
+						end
+						particle:Destroy()
+					end)
+				end
+			end)
 		end
 
 		-- Hold for 2.5 seconds
