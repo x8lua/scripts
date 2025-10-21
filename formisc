@@ -7,6 +7,700 @@ local TweenService = game:GetService('TweenService')
 local Lighting = game:GetService('Lighting')
 local SoundService = game:GetService('SoundService')
 
+-- ========================================
+-- SCRIPT LOADING SYSTEM
+-- ========================================
+
+-- Create superior loading GUI with advanced animations
+local function createLoadingGUI()
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "ForsakenLoadingGUI"
+	screenGui.Parent = player:WaitForChild("PlayerGui")
+	screenGui.ResetOnSpawn = false
+	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	
+	-- Background blur effect
+	local blurFrame = Instance.new("Frame")
+	blurFrame.Name = "BlurBackground"
+	blurFrame.Size = UDim2.new(1, 0, 1, 0)
+	blurFrame.Position = UDim2.new(0, 0, 0, 0)
+	blurFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	blurFrame.BackgroundTransparency = 0.3
+	blurFrame.BorderSizePixel = 0
+	blurFrame.Parent = screenGui
+
+	-- Animated particles background
+	local particlesFrame = Instance.new("Frame")
+	particlesFrame.Name = "ParticlesFrame"
+	particlesFrame.Size = UDim2.new(1, 0, 1, 0)
+	particlesFrame.BackgroundTransparency = 1
+	particlesFrame.Parent = screenGui
+	
+	-- Create floating particles
+	for i = 1, 15 do
+		local particle = Instance.new("Frame")
+		particle.Name = "Particle" .. i
+		particle.Size = UDim2.new(0, math.random(3, 8), 0, math.random(3, 8))
+		particle.Position = UDim2.new(math.random(), 0, math.random(), 0)
+		particle.BackgroundColor3 = Color3.fromHSV(math.random(), 0.3, 1)
+		particle.BackgroundTransparency = 0.7
+		particle.BorderSizePixel = 0
+		particle.Parent = particlesFrame
+		
+		local particleCorner = Instance.new("UICorner")
+		particleCorner.CornerRadius = UDim.new(1, 0)
+		particleCorner.Parent = particle
+		
+		-- Animate particles
+		task.spawn(function()
+			while particle.Parent do
+				local moveInfo = TweenInfo.new(
+					math.random(3, 6),
+					Enum.EasingStyle.Sine,
+					Enum.EasingDirection.InOut,
+					-1,
+					true
+				)
+				local moveTween = TweenService:Create(particle, moveInfo, {
+					Position = UDim2.new(math.random(), 0, math.random(), 0),
+					BackgroundTransparency = math.random(0.5, 0.9)
+				})
+				moveTween:Play()
+				task.wait(math.random(1, 3))
+			end
+		end)
+	end
+
+	-- Main container with glass morphism effect
+	local mainContainer = Instance.new("Frame")
+	mainContainer.Name = "MainContainer"
+	mainContainer.Size = UDim2.new(0, 500, 0, 350)
+	mainContainer.Position = UDim2.new(0.5, -250, 0.5, -175)
+	mainContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+	mainContainer.BackgroundTransparency = 0.1
+	mainContainer.BorderSizePixel = 0
+	mainContainer.Parent = screenGui
+	
+	-- Glass effect corner
+	local containerCorner = Instance.new("UICorner")
+	containerCorner.CornerRadius = UDim.new(0, 20)
+	containerCorner.Parent = mainContainer
+	
+	-- Gradient border
+	local gradientStroke = Instance.new("UIStroke")
+	gradientStroke.Thickness = 3
+	gradientStroke.Transparency = 0.3
+	gradientStroke.Parent = mainContainer
+	
+	local strokeGradient = Instance.new("UIGradient")
+	strokeGradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 200, 255)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 100, 200)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 255, 150))
+	}
+	strokeGradient.Parent = gradientStroke
+	
+	-- Animate gradient rotation
+	task.spawn(function()
+		while mainContainer.Parent do
+			local rotateInfo = TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1)
+			local rotateTween = TweenService:Create(strokeGradient, rotateInfo, {
+				Rotation = 360
+			})
+			rotateTween:Play()
+			task.wait(3)
+		end
+	end)
+
+	-- Header section
+	local headerFrame = Instance.new("Frame")
+	headerFrame.Name = "HeaderFrame"
+	headerFrame.Size = UDim2.new(1, 0, 0, 80)
+	headerFrame.Position = UDim2.new(0, 0, 0, 0)
+	headerFrame.BackgroundTransparency = 1
+	headerFrame.Parent = mainContainer
+
+	-- Animated logo/icon
+	local logoFrame = Instance.new("Frame")
+	logoFrame.Name = "LogoFrame"
+	logoFrame.Size = UDim2.new(0, 60, 0, 60)
+	logoFrame.Position = UDim2.new(0, 20, 0, 10)
+	logoFrame.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+	logoFrame.BorderSizePixel = 0
+	logoFrame.Parent = headerFrame
+	
+	local logoCorner = Instance.new("UICorner")
+	logoCorner.CornerRadius = UDim.new(0, 15)
+	logoCorner.Parent = logoFrame
+	
+	-- Logo icon
+	local logoIcon = Instance.new("TextLabel")
+	logoIcon.Size = UDim2.new(1, 0, 1, 0)
+	logoIcon.BackgroundTransparency = 1
+	logoIcon.Text = "⚡"
+	logoIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
+	logoIcon.TextScaled = true
+	logoIcon.Font = Enum.Font.GothamBold
+	logoIcon.Parent = logoFrame
+	
+	-- Animate logo pulse
+	task.spawn(function()
+		while logoFrame.Parent do
+			local pulseInfo = TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+			local pulseTween = TweenService:Create(logoFrame, pulseInfo, {
+				Size = UDim2.new(0, 65, 0, 65),
+				BackgroundColor3 = Color3.fromRGB(150, 220, 255)
+			})
+			pulseTween:Play()
+			task.wait(1.5)
+		end
+	end)
+
+	-- Title with typewriter effect
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.Size = UDim2.new(1, -100, 0, 35)
+	title.Position = UDim2.new(0, 90, 0, 10)
+	title.BackgroundTransparency = 1
+	title.Text = ""
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.TextScaled = true
+	title.Font = Enum.Font.GothamBold
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = headerFrame
+	
+	-- Subtitle
+	local subtitle = Instance.new("TextLabel")
+	subtitle.Name = "Subtitle"
+	subtitle.Size = UDim2.new(1, -100, 0, 25)
+	subtitle.Position = UDim2.new(0, 90, 0, 45)
+	subtitle.BackgroundTransparency = 1
+	subtitle.Text = "Initializing advanced utilities..."
+	subtitle.TextColor3 = Color3.fromRGB(150, 150, 150)
+	subtitle.TextScaled = true
+	subtitle.Font = Enum.Font.Gotham
+	subtitle.TextXAlignment = Enum.TextXAlignment.Left
+	subtitle.Parent = headerFrame
+	
+	-- Typewriter effect for title
+	local titleText = "Forsaken Utilities"
+	task.spawn(function()
+		for i = 1, #titleText do
+			title.Text = string.sub(titleText, 1, i)
+			task.wait(0.05)
+		end
+	end)
+
+	-- Progress bar container
+	local progressContainer = Instance.new("Frame")
+	progressContainer.Name = "ProgressContainer"
+	progressContainer.Size = UDim2.new(1, -40, 0, 8)
+	progressContainer.Position = UDim2.new(0, 20, 0, 90)
+	progressContainer.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+	progressContainer.BorderSizePixel = 0
+	progressContainer.Parent = mainContainer
+	
+	local progressCorner = Instance.new("UICorner")
+	progressCorner.CornerRadius = UDim.new(0, 4)
+	progressCorner.Parent = progressContainer
+	
+	-- Progress bar fill
+	local progressBar = Instance.new("Frame")
+	progressBar.Name = "ProgressBar"
+	progressBar.Size = UDim2.new(0, 0, 1, 0)
+	progressBar.Position = UDim2.new(0, 0, 0, 0)
+	progressBar.BackgroundColor3 = Color3.fromRGB(100, 200, 255)
+	progressBar.BorderSizePixel = 0
+	progressBar.Parent = progressContainer
+	
+	local progressBarCorner = Instance.new("UICorner")
+	progressBarCorner.CornerRadius = UDim.new(0, 4)
+	progressBarCorner.Parent = progressBar
+	
+	-- Progress bar gradient
+	local progressGradient = Instance.new("UIGradient")
+	progressGradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(100, 200, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 100, 255))
+	}
+	progressGradient.Parent = progressBar
+
+	-- Status container with better spacing
+	local statusContainer = Instance.new("Frame")
+	statusContainer.Name = "StatusContainer"
+	statusContainer.Size = UDim2.new(1, -40, 1, -130)
+	statusContainer.Position = UDim2.new(0, 20, 0, 110)
+	statusContainer.BackgroundTransparency = 1
+	statusContainer.Parent = mainContainer
+
+	-- Status list layout with better spacing
+	local listLayout = Instance.new("UIListLayout")
+	listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	listLayout.Padding = UDim.new(0, 12)
+	listLayout.Parent = statusContainer
+	
+	-- Animate entrance
+	mainContainer.Size = UDim2.new(0, 0, 0, 0)
+	mainContainer.BackgroundTransparency = 1
+	
+	local entranceInfo = TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	local entranceTween = TweenService:Create(mainContainer, entranceInfo, {
+		Size = UDim2.new(0, 500, 0, 350),
+		BackgroundTransparency = 0.1
+	})
+	entranceTween:Play()
+
+	return screenGui, statusContainer, progressBar
+end
+
+-- Create enhanced status item with animations
+local function createStatusItem(parent, text, layoutOrder)
+	local statusFrame = Instance.new("Frame")
+	statusFrame.Name = "StatusItem" .. layoutOrder
+	statusFrame.Size = UDim2.new(1, 0, 0, 45)
+	statusFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	statusFrame.BackgroundTransparency = 0.3
+	statusFrame.BorderSizePixel = 0
+	statusFrame.LayoutOrder = layoutOrder
+	statusFrame.Parent = parent
+	
+	-- Rounded corners
+	local frameCorner = Instance.new("UICorner")
+	frameCorner.CornerRadius = UDim.new(0, 8)
+	frameCorner.Parent = statusFrame
+	
+	-- Subtle border
+	local frameBorder = Instance.new("UIStroke")
+	frameBorder.Color = Color3.fromRGB(40, 40, 50)
+	frameBorder.Thickness = 1
+	frameBorder.Transparency = 0.5
+	frameBorder.Parent = statusFrame
+	
+	-- Icon container with background
+	local iconContainer = Instance.new("Frame")
+	iconContainer.Name = "IconContainer"
+	iconContainer.Size = UDim2.new(0, 35, 0, 35)
+	iconContainer.Position = UDim2.new(0, 8, 0.5, -17.5)
+	iconContainer.BackgroundColor3 = Color3.fromRGB(255, 200, 0)
+	iconContainer.BorderSizePixel = 0
+	iconContainer.Parent = statusFrame
+	
+	local iconCorner = Instance.new("UICorner")
+	iconCorner.CornerRadius = UDim.new(0, 8)
+	iconCorner.Parent = iconContainer
+
+	local statusIcon = Instance.new("TextLabel")
+	statusIcon.Name = "Icon"
+	statusIcon.Size = UDim2.new(1, 0, 1, 0)
+	statusIcon.Position = UDim2.new(0, 0, 0, 0)
+	statusIcon.BackgroundTransparency = 1
+	statusIcon.Text = "⏳"
+	statusIcon.TextColor3 = Color3.fromRGB(255, 255, 255)
+	statusIcon.TextScaled = true
+	statusIcon.Font = Enum.Font.GothamBold
+	statusIcon.Parent = iconContainer
+	
+	-- Spinning animation for loading icon
+	local spinConnection
+	local function startSpinAnimation()
+		if spinConnection then
+			spinConnection:Disconnect()
+		end
+		spinConnection = RunService.Heartbeat:Connect(function()
+			if statusIcon.Text == "⏳" then
+				statusIcon.Rotation = statusIcon.Rotation + 2
+			end
+		end)
+	end
+	startSpinAnimation()
+
+	-- Status text with better styling
+	local statusText = Instance.new("TextLabel")
+	statusText.Name = "Text"
+	statusText.Size = UDim2.new(1, -55, 1, 0)
+	statusText.Position = UDim2.new(0, 50, 0, 0)
+	statusText.BackgroundTransparency = 1
+	statusText.Text = text
+	statusText.TextColor3 = Color3.fromRGB(200, 200, 200)
+	statusText.TextScaled = true
+	statusText.Font = Enum.Font.Gotham
+	statusText.TextXAlignment = Enum.TextXAlignment.Left
+	statusText.Parent = statusFrame
+	
+	-- Progress dots animation
+	local dotsText = Instance.new("TextLabel")
+	dotsText.Name = "DotsText"
+	dotsText.Size = UDim2.new(0, 30, 1, 0)
+	dotsText.Position = UDim2.new(1, -35, 0, 0)
+	dotsText.BackgroundTransparency = 1
+	dotsText.Text = ""
+	dotsText.TextColor3 = Color3.fromRGB(100, 200, 255)
+	dotsText.TextScaled = true
+	dotsText.Font = Enum.Font.Gotham
+	dotsText.TextXAlignment = Enum.TextXAlignment.Right
+	dotsText.Parent = statusFrame
+	
+	-- Animate dots
+	task.spawn(function()
+		local dots = {"", ".", "..", "..."}
+		local dotIndex = 1
+		while statusFrame.Parent and statusIcon.Text == "⏳" do
+			dotsText.Text = dots[dotIndex]
+			dotIndex = dotIndex % 4 + 1
+			task.wait(0.5)
+		end
+		dotsText.Text = ""
+	end)
+	
+	-- Entrance animation
+	statusFrame.Size = UDim2.new(0, 0, 0, 45)
+	statusFrame.BackgroundTransparency = 1
+	
+	local entranceDelay = (layoutOrder - 1) * 0.1
+	task.wait(entranceDelay)
+	
+	local entranceInfo = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	local entranceTween = TweenService:Create(statusFrame, entranceInfo, {
+		Size = UDim2.new(1, 0, 0, 45),
+		BackgroundTransparency = 0.3
+	})
+	entranceTween:Play()
+
+	return statusIcon, statusText, iconContainer, spinConnection
+end
+
+-- Update status item with enhanced animations
+local function updateStatus(icon, text, status, message, iconContainer, spinConnection)
+	local function animateStatusChange(newIcon, newIconColor, newTextColor, containerColor)
+		-- Stop spinning animation if it exists
+		if spinConnection then
+			spinConnection:Disconnect()
+		end
+		
+		-- Animate icon change with bounce effect
+		local bounceInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+		local iconBounce = TweenService:Create(icon, bounceInfo, {
+			TextTransparency = 1,
+			Rotation = 0
+		})
+		
+		iconBounce:Play()
+		iconBounce.Completed:Connect(function()
+			icon.Text = newIcon
+			icon.TextColor3 = Color3.fromRGB(255, 255, 255)
+			
+			-- Animate icon back in
+			local iconReturn = TweenService:Create(icon, bounceInfo, {
+				TextTransparency = 0
+			})
+			iconReturn:Play()
+		end)
+		
+		-- Animate container color change
+		if iconContainer then
+			local containerTween = TweenService:Create(iconContainer, bounceInfo, {
+				BackgroundColor3 = containerColor
+			})
+			containerTween:Play()
+		end
+		
+		-- Animate text change
+		local textFade = TweenService:Create(text, TweenInfo.new(0.2), {
+			TextTransparency = 1
+		})
+		textFade:Play()
+		textFade.Completed:Connect(function()
+			text.Text = message or "Status Updated"
+			text.TextColor3 = newTextColor
+			
+			local textReturn = TweenService:Create(text, TweenInfo.new(0.3), {
+				TextTransparency = 0
+			})
+			textReturn:Play()
+		end)
+		
+		-- Success particle effect
+		if status == "success" and iconContainer then
+			task.spawn(function()
+				for i = 1, 8 do
+					local particle = Instance.new("Frame")
+					particle.Size = UDim2.new(0, 4, 0, 4)
+					particle.Position = UDim2.new(0.5, -2, 0.5, -2)
+					particle.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
+					particle.BorderSizePixel = 0
+					particle.Parent = iconContainer
+					
+					local particleCorner = Instance.new("UICorner")
+					particleCorner.CornerRadius = UDim.new(1, 0)
+					particleCorner.Parent = particle
+					
+					local angle = (i - 1) * (360 / 8)
+					local radians = math.rad(angle)
+					local distance = 30
+					
+					local particleInfo = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+					local particleTween = TweenService:Create(particle, particleInfo, {
+						Position = UDim2.new(0.5, math.cos(radians) * distance, 0.5, math.sin(radians) * distance),
+						BackgroundTransparency = 1,
+						Size = UDim2.new(0, 1, 0, 1)
+					})
+					
+					particleTween:Play()
+					particleTween.Completed:Connect(function()
+						particle:Destroy()
+					end)
+				end
+			end)
+		end
+	end
+	
+	if status == "loading" then
+		animateStatusChange("⏳", Color3.fromRGB(255, 255, 255), Color3.fromRGB(200, 200, 200), Color3.fromRGB(255, 200, 0))
+	elseif status == "success" then
+		animateStatusChange("✅", Color3.fromRGB(255, 255, 255), Color3.fromRGB(0, 255, 100), Color3.fromRGB(0, 200, 100))
+	elseif status == "error" then
+		animateStatusChange("❌", Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 100, 100), Color3.fromRGB(200, 50, 50))
+		
+		-- Error shake effect
+		if iconContainer then
+			task.spawn(function()
+				local originalPos = iconContainer.Position
+				for i = 1, 6 do
+					local shakeOffset = math.random(-2, 2)
+					iconContainer.Position = UDim2.new(originalPos.X.Scale, originalPos.X.Offset + shakeOffset, originalPos.Y.Scale, originalPos.Y.Offset)
+					task.wait(0.05)
+				end
+				iconContainer.Position = originalPos
+			end)
+		end
+	end
+end
+
+-- Load external scripts with enhanced progress tracking
+local function loadExternalScripts()
+	local loadingGUI, statusContainer, progressBar = createLoadingGUI()
+	
+	-- Create status items with enhanced returns
+	local weaknessIcon, weaknessText, weaknessContainer, weaknessSpin = createStatusItem(statusContainer, "Loading Weakness Display Script...", 1)
+	local shotCounterIcon, shotCounterText, shotCounterContainer, shotCounterSpin = createStatusItem(statusContainer, "Loading Shot Counter Script...", 2)
+	local mainScriptIcon, mainScriptText, mainContainer, mainSpin = createStatusItem(statusContainer, "Initializing Main Script...", 3)
+	
+	-- Animate progress bar to 10%
+	local progressInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	TweenService:Create(progressBar, progressInfo, {Size = UDim2.new(0.1, 0, 1, 0)}):Play()
+	
+	task.wait(0.8) -- Brief pause to show loading screen
+	
+	-- Load weakness display script
+	updateStatus(weaknessIcon, weaknessText, "loading", "Loading Weakness Display Script...", weaknessContainer, weaknessSpin)
+	TweenService:Create(progressBar, progressInfo, {Size = UDim2.new(0.3, 0, 1, 0)}):Play()
+	
+	local weaknessSuccess, weaknessError = pcall(function()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/refs/heads/main/weakness_display.lua", true))()
+	end)
+	
+	if weaknessSuccess then
+		updateStatus(weaknessIcon, weaknessText, "success", "Weakness Display Script - Loaded Successfully", weaknessContainer, weaknessSpin)
+	else
+		updateStatus(weaknessIcon, weaknessText, "error", "Weakness Display Script - Failed: " .. tostring(weaknessError), weaknessContainer, weaknessSpin)
+		warn("Failed to load weakness display script:", weaknessError)
+	end
+	
+	TweenService:Create(progressBar, progressInfo, {Size = UDim2.new(0.5, 0, 1, 0)}):Play()
+	task.wait(0.5)
+	
+	-- Load shot counter script
+	updateStatus(shotCounterIcon, shotCounterText, "loading", "Loading Shot Counter Script...", shotCounterContainer, shotCounterSpin)
+	TweenService:Create(progressBar, progressInfo, {Size = UDim2.new(0.7, 0, 1, 0)}):Play()
+	
+	local shotCounterSuccess, shotCounterError = pcall(function()
+		loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/refs/heads/main/shot_counter.lua", true))()
+	end)
+	
+	if shotCounterSuccess then
+		updateStatus(shotCounterIcon, shotCounterText, "success", "Shot Counter Script - Loaded Successfully", shotCounterContainer, shotCounterSpin)
+	else
+		updateStatus(shotCounterIcon, shotCounterText, "error", "Shot Counter Script - Failed: " .. tostring(shotCounterError), shotCounterContainer, shotCounterSpin)
+		warn("Failed to load shot counter script:", shotCounterError)
+	end
+	
+	TweenService:Create(progressBar, progressInfo, {Size = UDim2.new(0.85, 0, 1, 0)}):Play()
+	task.wait(0.5)
+	
+	-- Update main script status
+	updateStatus(mainScriptIcon, mainScriptText, "loading", "Initializing Main Script...", mainContainer, mainSpin)
+	TweenService:Create(progressBar, progressInfo, {Size = UDim2.new(0.95, 0, 1, 0)}):Play()
+	task.wait(0.8)
+	
+	updateStatus(mainScriptIcon, mainScriptText, "success", "Main Script - Ready", mainContainer, mainSpin)
+	TweenService:Create(progressBar, progressInfo, {Size = UDim2.new(1, 0, 1, 0)}):Play()
+	
+	-- Store loading results for later use
+	_G.ForsakenLoadingResults = {
+		weaknessDisplay = {
+			success = weaknessSuccess,
+			error = weaknessError
+		},
+		shotCounter = {
+			success = shotCounterSuccess,
+			error = shotCounterError
+		}
+	}
+	
+	-- Keep loading screen for a moment then fade out with spectacular animation
+	task.wait(1.2)
+	
+	-- Success completion effect
+	task.spawn(function()
+		-- Create completion burst effect
+		local burstFrame = Instance.new("Frame")
+		burstFrame.Size = UDim2.new(0, 20, 0, 20)
+		burstFrame.Position = UDim2.new(0.5, -10, 0.5, -10)
+		burstFrame.BackgroundColor3 = Color3.fromRGB(100, 255, 150)
+		burstFrame.BackgroundTransparency = 0.3
+		burstFrame.BorderSizePixel = 0
+		burstFrame.Parent = loadingGUI.MainContainer
+		
+		local burstCorner = Instance.new("UICorner")
+		burstCorner.CornerRadius = UDim.new(1, 0)
+		burstCorner.Parent = burstFrame
+		
+		-- Animate burst
+		local burstInfo = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		local burstTween = TweenService:Create(burstFrame, burstInfo, {
+			Size = UDim2.new(2, 0, 2, 0),
+			Position = UDim2.new(-0.5, 0, -0.5, 0),
+			BackgroundTransparency = 1
+		})
+		burstTween:Play()
+		burstTween.Completed:Connect(function()
+			burstFrame:Destroy()
+		end)
+	end)
+	
+	-- Fade out animation with enhanced effects
+	local fadeInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	
+	-- Fade the main container with scale effect
+	local containerFadeTween = TweenService:Create(loadingGUI.MainContainer, fadeInfo, {
+		BackgroundTransparency = 1,
+		Size = UDim2.new(0, 450, 0, 300),
+		Position = UDim2.new(0.5, -225, 0.5, -150)
+	})
+	
+	-- Fade the blur background
+	local blurFadeTween = TweenService:Create(loadingGUI.BlurBackground, fadeInfo, {
+		BackgroundTransparency = 1
+	})
+	
+	containerFadeTween:Play()
+	blurFadeTween:Play()
+	
+	containerFadeTween.Completed:Connect(function()
+		loadingGUI:Destroy()
+		
+		-- Start script status monitoring after loading screen disappears
+		startScriptStatusMonitoring()
+	end)
+end
+
+-- Script loading status monitoring system with retry logic
+local function startScriptStatusMonitoring()
+	local scriptStatusChecked = {
+		ShotCounter = false,
+		WeaknessDisplay = false
+	}
+	
+	local scriptAttempts = {
+		ShotCounter = 1,
+		WeaknessDisplay = 1
+	}
+	
+	local scriptTimers = {
+		ShotCounter = tick(),
+		WeaknessDisplay = tick()
+	}
+
+	local function retryScript(scriptName, url)
+		scriptAttempts[scriptName] = scriptAttempts[scriptName] + 1
+		scriptTimers[scriptName] = tick()
+		
+		-- Show retry notification
+		if Library then
+			Library:Notify({
+				Title = '🔄 ' .. scriptName,
+				Content = scriptName .. ' 重试中 - Attempt ' .. scriptAttempts[scriptName],
+				Duration = 2,
+			})
+		end
+		print(scriptName .. " - Attempt " .. scriptAttempts[scriptName])
+		
+		-- Retry loading the script
+		task.spawn(function()
+			local success, error = pcall(function()
+				loadstring(game:HttpGet(url, true))()
+			end)
+			
+			if not success then
+				warn("Failed to retry " .. scriptName .. ":", error)
+			end
+		end)
+	end
+
+	task.spawn(function()
+		while true do
+			task.wait(0.5)
+			local currentTime = tick()
+			
+			-- 检查 Shot Counter 是否已加载
+			if _G.ShotCounterLOADED and not scriptStatusChecked.ShotCounter then
+				scriptStatusChecked.ShotCounter = true
+				-- Only show notification if Library is available (after main script loads)
+				if Library then
+					Library:Notify({
+						Title = '✅ Shot Counter',
+						Content = 'Shot Counter 已准备好 - Successfully Loaded!',
+						Duration = 3,
+					})
+				end
+				print("Shot Counter 已准备好")
+			elseif not _G.ShotCounterLOADED and not scriptStatusChecked.ShotCounter then
+				-- Check if 2 seconds have passed since last attempt
+				if currentTime - scriptTimers.ShotCounter >= 2 then
+					retryScript("Shot Counter", "https://raw.githubusercontent.com/x8lua/scripts/refs/heads/main/shot_counter.lua")
+				end
+			end
+
+			-- 检查 Weakness Display 是否已加载
+			if _G.WeaknessDisplayLOADED and not scriptStatusChecked.WeaknessDisplay then
+				scriptStatusChecked.WeaknessDisplay = true
+				-- Only show notification if Library is available (after main script loads)
+				if Library then
+					Library:Notify({
+						Title = '✅ Weakness Display',
+						Content = 'Weakness Display 已准备好 - Successfully Loaded!',
+						Duration = 3,
+					})
+				end
+				print("Weakness Display 已准备好")
+			elseif not _G.WeaknessDisplayLOADED and not scriptStatusChecked.WeaknessDisplay then
+				-- Check if 2 seconds have passed since last attempt
+				if currentTime - scriptTimers.WeaknessDisplay >= 2 then
+					retryScript("Weakness Display", "https://github.com/x8lua/scripts/blob/main/weakness_display.lua")
+				end
+			end
+			
+			-- Stop checking if both scripts are loaded
+			if scriptStatusChecked.ShotCounter and scriptStatusChecked.WeaknessDisplay then
+				break
+			end
+		end
+	end)
+end
+
+-- Execute loading system
+loadExternalScripts()
+
 -- Load Fluent Renewed Library
 local Library = loadstring(
 	game:HttpGetAsync(
@@ -6560,6 +7254,503 @@ end)
 	end -- End of Reroll Effect isolated scope
 
 		-- ========================================
+		-- UNDETECTABLE HIDE SECTION
+		-- ========================================
+		do -- Isolated scope for Undetectable Hide
+		Tabs.Misc:CreateSection('👻 Undetectable Hide')
+		
+		Tabs.Misc:CreateParagraph('UndetectableHideInfo', {
+			Title = 'Invisible when Undetectable',
+			Content = 'Automatically become invisible using minion summon animation when Undetectable status is applied. Stops when status is removed.',
+		})
+		
+		-- State variables
+		local undetectableHideActive = false
+		local loadedAnim = nil
+		local undetectableModule = nil
+		local originalApplied = nil
+		local originalRemoved = nil
+		local characterAddedConnection = nil
+		
+		-- Animation ID for invisibility
+		local INVISIBILITY_ANIMATION_ID = "rbxassetid://75804462760596"
+		
+		-- Play invisibility animation
+		local function playInvisAnim(char)
+			if not char then return end
+			
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum then
+				-- Stop existing animation if any
+				if loadedAnim then
+					loadedAnim:Stop()
+					loadedAnim = nil
+				end
+				
+				local anim = Instance.new("Animation")
+				anim.AnimationId = INVISIBILITY_ANIMATION_ID
+				loadedAnim = hum:LoadAnimation(anim)
+				loadedAnim:Play()
+				loadedAnim:AdjustSpeed(0) -- Freeze animation at first frame for invisibility
+				
+				print('👻 Invisibility animation applied')
+			end
+		end
+		
+		-- Stop invisibility animation
+		local function stopInvisAnim()
+			if loadedAnim then
+				loadedAnim:Stop()
+				loadedAnim = nil
+				print('👁️ Invisibility animation stopped')
+			end
+		end
+		
+		-- Setup hooks for Undetectable status
+		local function setupUndetectableHooks()
+			local ReplicatedStorage = game:GetService("ReplicatedStorage")
+			
+			-- Try to get the Undetectable module
+			local success, result = pcall(function()
+				return require(ReplicatedStorage.Modules.StatusEffects.Undetectable)
+			end)
+			
+			if not success or not result then
+				Library:Notify({
+					Title = '❌ Undetectable Hide Failed',
+					Content = 'Could not find Undetectable module',
+					Duration = 4,
+				})
+				return false
+			end
+			
+			undetectableModule = result
+			
+			-- Store original functions
+			originalApplied = undetectableModule.Applied
+			originalRemoved = undetectableModule.Removed
+			
+			-- Hook Applied function
+			undetectableModule.Applied = function(data)
+				if data.Player == player then
+					local char = data.Character or data.Player.Character
+					if char and undetectableHideActive then
+						playInvisAnim(char)
+					end
+				end
+				return originalApplied(data)
+			end
+			
+			-- Hook Removed function
+			undetectableModule.Removed = function(data)
+				if data.Player == player and undetectableHideActive then
+					stopInvisAnim()
+				end
+				return originalRemoved(data)
+			end
+			
+			print('✅ Undetectable hooks installed')
+			return true
+		end
+		
+		-- Restore original hooks
+		local function restoreUndetectableHooks()
+			if undetectableModule and originalApplied and originalRemoved then
+				undetectableModule.Applied = originalApplied
+				undetectableModule.Removed = originalRemoved
+				print('🔄 Undetectable hooks restored')
+			end
+		end
+		
+		-- Handle character respawn
+		local function setupCharacterRespawn()
+			if characterAddedConnection then
+				characterAddedConnection:Disconnect()
+			end
+			
+			characterAddedConnection = player.CharacterAdded:Connect(function(character)
+				if not undetectableHideActive then return end
+				
+				-- Wait for character to load
+				task.wait(0.5)
+				
+				-- Check if Undetectable is currently active
+				local ReplicatedStorage = game:GetService("ReplicatedStorage")
+				local success, statusEffects = pcall(function()
+					return character:FindFirstChild("StatusEffects")
+				end)
+				
+				if success and statusEffects then
+					local undetectable = statusEffects:FindFirstChild("Undetectable")
+					if undetectable and undetectable.Value then
+						playInvisAnim(character)
+						print('🔄 Reapplied invisibility on respawn')
+					end
+				end
+			end)
+		end
+		
+		-- Start Undetectable Hide
+		local function startUndetectableHide()
+			undetectableHideActive = true
+			
+			-- Setup hooks
+			if not setupUndetectableHooks() then
+				undetectableHideActive = false
+				return
+			end
+			
+			-- Setup respawn handling
+			setupCharacterRespawn()
+			
+			-- Check if already undetectable and apply animation
+			if player.Character then
+				local statusEffects = player.Character:FindFirstChild("StatusEffects")
+				if statusEffects then
+					local undetectable = statusEffects:FindFirstChild("Undetectable")
+					if undetectable and undetectable.Value then
+						playInvisAnim(player.Character)
+					end
+				end
+			end
+			
+			Library:Notify({
+				Title = '👻 Undetectable Hide Enabled',
+				Content = 'You will become invisible when Undetectable status is applied',
+				Duration = 4,
+			})
+		end
+		
+		-- Stop Undetectable Hide
+		local function stopUndetectableHide()
+			undetectableHideActive = false
+			
+			-- Stop current animation
+			stopInvisAnim()
+			
+			-- Restore hooks
+			restoreUndetectableHooks()
+			
+			-- Disconnect respawn handler
+			if characterAddedConnection then
+				characterAddedConnection:Disconnect()
+				characterAddedConnection = nil
+			end
+			
+			Library:Notify({
+				Title = '👻 Undetectable Hide Disabled',
+				Content = 'Invisibility automation stopped',
+				Duration = 3,
+			})
+		end
+		
+		-- Create toggle
+		UI.UndetectableHideToggle = Tabs.Misc:CreateToggle('UndetectableHide', {
+			Title = 'Undetectable Hide',
+			Description = 'Become invisible when Undetectable status is applied (Respawn Safe)',
+			Default = false,
+		})
+		
+		UI.UndetectableHideToggle:OnChanged(function()
+			local isEnabled = Options.UndetectableHide.Value
+			
+			if isEnabled then
+				startUndetectableHide()
+			else
+				stopUndetectableHide()
+			end
+		end)
+		
+		end -- End of Undetectable Hide isolated scope
+
+		-- ========================================
+		-- SHADOW CHAMS SECTION
+		-- ========================================
+		do -- Isolated scope for Shadow Chams
+		Tabs.Misc:CreateSection('👁️ Shadow Chams')
+		
+		Tabs.Misc:CreateParagraph('ShadowChamsInfo', {
+			Title = 'Highlight Nearby Shadows',
+			Content = 'Adds red Neon chams (0.7 transparency) to Shadow objects within 50 studs. Objects glow through walls for easy detection.',
+		})
+		
+		-- State variables
+		local shadowChamsActive = false
+		local chamObjects = {} -- Store cham instances for cleanup
+		local shadowMonitorConnection = nil
+		local characterAddedConnection = nil
+		
+		-- Constants
+		local SHADOW_PATH = "workspace.Map.Ingame.oDaFeGrahShadows.Shadow"
+		local MAX_RANGE = 50
+		local CHAM_COLOR = Color3.fromRGB(255, 0, 0) -- Red
+		local CHAM_TRANSPARENCY = 0.7
+		local CHAM_MATERIAL = Enum.Material.Neon
+		
+		-- Create cham for a shadow object
+		local function createCham(shadowObj)
+			if not shadowObj or not shadowObj:IsA("BasePart") then return nil end
+			if chamObjects[shadowObj] then return chamObjects[shadowObj] end
+			
+			-- Create highlight for the glow effect
+			local highlight = Instance.new("Highlight")
+			highlight.FillColor = CHAM_COLOR
+			highlight.OutlineColor = CHAM_COLOR
+			highlight.FillTransparency = CHAM_TRANSPARENCY
+			highlight.OutlineTransparency = 0.5
+			highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			highlight.Parent = shadowObj
+			
+			-- Store original properties
+			local originalTransparency = shadowObj.Transparency
+			local originalMaterial = shadowObj.Material
+			local originalColor = shadowObj.Color
+			
+			-- Set cham properties
+			shadowObj.Transparency = CHAM_TRANSPARENCY
+			shadowObj.Material = CHAM_MATERIAL
+			shadowObj.Color = CHAM_COLOR
+			
+			-- Store cham data
+			local chamData = {
+				highlight = highlight,
+				originalTransparency = originalTransparency,
+				originalMaterial = originalMaterial,
+				originalColor = originalColor,
+				shadowObj = shadowObj
+			}
+			
+			chamObjects[shadowObj] = chamData
+			
+			return chamData
+		end
+		
+		-- Remove cham from a shadow object
+		local function removeCham(shadowObj)
+			local chamData = chamObjects[shadowObj]
+			if not chamData then return end
+			
+			-- Restore original properties
+			if chamData.shadowObj and chamData.shadowObj.Parent then
+				chamData.shadowObj.Transparency = chamData.originalTransparency
+				chamData.shadowObj.Material = chamData.originalMaterial
+				chamData.shadowObj.Color = chamData.originalColor
+			end
+			
+			-- Destroy highlight
+			if chamData.highlight then
+				chamData.highlight:Destroy()
+			end
+			
+			chamObjects[shadowObj] = nil
+		end
+		
+		-- Clear all chams
+		local function clearAllChams()
+			for shadowObj, chamData in pairs(chamObjects) do
+				-- Restore original properties
+				if chamData.shadowObj and chamData.shadowObj.Parent then
+					chamData.shadowObj.Transparency = chamData.originalTransparency
+					chamData.shadowObj.Material = chamData.originalMaterial
+					chamData.shadowObj.Color = chamData.originalColor
+				end
+				
+				-- Destroy highlight
+				if chamData.highlight then
+					chamData.highlight:Destroy()
+				end
+			end
+			
+			chamObjects = {}
+		end
+		
+		-- Get player's position
+		local function getPlayerPosition()
+			if not player.Character then return nil end
+			local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+			if not rootPart then return nil end
+			return rootPart.Position
+		end
+		
+		-- Check if shadow is in range
+		local function isInRange(shadowObj)
+			local playerPos = getPlayerPosition()
+			if not playerPos then return false end
+			if not shadowObj or not shadowObj.Parent then return false end
+			
+			local distance = (shadowObj.Position - playerPos).Magnitude
+			return distance <= MAX_RANGE
+		end
+		
+		-- Get all shadow objects
+		local function getShadowObjects()
+			local shadows = {}
+			
+			-- Navigate to the shadow folder
+			local success, result = pcall(function()
+				local workspace = game:GetService("Workspace")
+				local map = workspace:FindFirstChild("Map")
+				if not map then return {} end
+				
+				local ingame = map:FindFirstChild("Ingame")
+				if not ingame then return {} end
+				
+				local shadowFolder = ingame:FindFirstChild("oDaFeGrahShadows")
+				if not shadowFolder then return {} end
+				
+				local shadowObjs = {}
+				for _, child in pairs(shadowFolder:GetChildren()) do
+					if child.Name == "Shadow" and child:IsA("BasePart") then
+						table.insert(shadowObjs, child)
+					end
+				end
+				
+				return shadowObjs
+			end)
+			
+			if success and result then
+				shadows = result
+			end
+			
+			return shadows
+		end
+		
+		-- Update chams based on range
+		local function updateChams()
+			if not shadowChamsActive then return end
+			
+			local allShadows = getShadowObjects()
+			local currentShadows = {}
+			
+			-- Add/update chams for shadows in range
+			for _, shadowObj in ipairs(allShadows) do
+				currentShadows[shadowObj] = true
+				
+				if isInRange(shadowObj) then
+					if not chamObjects[shadowObj] then
+						createCham(shadowObj)
+					end
+				else
+					if chamObjects[shadowObj] then
+						removeCham(shadowObj)
+					end
+				end
+			end
+			
+			-- Remove chams for shadows that no longer exist
+			for shadowObj, _ in pairs(chamObjects) do
+				if not currentShadows[shadowObj] or not shadowObj.Parent then
+					removeCham(shadowObj)
+				end
+			end
+		end
+		
+		-- Monitor shadows continuously
+		local function startShadowMonitoring()
+			if shadowMonitorConnection then
+				shadowMonitorConnection:Disconnect()
+			end
+			
+			-- Update chams every frame for smooth tracking
+			shadowMonitorConnection = game:GetService("RunService").Heartbeat:Connect(function()
+				updateChams()
+			end)
+		end
+		
+		-- Stop shadow monitoring
+		local function stopShadowMonitoring()
+			if shadowMonitorConnection then
+				shadowMonitorConnection:Disconnect()
+				shadowMonitorConnection = nil
+			end
+		end
+		
+		-- Handle character respawn
+		local function setupCharacterRespawn()
+			if characterAddedConnection then
+				characterAddedConnection:Disconnect()
+			end
+			
+			characterAddedConnection = player.CharacterAdded:Connect(function(character)
+				if not shadowChamsActive then return end
+				
+				-- Wait for character to load
+				task.wait(0.5)
+				
+				-- Restart monitoring
+				updateChams()
+				
+				print('🔄 Shadow chams monitoring restarted on respawn')
+			end)
+		end
+		
+		-- Start Shadow Chams
+		local function startShadowChams()
+			shadowChamsActive = true
+			
+			-- Start monitoring
+			startShadowMonitoring()
+			
+			-- Setup respawn handling
+			setupCharacterRespawn()
+			
+			-- Initial update
+			updateChams()
+			
+			Library:Notify({
+				Title = '👁️ Shadow Chams Enabled',
+				Content = 'Red chams will highlight Shadow objects within 50 studs',
+				Duration = 4,
+			})
+			
+			print('👁️ Shadow Chams enabled - monitoring range: ' .. MAX_RANGE .. ' studs')
+		end
+		
+		-- Stop Shadow Chams
+		local function stopShadowChams()
+			shadowChamsActive = false
+			
+			-- Stop monitoring
+			stopShadowMonitoring()
+			
+			-- Clear all chams
+			clearAllChams()
+			
+			-- Disconnect respawn handler
+			if characterAddedConnection then
+				characterAddedConnection:Disconnect()
+				characterAddedConnection = nil
+			end
+			
+			Library:Notify({
+				Title = '👁️ Shadow Chams Disabled',
+				Content = 'All shadow highlights removed',
+				Duration = 3,
+			})
+			
+			print('👁️ Shadow Chams disabled')
+		end
+		
+		-- Create toggle
+		UI.ShadowChamsToggle = Tabs.Misc:CreateToggle('ShadowChams', {
+			Title = 'Shadow Chams',
+			Description = 'Highlight Shadow objects within 50 studs with red Neon material (0.7 transparency, Always on top)',
+			Default = false,
+		})
+		
+		UI.ShadowChamsToggle:OnChanged(function()
+			local isEnabled = Options.ShadowChams.Value
+			
+			if isEnabled then
+				startShadowChams()
+			else
+				stopShadowChams()
+			end
+		end)
+		
+		end -- End of Shadow Chams isolated scope
+
+		-- ========================================
 		-- CHANCE STREAKNESS SECTION
 		-- ========================================
 		do -- Isolated scope for Chance Streakness
@@ -6680,6 +7871,73 @@ end)
 			zenithComboVolume = Options.ZenithComboVolume.Value
 		end)
 		end -- End Chance Streakness scope
+
+-- ========================================
+-- GLOBAL SCRIPT TOGGLES
+-- ========================================
+		do -- Isolated scope for Global Script Toggles
+		Tabs.Misc:CreateSection('🌐 Global Script Toggles')
+
+		Tabs.Misc:CreateParagraph('GlobalTogglesInfo', {
+			Title = 'Control external scripts',
+			Content = 'These toggles control global variables that can be used by external scripts. Enable these before running the corresponding scripts.',
+		})
+
+		-- Shot Counter Toggle
+		UI.ShotCounterToggle = Tabs.Misc:CreateToggle('ShotCounterEnabled', {
+			Title = 'Shot Counter Script',
+			Description = 'Enable _G.ShotCounterEnabled for external shot counter script',
+			Default = false,
+		})
+
+		UI.ShotCounterToggle:OnChanged(function()
+			_G.ShotCounterEnabled = Options.ShotCounterEnabled.Value
+			
+			if _G.ShotCounterEnabled then
+				Library:Notify({
+					Title = '🎯 Shot Counter Enabled',
+					Content = '_G.ShotCounterEnabled = true',
+					Duration = 3,
+				})
+			else
+				Library:Notify({
+					Title = '🔄 Shot Counter Disabled',
+					Content = '_G.ShotCounterEnabled = false',
+					Duration = 3,
+				})
+			end
+		end)
+
+		-- Weakness Display Toggle
+		UI.WeaknessDisplayToggle = Tabs.Misc:CreateToggle('WeaknessDisplayEnabled', {
+			Title = 'Weakness Display Script',
+			Description = 'Enable _G.WeaknessDisplayEnabled for external weakness display script',
+			Default = false,
+		})
+
+		UI.WeaknessDisplayToggle:OnChanged(function()
+			_G.WeaknessDisplayEnabled = Options.WeaknessDisplayEnabled.Value
+			
+			if _G.WeaknessDisplayEnabled then
+				Library:Notify({
+					Title = '⚠️ Weakness Display Enabled',
+					Content = '_G.WeaknessDisplayEnabled = true',
+					Duration = 3,
+				})
+			else
+				Library:Notify({
+					Title = '🔄 Weakness Display Disabled',
+					Content = '_G.WeaknessDisplayEnabled = false',
+					Duration = 3,
+				})
+			end
+		end)
+
+		-- Initialize global variables on script load
+		_G.ShotCounterEnabled = false
+		_G.WeaknessDisplayEnabled = false
+
+		end -- End Global Script Toggles scope
 	end -- End MISC TAB scope
 
 	-- ========================================
@@ -6930,7 +8188,42 @@ Tabs.Settings:CreateButton({
 					and Options.KillerDetectorDebug.Value
 				then
 					Options.KillerDetectorDebug:SetValue(false)
-		end
+				end
+
+				-- Disable Shot Counter
+				if Options.ShotCounterEnabled and Options.ShotCounterEnabled.Value then
+					Options.ShotCounterEnabled:SetValue(false)
+				end
+
+				-- Disable Weakness Display
+				if Options.WeaknessDisplayEnabled and Options.WeaknessDisplayEnabled.Value then
+					Options.WeaknessDisplayEnabled:SetValue(false)
+				end
+
+				-- Disable Zenith Combo
+				if Options.ZenithCombo and Options.ZenithCombo.Value then
+					Options.ZenithCombo:SetValue(false)
+				end
+
+				-- Disable Reroll Show Max Health
+				if Options.RerollShowMaxHealth and Options.RerollShowMaxHealth.Value then
+					Options.RerollShowMaxHealth:SetValue(false)
+				end
+
+				-- Disable Undetectable Hide
+				if Options.UndetectableHide and Options.UndetectableHide.Value then
+					Options.UndetectableHide:SetValue(false)
+				end
+
+				-- Disable Shadow Chams
+				if Options.ShadowChams and Options.ShadowChams.Value then
+					Options.ShadowChams:SetValue(false)
+				end
+
+				-- Disable TETRIO Sound System
+				if Options.TETRIOSoundSystem and Options.TETRIOSoundSystem.Value then
+					Options.TETRIOSoundSystem:SetValue(false)
+				end
 
 		Library:Notify({
 			Title = '🚨 PANIC ACTIVATED',
@@ -6941,6 +8234,123 @@ Tabs.Settings:CreateButton({
 		print('🚨 PANIC BUTTON PRESSED - All features disabled')
 	end,
 })
+
+-- ========================================
+-- SCRIPT LOADING STATUS
+-- ========================================
+
+Tabs.Settings:CreateSection('📊 Script Loading Status')
+
+Tabs.Settings:CreateParagraph('ScriptStatusInfo', {
+	Title = 'External Script Status',
+	Content = 'Shows the loading status of external scripts that were loaded during initialization.',
+})
+
+-- Create status display function
+local function createScriptStatusDisplay()
+	if _G.ForsakenLoadingResults then
+		local results = _G.ForsakenLoadingResults
+		
+		-- Weakness Display Status
+		local weaknessStatus = results.weaknessDisplay.success and "✅ Loaded Successfully" or ("❌ Failed: " .. tostring(results.weaknessDisplay.error))
+		local weaknessColor = results.weaknessDisplay.success and "🟢" or "🔴"
+		
+		Tabs.Settings:CreateParagraph('WeaknessDisplayStatus', {
+			Title = weaknessColor .. ' Weakness Display Script',
+			Content = weaknessStatus,
+		})
+		
+		-- Shot Counter Status
+		local shotCounterStatus = results.shotCounter.success and "✅ Loaded Successfully" or ("❌ Failed: " .. tostring(results.shotCounter.error))
+		local shotCounterColor = results.shotCounter.success and "🟢" or "🔴"
+		
+		Tabs.Settings:CreateParagraph('ShotCounterStatus', {
+			Title = shotCounterColor .. ' Shot Counter Script',
+			Content = shotCounterStatus,
+		})
+		
+		-- Overall status
+		local allSuccess = results.weaknessDisplay.success and results.shotCounter.success
+		local overallStatus = allSuccess and "🟢 All scripts loaded successfully!" or "🟡 Some scripts failed to load - check individual status above"
+		
+		Tabs.Settings:CreateParagraph('OverallStatus', {
+			Title = 'Overall Status',
+			Content = overallStatus,
+		})
+		
+		-- Reload button for failed scripts
+		if not allSuccess then
+			Tabs.Settings:CreateButton({
+				Title = '🔄 Retry Failed Scripts',
+				Description = 'Attempt to reload any scripts that failed during initialization',
+				Callback = function()
+					Library:Notify({
+						Title = '🔄 Reloading Scripts',
+						Content = 'Attempting to reload failed scripts...',
+						Duration = 3,
+					})
+					
+					-- Retry weakness display if it failed
+					if not results.weaknessDisplay.success then
+						local success, error = pcall(function()
+							loadstring(game:HttpGet("https://github.com/x8lua/scripts/blob/main/weakness_display.lua", true))()
+						end)
+						
+						if success then
+							Library:Notify({
+								Title = '✅ Weakness Display',
+								Content = 'Successfully loaded on retry!',
+								Duration = 4,
+							})
+							results.weaknessDisplay.success = true
+							results.weaknessDisplay.error = nil
+						else
+							Library:Notify({
+								Title = '❌ Weakness Display',
+								Content = 'Still failed: ' .. tostring(error),
+								Duration = 5,
+							})
+						end
+					end
+					
+					-- Retry shot counter if it failed
+					if not results.shotCounter.success then
+						local success, error = pcall(function()
+							loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/refs/heads/main/shot_counter.lua", true))()
+						end)
+						
+						if success then
+							Library:Notify({
+								Title = '✅ Shot Counter',
+								Content = 'Successfully loaded on retry!',
+								Duration = 4,
+							})
+							results.shotCounter.success = true
+							results.shotCounter.error = nil
+						else
+							Library:Notify({
+								Title = '❌ Shot Counter',
+								Content = 'Still failed: ' .. tostring(error),
+								Duration = 5,
+							})
+						end
+					end
+				end,
+			})
+		end
+	else
+		Tabs.Settings:CreateParagraph('NoStatusData', {
+			Title = '⚠️ No Status Data',
+			Content = 'Script loading status information is not available.',
+		})
+	end
+end
+
+-- Create the status display after a brief delay to ensure loading is complete
+spawn(function()
+	wait(0.5)
+	createScriptStatusDisplay()
+end)
 
 SaveManager:SetLibrary(Library)
 InterfaceManager:SetLibrary(Library)
