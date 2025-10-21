@@ -570,4 +570,3 @@ end
 
 print("⚠️ Listening for animation", TARGET_ANIMATION_ID)
 print("Press P to destroy script")
-
