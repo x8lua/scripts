@@ -78,10 +78,16 @@ local connections = {}
 -- Global toggle support (can be controlled via _G.ShotCounterEnabled)
 _G.ShotCounterEnabled = true
 task.spawn(function()
+    local lastState = scriptEnabled
     while true do
         task.wait(0.1)
         if _G.ShotCounterEnabled ~= nil then
-            scriptEnabled = _G.ShotCounterEnabled
+            local newState = _G.ShotCounterEnabled
+            if newState ~= lastState then
+                scriptEnabled = newState
+                print(string.format("🎯 Shot Counter: %s", scriptEnabled and "ENABLED ✓" or "DISABLED ✗"))
+                lastState = newState
+            end
         end
     end
 end)
@@ -1238,6 +1244,10 @@ end)
 loadShotData()
 setupAnimationTracking()
 setupToggle()
+
+-- Mark script as successfully loaded
+_G.ShotCounterLOADED = true
+print("✅ Shot Counter successfully loaded!")
 
 -- Cleanup on script removal (works in client executors)
 if script then
