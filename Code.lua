@@ -1,6 +1,8 @@
 --[[
-    Notification Library (Fixed Sound Function)
-    Font: Code | Black Stroke | Sound Support
+    Advanced Notification Library (Volume Default: 2)
+    - Font: Enum.Font.Code
+    - Position: 0.55
+    - Features: Custom Sound ID & Volume (Default 2), Black Stroke, 0.2s Fade
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -35,15 +37,25 @@ layout.Padding = UDim.new(0, 10)
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = container
 
--- 修正後的音效函數
-local function playSound(soundId)
-    if not soundId or soundId == "" then return end
+-- 支援音量設定的播放函數 (預設音量改為 2)
+local function playSound(soundData)
+    if not soundData then return end
+    
+    local id, vol
+    if type(soundData) == "table" then
+        id = soundData[1]
+        vol = soundData[2] or 2 -- 如果 table 沒填音量，預設為 2
+    else
+        id = soundData
+        vol = 2 -- 如果只傳入 ID，預設為 2
+    end
+
+    if not id or id == "" then return end
     
     local s = Instance.new("Sound")
-    s.SoundId = (type(soundId) == "number") and ("rbxassetid://" .. soundId) or soundId
-    s.Volume = 1 -- 增加音量
+    s.SoundId = (type(id) == "number") and ("rbxassetid://" .. id) or id
+    s.Volume = vol
     
-    -- 優先放入 PlayerGui 或 Character，這在 Executor 中通常比 SoundService 更穩定
     local player = Players.LocalPlayer
     s.Parent = player:FindFirstChild("PlayerGui") or (player.Character and player.Character:FindFirstChild("HumanoidRootPart")) or CoreGui
     
@@ -62,8 +74,9 @@ function Lib:Notify(config)
     local fadeInTime = cfg.FadeIn or 0.2
     local fadeOutTime = cfg.FadeOut or 0.2
     local textColor = cfg.Color or Color3.fromRGB(255, 255, 255)
-    local inSound = cfg.FadeInSound or nil
-    local outSound = cfg.FadeOutSound or nil
+    
+    local inSound = cfg.FadeInSound
+    local outSound = cfg.FadeOutSound
 
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, 0, 0, size + 15)
@@ -77,14 +90,14 @@ function Lib:Notify(config)
     label.TextStrokeTransparency = 1 
     label.Parent = container
 
-    -- 淡入
-    task.spawn(playSound, inSound) -- 使用 spawn 確保音效載入不影響動畫開始
+    -- Fade In
+    task.spawn(playSound, inSound)
     TweenService:Create(label, TweenInfo.new(fadeInTime, Enum.EasingStyle.Quad), {
         TextTransparency = 0,
         TextStrokeTransparency = 0.5
     }):Play()
 
-    -- 自動淡出
+    -- Fade Out
     task.delay(duration, function()
         task.spawn(playSound, outSound)
         local fadeOut = TweenService:Create(label, TweenInfo.new(fadeOutTime, Enum.EasingStyle.Quad), {
