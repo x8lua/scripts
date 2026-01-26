@@ -1,22 +1,18 @@
 --[[
-    Advanced Notification Library
-    - Font: Enum.Font.Code (Default)
-    - Fade: 0.2s (Default)
-    - Position: 0.55 (Middle-Upper)
-    - Features: Black Stroke, Sound Support, Fully Customizable per Notify
+    Notification Library (Fixed Sound Function)
+    Font: Code | Black Stroke | Sound Support
 ]]
 
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
 
--- 自動清理舊 UI
 if getgenv()._CodeNotifyLib then
     getgenv()._CodeNotifyLib:Destroy()
 end
 
 local Lib = {}
 
--- 建立 ScreenGui
 local gui = Instance.new("ScreenGui")
 gui.Name = "CodeNotifyLib"
 gui.IgnoreGuiInset = true
@@ -24,7 +20,6 @@ gui.DisplayOrder = 999
 gui.Parent = CoreGui
 getgenv()._CodeNotifyLib = gui
 
--- 容器位置在 0.55
 local container = Instance.new("Frame")
 container.Name = "NotifyContainer"
 container.Size = UDim2.new(0.9, 0, 0.5, 0)
@@ -40,22 +35,26 @@ layout.Padding = UDim.new(0, 10)
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = container
 
--- 播放音效函數
+-- 修正後的音效函數
 local function playSound(soundId)
     if not soundId or soundId == "" then return end
+    
     local s = Instance.new("Sound")
     s.SoundId = (type(soundId) == "number") and ("rbxassetid://" .. soundId) or soundId
-    s.Volume = 0.5
-    s.Parent = game:GetService("SoundService")
+    s.Volume = 1 -- 增加音量
+    
+    -- 優先放入 PlayerGui 或 Character，這在 Executor 中通常比 SoundService 更穩定
+    local player = Players.LocalPlayer
+    s.Parent = player:FindFirstChild("PlayerGui") or (player.Character and player.Character:FindFirstChild("HumanoidRootPart")) or CoreGui
+    
+    if not s.IsLoaded then s.Loaded:Wait() end
     s:Play()
     s.Ended:Connect(function() s:Destroy() end)
 end
 
 function Lib:Notify(config)
-    -- 支援字串或 Table
     local cfg = type(config) == "table" and config or {Text = tostring(config)}
     
-    -- 合併參數與預設值
     local text = cfg.Text or "No Text"
     local font = cfg.Font or Enum.Font.Code
     local size = cfg.Size or 55
@@ -66,7 +65,6 @@ function Lib:Notify(config)
     local inSound = cfg.FadeInSound or nil
     local outSound = cfg.FadeOutSound or nil
 
-    -- 創建標籤
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, 0, 0, size + 15)
     label.BackgroundTransparency = 1
@@ -75,12 +73,12 @@ function Lib:Notify(config)
     label.TextColor3 = textColor
     label.TextSize = size
     label.TextTransparency = 1
-    label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0) -- 黑色描邊
+    label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
     label.TextStrokeTransparency = 1 
     label.Parent = container
 
-    -- 淡入動畫與音效
-    playSound(inSound)
+    -- 淡入
+    task.spawn(playSound, inSound) -- 使用 spawn 確保音效載入不影響動畫開始
     TweenService:Create(label, TweenInfo.new(fadeInTime, Enum.EasingStyle.Quad), {
         TextTransparency = 0,
         TextStrokeTransparency = 0.5
@@ -88,7 +86,7 @@ function Lib:Notify(config)
 
     -- 自動淡出
     task.delay(duration, function()
-        playSound(outSound)
+        task.spawn(playSound, outSound)
         local fadeOut = TweenService:Create(label, TweenInfo.new(fadeOutTime, Enum.EasingStyle.Quad), {
             TextTransparency = 1,
             TextStrokeTransparency = 1
