@@ -43,36 +43,41 @@ function Notification.setColor(color)
     Notification.Gui.ContainerNotification.ImageColor3 = color
 end
 
+-- [[ 修改後的 UI Library 核心部分 ]]
+
 function Notification.new(data)
     assert(typeof(data) == "table" and data.Text)
 
+    -- 如果正在顯示中，加入隊列
     if Notification.Gui.Enabled then
-        table.insert(Notification.Queue, data); return
+        table.insert(Notification.Queue, data)
+        return
     end
 
     if typeof(data.Color) == "Color3" then
         Notification.setColor(data.Color)
     end
 
-    -- 初始化狀態
     local container = Notification.Gui.ContainerNotification
     local messageLabel = container.Message
     local typeSpeed = tonumber(data.TypeSpeed) or 0.02
     
+    -- 初始化顯示
     messageLabel.Text = ""
-    container.ImageTransparency = 1
-    messageLabel.TextTransparency = 1
     Notification.Gui.Enabled = true
 
-    -- [1] 淡入 (Fade In): 0.5 秒
-    local fadeInInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-    TweenService:Create(container, fadeInInfo, {ImageTransparency = 0}):Play()
-    TweenService:Create(messageLabel, fadeInInfo, {TextTransparency = 0}):Play()
-    
-    playSound(700153902, Notification.Gui, { Volume = 0.25 })
-    task.wait(0.5) -- 等待淡入完成
+    -- [1] 判斷是否需要淡入 (如果已經是顯示狀態就不重複淡入)
+    if container.ImageTransparency > 0 then
+        container.ImageTransparency = 1
+        messageLabel.TextTransparency = 1
+        local fadeInInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+        TweenService:Create(container, fadeInInfo, {ImageTransparency = 0}):Play()
+        TweenService:Create(messageLabel, fadeInInfo, {TextTransparency = 0}):Play()
+        playSound(700153902, Notification.Gui, { Volume = 0.25 })
+        task.wait(0.5)
+    end
 
-    -- [2] 打字效果 (Typing)
+    -- [2] 打字 (Typing)
     local v1 = 1
     for i = 1, #data.Text do
         messageLabel.Text = string.sub(data.Text, 1, i)
@@ -83,29 +88,35 @@ function Notification.new(data)
         task.wait(typeSpeed)
     end
 
-    task.wait(data.Duration or 1) -- 在刪除前停留一段時間
+    -- 等待指定的持續時間
+    task.wait(data.Duration or 1)
 
-    -- [3] 倒退刪除 (Untyping)
-    for i = #data.Text, 0, -1 do
-        messageLabel.Text = string.sub(data.Text, 1, i)
-        task.wait(typeSpeed * 0.5) -- 刪除速度通常快一點
-    end
-
-    -- [4] 淡出 (Fade Out): 5 秒
-    local fadeOutInfo = TweenInfo.new(5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-    local fadeTween = TweenService:Create(container, fadeOutInfo, {ImageTransparency = 1})
-    TweenService:Create(messageLabel, fadeOutInfo, {TextTransparency = 1}):Play()
-    
-    fadeTween:Play()
-    fadeTween.Completed:Wait() -- 等待 5 秒淡出完成
-
-    -- [5] 結束並處理隊列
-    Notification.Gui.Enabled = false
-
+    -- [[ 關鍵修改：檢查隊列 ]]
     if #Notification.Queue > 0 then
+        -- 如果後面還有訊息：直接跳轉，不淡出
         local nextData = Notification.Queue[1]
         table.remove(Notification.Queue, 1)
+        
+        -- 快速切換文字（不淡出）
+        messageLabel.Text = "" 
         Notification.new(nextData)
+    else
+        -- 如果是最後一條訊息：執行倒退打字與長淡出
+        -- [3] 倒退刪除 (Untyping)
+        for i = #data.Text, 0, -1 do
+            messageLabel.Text = string.sub(data.Text, 1, i)
+            task.wait(typeSpeed * 0.5)
+        end
+
+        -- [4] 長淡出 (Fade Out) - 根據你的反饋，這裡可以調整速度
+        local fadeOutInfo = TweenInfo.new(2, Enum.EasingStyle.Quad, Enum.EasingDirection.In) -- 從 5s 改為 2s 較流暢
+        local fadeTween = TweenService:Create(container, fadeOutInfo, {ImageTransparency = 1})
+        TweenService:Create(messageLabel, fadeOutInfo, {TextTransparency = 1}):Play()
+        
+        fadeTween:Play()
+        fadeTween.Completed:Wait()
+
+        Notification.Gui.Enabled = false
     end
 end
 
