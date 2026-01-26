@@ -1,8 +1,7 @@
 --[[
-    Notification Library (Single Line Fade Focus)
-    - Feature: Smooth SingleLine Transition (Fade Out current before Fade In next)
-    - Spacing: Padding = 2
-    - Position: 0.55 | Font: Code
+    Notification Library (Sequential Fade Mode)
+    - SingleLine: Fully Fade Out (0.2s) -> Then Fade In (0.2s)
+    - Volume Default: 2 | Padding: 2
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -60,53 +59,66 @@ function Lib:Notify(config)
     local cfg = type(config) == "table" and config or {Text = tostring(config)}
     local fadeTime = 0.2
 
-    -- [[ 單行模式：先處理舊文字淡出 ]]
-    if cfg.SingleLine then
-        for _, child in pairs(container:GetChildren()) do
-            if child:IsA("TextLabel") then
-                -- 讓舊文字在 0.2s 內淡出
-                TweenService:Create(child, TweenInfo.new(fadeTime), {
+    -- 處理邏輯：包裝成一個執行函數
+    local function spawnNewNotify()
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 0, (cfg.Size or 55) + 5)
+        label.BackgroundTransparency = 1
+        label.Font = cfg.Font or Enum.Font.Code
+        label.Text = cfg.Text or "No Text"
+        label.TextColor3 = cfg.Color or Color3.fromRGB(255, 255, 255)
+        label.TextSize = cfg.Size or 55
+        label.TextTransparency = 1
+        label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+        label.TextStrokeTransparency = 1 
+        label.Parent = container
+
+        -- Fade In
+        task.spawn(playSound, cfg.FadeInSound)
+        TweenService:Create(label, TweenInfo.new(fadeTime), {
+            TextTransparency = 0, 
+            TextStrokeTransparency = 0.5
+        }):Play()
+
+        -- Auto Fade Out
+        task.delay(cfg.Duration or 3, function()
+            if label and label.Parent then
+                task.spawn(playSound, cfg.FadeOutSound)
+                local out = TweenService:Create(label, TweenInfo.new(fadeTime), {
                     TextTransparency = 1, 
                     TextStrokeTransparency = 1
-                }):Play()
-                -- 動畫完畢後徹底刪除
-                task.delay(fadeTime, function() child:Destroy() end)
+                })
+                out:Play()
+                out.Completed:Connect(function() label:Destroy() end)
             end
+        end)
+    end
+
+    -- [[ 核心修正：單行模式順序動畫 ]]
+    local existing = {}
+    if cfg.SingleLine then
+        for _, child in pairs(container:GetChildren()) do
+            if child:IsA("TextLabel") then table.insert(existing, child) end
         end
     end
 
-    -- 創建新通知
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, (cfg.Size or 55) + 5)
-    label.BackgroundTransparency = 1
-    label.Font = cfg.Font or Enum.Font.Code
-    label.Text = cfg.Text or "No Text"
-    label.TextColor3 = cfg.Color or Color3.fromRGB(255, 255, 255)
-    label.TextSize = cfg.Size or 55
-    label.TextTransparency = 1 -- 初始透明
-    label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-    label.TextStrokeTransparency = 1 
-    label.Parent = container
-
-    -- [[ 淡入動畫 ]]
-    task.spawn(playSound, cfg.FadeInSound)
-    TweenService:Create(label, TweenInfo.new(fadeTime), {
-        TextTransparency = 0, 
-        TextStrokeTransparency = 0.5
-    }):Play()
-
-    -- [[ 定時淡出 (如果沒被 SingleLine 提前刪除) ]]
-    task.delay(cfg.Duration or 3, function()
-        if label and label.Parent then
-            task.spawn(playSound, cfg.FadeOutSound)
-            local out = TweenService:Create(label, TweenInfo.new(fadeTime), {
+    if #existing > 0 then
+        -- 1. 先讓所有舊的 Fade Out
+        for _, oldLabel in ipairs(existing) do
+            TweenService:Create(oldLabel, TweenInfo.new(fadeTime), {
                 TextTransparency = 1, 
                 TextStrokeTransparency = 1
-            })
-            out:Play()
-            out.Completed:Connect(function() label:Destroy() end)
+            }):Play()
         end
-    end)
+        -- 2. 等待 0.2s 完畢後，刪除舊的並 Fade In 新的
+        task.delay(fadeTime, function()
+            for _, oldLabel in ipairs(existing) do oldLabel:Destroy() end
+            spawnNewNotify()
+        end)
+    else
+        -- 如果本來就沒東西，直接顯示
+        spawnNewNotify()
+    end
 end
 
 return Lib
