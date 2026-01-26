@@ -1,7 +1,7 @@
 --[[
-    Advanced Notification Library (Single Line Mode Support)
-    - Feature: cfg.SingleLine (Boolean)
-    - Feature: Smaller Spacing (Padding = 2)
+    Notification Library (Single Line Fade Focus)
+    - Feature: Smooth SingleLine Transition (Fade Out current before Fade In next)
+    - Spacing: Padding = 2
     - Position: 0.55 | Font: Code
 ]]
 
@@ -33,7 +33,7 @@ container.Parent = gui
 local layout = Instance.new("UIListLayout")
 layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-layout.Padding = UDim.new(0, 2) -- 縮小間距
+layout.Padding = UDim.new(0, 2)
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = container
 
@@ -58,18 +58,24 @@ end
 
 function Lib:Notify(config)
     local cfg = type(config) == "table" and config or {Text = tostring(config)}
-    
-    -- 單行模式邏輯：如果開啟，先清除現有的所有通知
+    local fadeTime = 0.2
+
+    -- [[ 單行模式：先處理舊文字淡出 ]]
     if cfg.SingleLine then
         for _, child in pairs(container:GetChildren()) do
             if child:IsA("TextLabel") then
-                -- 快速淡出並刪除
-                TweenService:Create(child, TweenInfo.new(0.15), {TextTransparency = 1, TextStrokeTransparency = 1}):Play()
-                task.delay(0.15, function() child:Destroy() end)
+                -- 讓舊文字在 0.2s 內淡出
+                TweenService:Create(child, TweenInfo.new(fadeTime), {
+                    TextTransparency = 1, 
+                    TextStrokeTransparency = 1
+                }):Play()
+                -- 動畫完畢後徹底刪除
+                task.delay(fadeTime, function() child:Destroy() end)
             end
         end
     end
 
+    -- 創建新通知
     local label = Instance.new("TextLabel")
     label.Size = UDim2.new(1, 0, 0, (cfg.Size or 55) + 5)
     label.BackgroundTransparency = 1
@@ -77,18 +83,26 @@ function Lib:Notify(config)
     label.Text = cfg.Text or "No Text"
     label.TextColor3 = cfg.Color or Color3.fromRGB(255, 255, 255)
     label.TextSize = cfg.Size or 55
-    label.TextTransparency = 1
+    label.TextTransparency = 1 -- 初始透明
     label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
     label.TextStrokeTransparency = 1 
     label.Parent = container
 
+    -- [[ 淡入動畫 ]]
     task.spawn(playSound, cfg.FadeInSound)
-    TweenService:Create(label, TweenInfo.new(0.2), {TextTransparency = 0, TextStrokeTransparency = 0.5}):Play()
+    TweenService:Create(label, TweenInfo.new(fadeTime), {
+        TextTransparency = 0, 
+        TextStrokeTransparency = 0.5
+    }):Play()
 
+    -- [[ 定時淡出 (如果沒被 SingleLine 提前刪除) ]]
     task.delay(cfg.Duration or 3, function()
         if label and label.Parent then
             task.spawn(playSound, cfg.FadeOutSound)
-            local out = TweenService:Create(label, TweenInfo.new(0.2), {TextTransparency = 1, TextStrokeTransparency = 1})
+            local out = TweenService:Create(label, TweenInfo.new(fadeTime), {
+                TextTransparency = 1, 
+                TextStrokeTransparency = 1
+            })
             out:Play()
             out.Completed:Connect(function() label:Destroy() end)
         end
