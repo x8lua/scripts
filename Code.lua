@@ -1,8 +1,9 @@
 --[[
-    Advanced Notification Library (Volume Default: 2)
-    - Font: Enum.Font.Code
+    Notification Library (Final Fix)
+    - Fix: SoundId Assignment Error
+    - Volume Default: 2
+    - Font: Code (Default)
     - Position: 0.55
-    - Features: Custom Sound ID & Volume (Default 2), Black Stroke, 0.2s Fade
 ]]
 
 local TweenService = game:GetService("TweenService")
@@ -37,23 +38,26 @@ layout.Padding = UDim.new(0, 10)
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = container
 
--- 支援音量設定的播放函數 (預設音量改為 2)
+-- 修正音效函數：先提取 ID 再賦值給 SoundId
 local function playSound(soundData)
     if not soundData then return end
     
-    local id, vol
+    local rawId, vol
     if type(soundData) == "table" then
-        id = soundData[1]
-        vol = soundData[2] or 2 -- 如果 table 沒填音量，預設為 2
+        rawId = soundData[1]
+        vol = soundData[2] or 2
     else
-        id = soundData
-        vol = 2 -- 如果只傳入 ID，預設為 2
+        rawId = soundData
+        vol = 2
     end
 
-    if not id or id == "" then return end
+    if not rawId or rawId == "" then return end
+    
+    -- 確保轉為 rbxassetid 字串格式
+    local idString = (type(rawId) == "number") and ("rbxassetid://" .. rawId) or tostring(rawId)
     
     local s = Instance.new("Sound")
-    s.SoundId = (type(id) == "number") and ("rbxassetid://" .. id) or id
+    s.SoundId = idString -- 現在這裡傳入的是字串，不會再噴 table error
     s.Volume = vol
     
     local player = Players.LocalPlayer
