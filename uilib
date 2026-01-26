@@ -1,56 +1,46 @@
 -- Services
-
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 -- Variables
-
 local Plr = Players.LocalPlayer
-
-local Notification = { Queue = {}, Color = Color3.fromRGB(42, 204, 255) }
+local Notification = { Queue = {}, Color = Color3.fromRGB(42, 204, 255), textTypeSpeed = 0.02 }
 
 -- Misc Functions
-
 local function create(class, properties, radius)
-	local instance = Instance.new(class)
-
-	for i, v in next, properties do
-		if i ~= "Parent" then
-			if typeof(v) == "Instance" then
-				v.Parent = instance
-			else
-				instance[i] = v
-			end
-		end
-	end
-
-	if radius then
-		local uicorner = Instance.new("UICorner", instance)
-		uicorner.CornerRadius = radius
-	end
-
-	return instance
+    local instance = Instance.new(class)
+    for i, v in next, properties do
+        if i ~= "Parent" then
+            if typeof(v) == "Instance" then
+                v.Parent = instance
+            else
+                instance[i] = v
+            end
+        end
+    end
+    if radius then
+        local uicorner = Instance.new("UICorner", instance)
+        uicorner.CornerRadius = radius
+    end
+    return instance
 end
 
 local function playSound(id, source, properties)
-	properties = properties or {}
-	
-	local sound = Instance.new("Sound")
-	
-	for i, v in next, properties do
-		if not table.find({"Parent", "PlayOnRemove"}, i) then
-			sound[i] = v
-		end
-	end
-	
-	sound.SoundId = "rbxassetid://".. id; sound.PlayOnRemove = true
-	sound.Parent = source; sound:Destroy(); sound = nil
+    properties = properties or {}
+    local sound = Instance.new("Sound")
+    for i, v in next, properties do
+        if not table.find({"Parent", "PlayOnRemove"}, i) then
+            sound[i] = v
+        end
+    end
+    sound.SoundId = "rbxassetid://".. id; sound.PlayOnRemove = true
+    sound.Parent = source; sound:Destroy(); sound = nil
 end
 
 -- Functions
-
 function Notification.setColor(color)
-	Notification.Color = color
-	Notification.Gui.ContainerNotification.ImageColor3 = color
+    Notification.Color = color
+    Notification.Gui.ContainerNotification.ImageColor3 = color
 end
 
 function Notification.new(data)
@@ -64,95 +54,123 @@ function Notification.new(data)
         Notification.setColor(data.Color)
     end
 
-    Notification.Gui.ContainerNotification.Message.Text = ""
+    -- 初始化狀態
+    local container = Notification.Gui.ContainerNotification
+    local messageLabel = container.Message
+    local typeSpeed = tonumber(data.TypeSpeed) or 0.02
+    
+    messageLabel.Text = ""
+    container.ImageTransparency = 1
+    messageLabel.TextTransparency = 1
     Notification.Gui.Enabled = true
+
+    -- [1] 淡入 (Fade In): 0.5 秒
+    local fadeInInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+    TweenService:Create(container, fadeInInfo, {ImageTransparency = 0}):Play()
+    TweenService:Create(messageLabel, fadeInInfo, {TextTransparency = 0}):Play()
+    
     playSound(700153902, Notification.Gui, { Volume = 0.25 })
+    task.wait(0.5) -- 等待淡入完成
 
-    local typeSpeed = tonumber(data.TypeSpeed) or 0.02 -- NEW FEATURE
-
+    -- [2] 打字效果 (Typing)
     local v1 = 1
-    for i = 1, #data.Text, 1 do
-        Notification.Gui.ContainerNotification.Message.Text =
-            Notification.Gui.ContainerNotification.Message.Text .. string.sub(data.Text, i, i)
-
+    for i = 1, #data.Text do
+        messageLabel.Text = string.sub(data.Text, 1, i)
         if v1 == 1 then
-            playSound(215658476, Notification.Gui, {})
+            playSound(215658476, Notification.Gui, { Volume = 0.1 })
         end
-
         v1 = v1 % 3 + 1
         task.wait(typeSpeed)
     end
 
-    task.delay(data.Duration or 1, function()
-        Notification.Gui.Enabled = false
+    task.wait(data.Duration or 1) -- 在刪除前停留一段時間
 
-        if #Notification.Queue > 0 then
-            local v2 = Notification.Queue[1]
-            table.remove(Notification.Queue, 1)
+    -- [3] 倒退刪除 (Untyping)
+    for i = #data.Text, 0, -1 do
+        messageLabel.Text = string.sub(data.Text, 1, i)
+        task.wait(typeSpeed * 0.5) -- 刪除速度通常快一點
+    end
 
-            Notification.new(v2)
-        end
-    end)
+    -- [4] 淡出 (Fade Out): 5 秒
+    local fadeOutInfo = TweenInfo.new(5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+    local fadeTween = TweenService:Create(container, fadeOutInfo, {ImageTransparency = 1})
+    TweenService:Create(messageLabel, fadeOutInfo, {TextTransparency = 1}):Play()
+    
+    fadeTween:Play()
+    fadeTween.Completed:Wait() -- 等待 5 秒淡出完成
+
+    -- [5] 結束並處理隊列
+    Notification.Gui.Enabled = false
+
+    if #Notification.Queue > 0 then
+        local nextData = Notification.Queue[1]
+        table.remove(Notification.Queue, 1)
+        Notification.new(nextData)
+    end
 end
 
-
 -- UI Construction
-
 Notification.Gui = create("ScreenGui", {
-	Name = "NotificationGui",
-	Enabled = false,
-	IgnoreGuiInset = true,
-	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-	
-	create("ImageLabel", {
-		Name = "ContainerNotification",
-		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundTransparency = 1,
-		Position = UDim2.new(0.5, 0, 0, 0),
-		Size = UDim2.new(0, 350, 0, 70),
-		Image = "rbxassetid://4915091158",
-		ImageColor3 = Notification.Color,
-		
-		create("TextLabel", {
-			Name = "Message",
-			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 35, 0, 11),
-			Size = UDim2.new(1, -70, 1, -22),
-			Font = Enum.Font.SourceSansItalic,
-			TextColor3 = Color3.fromRGB(255, 255, 255),
-			TextScaled = true,
-			TextSize = 30,
-			TextWrapped = true,
-			
-			create("UITextSizeConstraint", {
-				MaxTextSize = 30,
-				MinTextSize = 5,
-			}),
-		}),
-		
-		create("UIAspectRatioConstraint", {
-			AspectRatio = 5,
-			AspectType = Enum.AspectType.ScaleWithParentSize,
-			DominantAxis = Enum.DominantAxis.Height,
-		}),
-	}),
-	
-	create("UIPadding", {
-		PaddingTop = UDim.new(0.1, 0),
-	}),
+    Name = "NotificationGui",
+    Enabled = false,
+    IgnoreGuiInset = true,
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    
+    create("ImageLabel", {
+        Name = "ContainerNotification",
+        AnchorPoint = Vector2.new(0.5, 0),
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0.5, 0, 0, 0),
+        Size = UDim2.new(0, 350, 0, 70),
+        Image = "rbxassetid://4915091158",
+        ImageColor3 = Notification.Color,
+        
+        create("TextLabel", {
+            Name = "Message",
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 35, 0, 11),
+            Size = UDim2.new(1, -70, 1, -22),
+            Font = Enum.Font.SourceSansItalic,
+            TextColor3 = Color3.fromRGB(255, 255, 255),
+            TextScaled = true,
+            TextSize = 30,
+            TextWrapped = true,
+            
+            create("UITextSizeConstraint", {
+                MaxTextSize = 30,
+                MinTextSize = 5,
+            }),
+        }),
+        
+        create("UIAspectRatioConstraint", {
+            AspectRatio = 5,
+            AspectType = Enum.AspectType.ScaleWithParentSize,
+            DominantAxis = Enum.DominantAxis.Height,
+        }),
+    }),
+    
+    create("UIPadding", {
+        PaddingTop = UDim.new(0.1, 0),
+    }),
 })
 
-Notification.Gui.Parent = game:GetService("CoreGui")
--- Scripts
+-- 嘗試放置到 CoreGui，失敗則放進 PlayerGui
+local success, err = pcall(function()
+    Notification.Gui.Parent = game:GetService("CoreGui")
+end)
+if not success then
+    Notification.Gui.Parent = Plr:WaitForChild("PlayerGui")
+end
 
+-- Scripts
 if Plr.Team ~= nil then
-	Notification.setColor(Plr.TeamColor.Color)
+    Notification.setColor(Plr.TeamColor.Color)
 end
 
 Plr:GetPropertyChangedSignal("Team"):Connect(function()
-	if Plr.Team ~= nil then
-		Notification.setColor(Plr.TeamColor.Color)
-	end
+    if Plr.Team ~= nil then
+        Notification.setColor(Plr.TeamColor.Color)
+    end
 end)
 
 return Notification
