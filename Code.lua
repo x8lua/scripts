@@ -1,29 +1,29 @@
 -- Roblox Notification Library for Executors
--- Font: Code | Fade: 0.2s | Position: Middle Down
+-- Font: Code | Fade: 0.2s | Optimized Position & Size
 
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 
--- 確保不會重複載入導致 UI 重疊
+-- 清理舊執行紀錄
 if getgenv()._NotifyLibInstance then
     getgenv()._NotifyLibInstance:Destroy()
 end
 
 local Lib = {}
 
--- 建立頂層 UI
+-- 建立 UI
 local gui = Instance.new("ScreenGui")
-gui.Name = "ExecNotifyGui"
+gui.Name = "CustomNotifyGui"
 gui.DisplayOrder = 999
 gui.IgnoreGuiInset = true
 gui.Parent = CoreGui
 getgenv()._NotifyLibInstance = gui
 
--- 建立通知容器
+-- 容器：位置稍微上移 (0.7)
 local container = Instance.new("Frame")
 container.Name = "NotifyContainer"
-container.Size = UDim2.new(0.4, 0, 0.4, 0)
-container.Position = UDim2.new(0.5, 0, 0.75, 0) -- 畫面中下方
+container.Size = UDim2.new(0.6, 0, 0.4, 0)
+container.Position = UDim2.new(0.5, 0, 0.7, 0) -- 0.7 比之前的 0.75 更靠上方一點
 container.AnchorPoint = Vector2.new(0.5, 0.5)
 container.BackgroundTransparency = 1
 container.Parent = gui
@@ -31,38 +31,37 @@ container.Parent = gui
 local layout = Instance.new("UIListLayout")
 layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-layout.Padding = UDim.new(0, 5)
+layout.Padding = UDim.new(0, 10) -- 增加間距以配合較大的字體
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.Parent = container
 
--- API 函數
 function Lib:Notify(config)
-    -- 支援字串傳入或 Table 傳入
     local text = type(config) == "table" and config.Text or tostring(config)
     local duration = type(config) == "table" and config.Duration or 3
     
     local label = Instance.new("TextLabel")
     label.Name = "Notification"
-    label.Size = UDim2.new(1, 0, 0, 24)
+    label.Size = UDim2.new(1, 0, 0, 40) -- 增加高度以容納大字體
     label.BackgroundTransparency = 1
     label.Font = Enum.Font.Code
     label.Text = text
     label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 18
+    label.TextSize = 28 -- 增加字體大小 (原為 18-20)
     label.TextTransparency = 1
-    label.TextStrokeTransparency = 0.8
+    label.TextStrokeTransparency = 0.7 -- 稍微加強描邊，讓大字體更清晰
     label.Parent = container
 
-    -- 0.2s Fade In
-    local info = TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-    TweenService:Create(label, info, {
+    local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+    
+    -- Fade In
+    TweenService:Create(label, tweenInfo, {
         TextTransparency = 0, 
-        TextStrokeTransparency = 0.8
+        TextStrokeTransparency = 0.7
     }):Play()
 
-    -- 延遲淡出
+    -- Fade Out & Destroy
     task.delay(duration, function()
-        local fadeOut = TweenService:Create(label, info, {
+        local fadeOut = TweenService:Create(label, tweenInfo, {
             TextTransparency = 1, 
             TextStrokeTransparency = 1
         })
