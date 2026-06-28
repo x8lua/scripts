@@ -10,7 +10,7 @@ if ok and res then
     xGui = res
 else
     local getOk, code = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=12")
+        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=13")
     end)
     if getOk and code then
         xGui = loadstring(code)()
@@ -156,6 +156,7 @@ local configTab = window:CreateTab("Config")
 
 local helpSection = configTab:CreateSection("Help")
 helpSection:CreateLabel("xGui — a Dear ImGui style library for exploits.")
+helpSection:CreateLabel("Version: " .. tostring(xGui.Version or "1.2.0"))
 helpSection:CreateButton("Documentation", function()
     print("Docs: github.com/x8lua/scripts")
 end)
@@ -173,4 +174,4 @@ windowOptions:CreateToggle("No Titlebar", false, function(state)
     window.TitleBar.Visible = not state
 end)
 
-print("[xGui] Window created! Press Insert to toggle. Drag edges/corners to resize.")
+print("[xGui] Window created! Press RightShift to toggle. Drag edges/corners to resize.")

@@ -3,6 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
+xGui.Version = "1.2.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -1613,11 +1614,8 @@ function setupContainerMethods(container, parentFrame)
                     
                     if key == "Parent" then
                         if realObj:IsA("Frame") and realObj.Name == "FakeScreenGui" then
-                            local isUIHost = (val == playerGui) or (typeof(val) == "Instance" and (val:IsA("PlayerGui") or val:IsA("ScreenGui") or val:IsA("CoreGui")))
-                            if isUIHost then
-                                realObj.Parent = renderSurface
-                                return
-                            end
+                            realObj.Parent = renderSurface
+                            return
                         end
                     end
                     
@@ -1647,7 +1645,9 @@ function setupContainerMethods(container, parentFrame)
                         realObj = Instance.new(className)
                     end
                     
-                    if parent then
+                    if className == "ScreenGui" then
+                        realObj.Parent = renderSurface
+                    elseif parent then
                         realObj.Parent = parent
                     end
                     return wrap(realObj)
