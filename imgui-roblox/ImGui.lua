@@ -37,28 +37,38 @@ local Theme = {
     
     Font = Enum.Font.Code,
     TextSize = 13,
+    FontFace = nil,  -- set below after table closes
     
     HeaderBg = Color3.fromRGB(35, 40, 50),
     HeaderHovered = Color3.fromRGB(45, 50, 60),
 }
 
--- Load custom font (ProggyClean.ttf); falls back to Enum.Font.Code on failure
-local function LoadCustomFont()
-    local fontPath = "ProggyClean.ttf"
-    local ok, result = pcall(function()
+-- Load ProggyClean.ttf as a FontFace object.
+-- getcustomasset() returns an rbxasset:// path; we pass that to Font.new().
+-- Falls back gracefully to Enum.Font.Code if anything fails.
+do
+    local ok, face = pcall(function()
+        local fontPath = "ProggyClean.ttf"
         if not isfile(fontPath) then
-            local url = "https://raw.githubusercontent.com/x8lua/scripts/main/ProggyClean.ttf"
-            writefile(fontPath, game:HttpGet(url, true))
+            writefile(fontPath, game:HttpGet(
+                "https://raw.githubusercontent.com/x8lua/scripts/main/ProggyClean.ttf", true))
         end
-        return getcustomasset(fontPath)
+        return Font.new(getcustomasset(fontPath))
     end)
-    if ok and result then
-        return result
+    if ok and face then
+        Theme.FontFace = face
     end
-    return Enum.Font.Code
 end
 
-Theme.Font = LoadCustomFont()
+-- Helper: apply the correct font to any text GuiObject.
+-- Uses FontFace (custom TTF) when loaded, otherwise Enum.Font.Code.
+local function applyFont(obj)
+    if Theme.FontFace then
+        obj.FontFace = Theme.FontFace
+    else
+        obj.Font = Theme.Font
+    end
+end
 
 -- Utility: Safe parenting for exploit environments
 local function ParentGui(gui)
@@ -173,7 +183,7 @@ function ImGui.new(title)
     titleLabel.Size = UDim2.new(1, -50, 1, 0)
     titleLabel.Position = UDim2.new(0, 24, 0, 0)
     titleLabel.BackgroundTransparency = 1
-    titleLabel.Font = Theme.Font
+    applyFont(titleLabel)
     titleLabel.TextSize = Theme.TextSize
     titleLabel.TextColor3 = Theme.TextColor
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -186,7 +196,7 @@ function ImGui.new(title)
     collapseArrow.Size = UDim2.new(0, 20, 0, 20)
     collapseArrow.Position = UDim2.new(0, 2, 0, 1)
     collapseArrow.BackgroundTransparency = 1
-    collapseArrow.Font = Theme.Font
+    applyFont(collapseArrow)
     collapseArrow.TextSize = Theme.TextSize + 2
     collapseArrow.TextColor3 = Theme.TextColor
     collapseArrow.Text = "▼"
@@ -199,7 +209,7 @@ function ImGui.new(title)
     closeButton.Size = UDim2.new(0, 20, 0, 20)
     closeButton.Position = UDim2.new(1, -22, 0, 1)
     closeButton.BackgroundTransparency = 1
-    closeButton.Font = Theme.Font
+    applyFont(closeButton)
     closeButton.TextSize = Theme.TextSize + 1
     closeButton.TextColor3 = Theme.TextColor
     closeButton.Text = "X"
@@ -281,7 +291,7 @@ function ImGui:CreateTab(name)
     tabButton.Position = UDim2.new(0, 0, 0, 1)
     tabButton.BackgroundColor3 = Theme.TabBg
     tabButton.BorderSizePixel = 0
-    tabButton.Font = Theme.Font
+    applyFont(tabButton)
     tabButton.TextSize = Theme.TextSize
     tabButton.TextColor3 = Theme.TextColor
     tabButton.Text = name
@@ -377,7 +387,7 @@ function setupContainerMethods(container, parentFrame)
         arrowLabel.Name = "Arrow"
         arrowLabel.Size = UDim2.new(0, 20, 1, 0)
         arrowLabel.BackgroundTransparency = 1
-        arrowLabel.Font = Theme.Font
+        applyFont(arrowLabel)
         arrowLabel.TextSize = Theme.TextSize + 2
         arrowLabel.TextColor3 = Theme.TextColor
         arrowLabel.Text = "▼"
@@ -388,7 +398,7 @@ function setupContainerMethods(container, parentFrame)
         titleLabel.Size = UDim2.new(1, -20, 1, 0)
         titleLabel.Position = UDim2.new(0, 20, 0, 0)
         titleLabel.BackgroundTransparency = 1
-        titleLabel.Font = Theme.Font
+        applyFont(titleLabel)
         titleLabel.TextSize = Theme.TextSize
         titleLabel.TextColor3 = Theme.TextColor
         titleLabel.Text = name
@@ -448,7 +458,7 @@ function setupContainerMethods(container, parentFrame)
         local label = Instance.new("TextLabel")
         label.Size = UDim2.new(1, 0, 1, 0)
         label.BackgroundTransparency = 1
-        label.Font = Theme.Font
+        applyFont(label)
         label.TextSize = Theme.TextSize
         label.TextColor3 = Theme.TextColor
         label.Text = text
@@ -477,7 +487,7 @@ function setupContainerMethods(container, parentFrame)
         btn.BackgroundColor3 = Theme.ButtonBg
         btn.BorderSizePixel = 1
         btn.BorderColor3 = Theme.WindowBorder
-        btn.Font = Theme.Font
+        applyFont(btn)
         btn.TextSize = Theme.TextSize
         btn.TextColor3 = Theme.TextColor
         btn.Text = text
@@ -548,7 +558,7 @@ function setupContainerMethods(container, parentFrame)
         local check = Instance.new("TextLabel")
         check.Size = UDim2.new(1, 0, 1, 0)
         check.BackgroundTransparency = 1
-        check.Font = Theme.Font
+        applyFont(check)
         check.TextSize = Theme.TextSize + 2
         check.TextColor3 = Theme.TextColor
         check.Text = state and "✓" or ""
@@ -559,7 +569,7 @@ function setupContainerMethods(container, parentFrame)
         label.Size = UDim2.new(1, -20, 1, 0)
         label.Position = UDim2.new(0, 20, 0, 0)
         label.BackgroundTransparency = 1
-        label.Font = Theme.Font
+        applyFont(label)
         label.TextSize = Theme.TextSize
         label.TextColor3 = Theme.TextColor
         label.Text = text
@@ -643,7 +653,7 @@ function setupContainerMethods(container, parentFrame)
         local valueLabel = Instance.new("TextLabel")
         valueLabel.Size = UDim2.new(1, 0, 1, 0)
         valueLabel.BackgroundTransparency = 1
-        valueLabel.Font = Theme.Font
+        applyFont(valueLabel)
         valueLabel.TextSize = Theme.TextSize - 1
         valueLabel.TextColor3 = Theme.TextColor
         valueLabel.Text = string.format("%.3f", value)
@@ -654,7 +664,7 @@ function setupContainerMethods(container, parentFrame)
         label.Size = UDim2.new(1, -165, 1, 0)
         label.Position = UDim2.new(0, 160, 0, 0)
         label.BackgroundTransparency = 1
-        label.Font = Theme.Font
+        applyFont(label)
         label.TextSize = Theme.TextSize
         label.TextColor3 = Theme.TextColor
         label.Text = text
@@ -739,7 +749,7 @@ function setupContainerMethods(container, parentFrame)
         dropdownBtn.BackgroundColor3 = Theme.FrameBg
         dropdownBtn.BorderSizePixel = 1
         dropdownBtn.BorderColor3 = Theme.WindowBorder
-        dropdownBtn.Font = Theme.Font
+        applyFont(dropdownBtn)
         dropdownBtn.TextSize = Theme.TextSize
         dropdownBtn.TextColor3 = Theme.TextColor
         dropdownBtn.Text = " " .. currentSelection
@@ -752,7 +762,7 @@ function setupContainerMethods(container, parentFrame)
         arrowLabel.Size = UDim2.new(0, 20, 1, 0)
         arrowLabel.Position = UDim2.new(1, -20, 0, 0)
         arrowLabel.BackgroundTransparency = 1
-        arrowLabel.Font = Theme.Font
+        applyFont(arrowLabel)
         arrowLabel.TextSize = Theme.TextSize - 2
         arrowLabel.TextColor3 = Theme.TextDisabled
         arrowLabel.Text = "▼"
@@ -763,7 +773,7 @@ function setupContainerMethods(container, parentFrame)
         label.Size = UDim2.new(1, -165, 1, 0)
         label.Position = UDim2.new(0, 160, 0, 0)
         label.BackgroundTransparency = 1
-        label.Font = Theme.Font
+        applyFont(label)
         label.TextSize = Theme.TextSize
         label.TextColor3 = Theme.TextColor
         label.Text = text
@@ -808,7 +818,7 @@ function setupContainerMethods(container, parentFrame)
                 optBtn.Size = UDim2.new(1, 0, 0, 20)
                 optBtn.BackgroundColor3 = Theme.FrameBg
                 optBtn.BorderSizePixel = 0
-                optBtn.Font = Theme.Font
+                applyFont(optBtn)
                 optBtn.TextSize = Theme.TextSize
                 optBtn.TextColor3 = option == currentSelection and Theme.TitleBg or Theme.TextColor
                 optBtn.Text = " " .. option
@@ -944,7 +954,7 @@ function setupContainerMethods(container, parentFrame)
         label.Size = UDim2.new(1, -45, 1, 0)
         label.Position = UDim2.new(0, 42, 0, 0)
         label.BackgroundTransparency = 1
-        label.Font = Theme.Font
+        applyFont(label)
         label.TextSize = Theme.TextSize
         label.TextColor3 = Theme.TextColor
         label.Text = text
@@ -1078,7 +1088,7 @@ function setupContainerMethods(container, parentFrame)
             box.BackgroundColor3 = Theme.FrameBg
             box.BorderSizePixel = 1
             box.BorderColor3 = Theme.WindowBorder
-            box.Font = Theme.Font
+            applyFont(box)
             box.TextSize = Theme.TextSize - 1
             box.TextColor3 = Theme.TextColor
             box.ClearTextOnFocus = false
