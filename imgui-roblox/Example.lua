@@ -161,7 +161,7 @@ local configTab = window:CreateTab("Config")
 
 local helpSection = configTab:CreateSection("Help")
 helpSection:CreateLabel("xGui — a Dear ImGui style library for exploits.")
-helpSection:CreateLabel("Version: " .. tostring(xGui.Version or "2.2.0"))
+helpSection:CreateLabel("Version: " .. tostring(xGui.Version or "2.3.0"))
 helpSection:CreateButton("Documentation", function()
     print("Docs: github.com/x8lua/scripts")
 end)

@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "2.2.0"
+xGui.Version = "2.3.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -1523,6 +1523,105 @@ function setupContainerMethods(container, parentFrame)
         end
         function methods:GetText()
             return textInput.Text
+        end
+        return methods
+    end
+
+    -- 8. Create Keybind Selector
+    function container:CreateKeybind(text, defaultKey, callback)
+        local keybindContainer = Instance.new("Frame")
+        keybindContainer.Name = text .. "_Keybind"
+        keybindContainer.Size = UDim2.new(1, 0, 0, 20)
+        keybindContainer.BackgroundTransparency = 1
+        keybindContainer.Parent = parentFrame
+        
+        local currentKey = defaultKey or Enum.KeyCode.E
+        local isListening = false
+        
+        local keyBtn = Instance.new("TextButton")
+        keyBtn.Size = UDim2.new(0, 150, 1, -4)
+        keyBtn.Position = UDim2.new(0, 0, 0, 2)
+        keyBtn.BackgroundColor3 = Theme.FrameBg
+        keyBtn.BorderSizePixel = 1
+        keyBtn.BorderColor3 = Theme.WindowBorder
+        applyFont(keyBtn)
+        keyBtn.TextSize = Theme.TextSize - 1
+        keyBtn.TextColor3 = Theme.TextColor
+        keyBtn.Text = " [ " .. currentKey.Name .. " ] "
+        keyBtn.Parent = keybindContainer
+        
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -165, 1, 0)
+        label.Position = UDim2.new(0, 160, 0, 0)
+        label.BackgroundTransparency = 1
+        applyFont(label)
+        label.TextSize = Theme.TextSize
+        label.TextColor3 = Theme.TextColor
+        label.Text = text
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = keybindContainer
+        
+        local inputConnection
+        
+        local function startListening()
+            if isListening then return end
+            isListening = true
+            keyBtn.Text = " [ Press Key ] "
+            keyBtn.TextColor3 = Theme.TitleBg
+            
+            if inputConnection then inputConnection:Disconnect() end
+            
+            inputConnection = UserInputService.InputBegan:Connect(function(input, processed)
+                if input.UserInputType == Enum.UserInputType.Keyboard then
+                    local key = input.KeyCode
+                    if key ~= Enum.KeyCode.Unknown and key ~= Enum.KeyCode.Escape then
+                        currentKey = key
+                        keyBtn.Text = " [ " .. currentKey.Name .. " ] "
+                        keyBtn.TextColor3 = Theme.TextColor
+                        isListening = false
+                        if inputConnection then inputConnection:Disconnect() end
+                        pcall(callback, currentKey, false)
+                    elseif key == Enum.KeyCode.Escape then
+                        keyBtn.Text = " [ " .. currentKey.Name .. " ] "
+                        keyBtn.TextColor3 = Theme.TextColor
+                        isListening = false
+                        if inputConnection then inputConnection:Disconnect() end
+                    end
+                end
+            end)
+        end
+        
+        keyBtn.MouseButton1Click:Connect(startListening)
+        
+        local globalConnection
+        globalConnection = UserInputService.InputBegan:Connect(function(input, processed)
+            if not keybindContainer.Parent then
+                globalConnection:Disconnect()
+                if inputConnection then inputConnection:Disconnect() end
+                return
+            end
+            if not processed and not isListening then
+                if input.KeyCode == currentKey then
+                    pcall(callback, currentKey, true)
+                end
+            end
+        end)
+        
+        keyBtn.MouseEnter:Connect(function()
+            if not isListening then keyBtn.BackgroundColor3 = Theme.FrameBgHovered end
+        end)
+        keyBtn.MouseLeave:Connect(function()
+            if not isListening then keyBtn.BackgroundColor3 = Theme.FrameBg end
+        end)
+        
+        local methods = {}
+        function methods:GetKey()
+            return currentKey
+        end
+        function methods:SetKey(newKey)
+            currentKey = newKey
+            keyBtn.Text = " [ " .. currentKey.Name .. " ] "
+            pcall(callback, currentKey, false)
         end
         return methods
     end
