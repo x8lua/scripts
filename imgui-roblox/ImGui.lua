@@ -1394,9 +1394,12 @@ function setupContainerMethods(container, parentFrame)
         
         -- Track panel position via RenderStepped to follow window drag
         local guiService = game:GetService("GuiService")
-        local posConn = RunService.RenderStepped:Connect(function()
+        local posConn
+        posConn = RunService.RenderStepped:Connect(function()
             if not pickerContainer.Parent then
-                posConn:Disconnect()
+                if posConn then
+                    posConn:Disconnect()
+                end
                 pickerPanel:Destroy()
                 return
             end
