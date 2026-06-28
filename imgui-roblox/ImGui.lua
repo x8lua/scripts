@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "2.1.0"
+xGui.Version = "2.2.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -299,19 +299,9 @@ function xGui.new(title, toggleKey)
         end
     end)
     
-    -- Window Close Functionality (with smooth outro)
+    -- Window Close Functionality (with confirmation modal)
     closeButton.MouseButton1Click:Connect(function()
-        local outroInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-        local targetSize = self.WindowSize
-        local outroSize = UDim2.new(0, targetSize.X.Offset * 0.85, 0, targetSize.Y.Offset * 0.85)
-        local tw = TweenService:Create(cg, outroInfo, {
-            GroupTransparency = 1,
-            Size = outroSize
-        })
-        tw:Play()
-        tw.Completed:Connect(function()
-            screenGui:Destroy()
-        end)
+        self:ShowCloseConfirmation()
     end)
     
     -- Keyboard toggle key support (customizable, defaults to Insert)
@@ -709,7 +699,7 @@ function xGui:ShowErrorPopup(errorMessage)
     addHover(checkBtn)
 end
 
--- Premium visual toast notification manager
+-- Premium visual toast notification manager (inside window corner)
 function xGui:Notify(options)
     local titleText = options.Title or "Notification"
     local contentText = options.Content or ""
@@ -718,19 +708,20 @@ function xGui:Notify(options)
     local screenGui = self.ScreenGui
     if not screenGui then return end
     
-    local container = screenGui:FindFirstChild("NotificationContainer")
+    local container = self.MainFrame:FindFirstChild("NotificationContainer")
     if not container then
         container = Instance.new("Frame")
         container.Name = "NotificationContainer"
-        container.Size = UDim2.new(0, 260, 1, -20)
-        container.Position = UDim2.new(1, -270, 0, 10)
+        container.Size = UDim2.new(0, 170, 0, 160)
+        container.Position = UDim2.new(0, 5, 1, -170)
         container.BackgroundTransparency = 1
-        container.Parent = screenGui
+        container.ZIndex = 400
+        container.Parent = self.MainFrame
         
         local layout = Instance.new("UIListLayout")
         layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-        layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-        layout.Padding = UDim.new(0, 6)
+        layout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+        layout.Padding = UDim.new(0, 4)
         layout.Parent = container
     end
     
@@ -741,6 +732,7 @@ function xGui:Notify(options)
     toast.BackgroundColor3 = Theme.WindowBg
     toast.BorderSizePixel = 1
     toast.GroupTransparency = 1
+    toast.ZIndex = 401
     toast.Parent = container
     
     local toastStroke = Instance.new("UIStroke")
@@ -749,31 +741,33 @@ function xGui:Notify(options)
     toastStroke.Parent = toast
     
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.new(1, -10, 0, 20)
-    title.Position = UDim2.new(0, 10, 0, 4)
+    title.Size = UDim2.new(1, -10, 0, 18)
+    title.Position = UDim2.new(0, 10, 0, 3)
     title.BackgroundTransparency = 1
     applyFont(title)
-    title.TextSize = Theme.TextSize
+    title.TextSize = Theme.TextSize - 1
     title.TextColor3 = Theme.TitleBg
     title.Text = titleText
     title.TextXAlignment = Enum.TextXAlignment.Left
+    title.ZIndex = 402
     title.Parent = toast
     
     local desc = Instance.new("TextLabel")
     desc.Size = UDim2.new(1, -20, 0, 0)
-    desc.Position = UDim2.new(0, 10, 0, 24)
+    desc.Position = UDim2.new(0, 10, 0, 21)
     desc.BackgroundTransparency = 1
     applyFont(desc)
-    desc.TextSize = Theme.TextSize - 1
+    desc.TextSize = Theme.TextSize - 2
     desc.TextColor3 = Theme.TextColor
     desc.Text = contentText
     desc.TextXAlignment = Enum.TextXAlignment.Left
     desc.TextWrapped = true
     desc.AutomaticSize = Enum.AutomaticSize.Y
+    desc.ZIndex = 402
     desc.Parent = toast
     
     local bottomPadding = Instance.new("UIPadding")
-    bottomPadding.PaddingBottom = UDim.new(0, 8)
+    bottomPadding.PaddingBottom = UDim.new(0, 6)
     bottomPadding.Parent = toast
     
     TweenService:Create(toast, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
@@ -791,6 +785,126 @@ function xGui:Notify(options)
             end)
         end
     end)
+end
+
+-- Close Confirmation Dialog Modal
+function xGui:ShowCloseConfirmation()
+    if self.MainFrame:FindFirstChild("CloseConfirmation") then
+        self.MainFrame.CloseConfirmation:Destroy()
+    end
+
+    local popup = Instance.new("Frame")
+    popup.Name = "CloseConfirmation"
+    popup.Size = UDim2.new(1, 0, 1, 0)
+    popup.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    popup.BackgroundTransparency = 0.5
+    popup.ZIndex = 500
+    popup.Parent = self.MainFrame
+
+    local dialog = Instance.new("Frame")
+    dialog.Size = UDim2.new(0, 240, 0, 100)
+    dialog.Position = UDim2.new(0.5, -120, 0.5, -50)
+    dialog.BackgroundColor3 = Theme.WindowBg
+    dialog.BorderSizePixel = 1
+    dialog.BorderColor3 = Theme.WindowBorder
+    dialog.ZIndex = 501
+    dialog.Parent = popup
+
+    local dialogStroke = Instance.new("UIStroke")
+    dialogStroke.Color = Theme.WindowBorder
+    dialogStroke.Thickness = 1
+    dialogStroke.Parent = dialog
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 20)
+    title.BackgroundColor3 = Theme.TitleBg
+    title.BorderSizePixel = 0
+    applyFont(title)
+    title.TextSize = Theme.TextSize
+    title.TextColor3 = Theme.TextColor
+    title.Text = "  Confirmation"
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.ZIndex = 502
+    title.Parent = dialog
+
+    local message = Instance.new("TextLabel")
+    message.Size = UDim2.new(1, -20, 1, -44)
+    message.Position = UDim2.new(0, 10, 0, 22)
+    message.BackgroundTransparency = 1
+    applyFont(message)
+    message.TextSize = Theme.TextSize
+    message.TextColor3 = Color3.fromRGB(230, 230, 230)
+    message.Text = "Are you sure you want to exit?"
+    message.TextWrapped = true
+    message.TextXAlignment = Enum.TextXAlignment.Center
+    message.TextYAlignment = Enum.TextYAlignment.Center
+    message.ZIndex = 502
+    message.Parent = dialog
+
+    local buttonsFrame = Instance.new("Frame")
+    buttonsFrame.Size = UDim2.new(1, 0, 0, 20)
+    buttonsFrame.Position = UDim2.new(0, 0, 1, -26)
+    buttonsFrame.BackgroundTransparency = 1
+    buttonsFrame.ZIndex = 502
+    buttonsFrame.Parent = dialog
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.Padding = UDim.new(0, 20)
+    layout.Parent = buttonsFrame
+
+    local yesBtn = Instance.new("TextButton")
+    yesBtn.Size = UDim2.new(0, 50, 1, 0)
+    yesBtn.BackgroundColor3 = Theme.ButtonBg
+    yesBtn.BorderSizePixel = 1
+    yesBtn.BorderColor3 = Theme.WindowBorder
+    applyFont(yesBtn)
+    yesBtn.TextSize = Theme.TextSize
+    yesBtn.TextColor3 = Theme.TextColor
+    yesBtn.Text = "Yes"
+    yesBtn.ZIndex = 503
+    yesBtn.Parent = buttonsFrame
+
+    local noBtn = Instance.new("TextButton")
+    noBtn.Size = UDim2.new(0, 50, 1, 0)
+    noBtn.BackgroundColor3 = Theme.ButtonBg
+    noBtn.BorderSizePixel = 1
+    noBtn.BorderColor3 = Theme.WindowBorder
+    applyFont(noBtn)
+    noBtn.TextSize = Theme.TextSize
+    noBtn.TextColor3 = Theme.TextColor
+    noBtn.Text = "No"
+    noBtn.ZIndex = 503
+    noBtn.Parent = buttonsFrame
+
+    yesBtn.MouseButton1Click:Connect(function()
+        popup:Destroy()
+        local cg = self.CanvasGroup
+        local screenGui = self.ScreenGui
+        local outroInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+        local targetSize = self.WindowSize
+        local outroSize = UDim2.new(0, targetSize.X.Offset * 0.85, 0, targetSize.Y.Offset * 0.85)
+        local tw = TweenService:Create(cg, outroInfo, {
+            GroupTransparency = 1,
+            Size = outroSize
+        })
+        tw:Play()
+        tw.Completed:Connect(function()
+            screenGui:Destroy()
+        end)
+    end)
+
+    noBtn.MouseButton1Click:Connect(function()
+        popup:Destroy()
+    end)
+
+    local function addHover(btn)
+        btn.MouseEnter:Connect(function() btn.BackgroundColor3 = Theme.ButtonBgHovered end)
+        btn.MouseLeave:Connect(function() btn.BackgroundColor3 = Theme.ButtonBg end)
+    end
+    addHover(yesBtn)
+    addHover(noBtn)
 end
 
 -- Shared Widget Creator Setup
