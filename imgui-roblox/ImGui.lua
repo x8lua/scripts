@@ -463,6 +463,12 @@ function xGui.new(title, toggleKey)
         }):Play()
     end)
 
+    -- Built-in Console Tab (layout always rightmost)
+    local consoleTab = self:CreateTab("Console")
+    consoleTab.Button.LayoutOrder = 99999
+    consoleTab.Button.TextColor3 = Color3.fromRGB(150, 150, 150)
+    self.ConsoleTab = consoleTab
+    self.ConsoleLogs = {}
 
     return self
 end
@@ -552,7 +558,135 @@ function xGui:CreateTab(name)
     -- Add widget components to tab
     setupContainerMethods(tab, tabView)
     
+    tab.Select = selectTab
     return tab
+end
+
+-- Built-in Console Log Writer
+function xGui:AddLog(text, isError)
+    table.insert(self.ConsoleLogs, {Text = text, IsError = isError})
+    
+    local logLabel = Instance.new("TextLabel")
+    logLabel.Size = UDim2.new(1, 0, 0, 0)
+    logLabel.AutomaticSize = Enum.AutomaticSize.Y
+    logLabel.BackgroundTransparency = 1
+    applyFont(logLabel)
+    logLabel.TextSize = Theme.TextSize - 1
+    logLabel.TextColor3 = isError and Color3.fromRGB(255, 90, 90) or Color3.fromRGB(220, 220, 220)
+    logLabel.Text = (isError and "[Error] " or "[Log] ") .. tostring(text)
+    logLabel.TextXAlignment = Enum.TextXAlignment.Left
+    logLabel.TextWrapped = true
+    logLabel.Parent = self.ConsoleTab.View
+end
+
+-- Modal popup window for errors
+function xGui:ShowErrorPopup(errorMessage)
+    if self.MainFrame:FindFirstChild("ErrorPopup") then
+        self.MainFrame.ErrorPopup:Destroy()
+    end
+
+    local popup = Instance.new("Frame")
+    popup.Name = "ErrorPopup"
+    popup.Size = UDim2.new(1, 0, 1, 0)
+    popup.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    popup.BackgroundTransparency = 0.5
+    popup.ZIndex = 500
+    popup.Parent = self.MainFrame
+
+    local dialog = Instance.new("Frame")
+    dialog.Size = UDim2.new(0, 320, 0, 140)
+    dialog.Position = UDim2.new(0.5, -160, 0.5, -70)
+    dialog.BackgroundColor3 = Theme.WindowBg
+    dialog.BorderSizePixel = 1
+    dialog.BorderColor3 = Color3.fromRGB(200, 50, 50)
+    dialog.ZIndex = 501
+    dialog.Parent = popup
+
+    local dialogStroke = Instance.new("UIStroke")
+    dialogStroke.Color = Color3.fromRGB(200, 50, 50)
+    dialogStroke.Thickness = 1
+    dialogStroke.Parent = dialog
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 24)
+    title.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+    title.BorderSizePixel = 0
+    applyFont(title)
+    title.TextSize = Theme.TextSize
+    title.TextColor3 = Theme.TextColor
+    title.Text = "  Oops!"
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.ZIndex = 502
+    title.Parent = dialog
+
+    local message = Instance.new("TextLabel")
+    message.Size = UDim2.new(1, -20, 1, -64)
+    message.Position = UDim2.new(0, 10, 0, 30)
+    message.BackgroundTransparency = 1
+    applyFont(message)
+    message.TextSize = Theme.TextSize - 1
+    message.TextColor3 = Color3.fromRGB(230, 230, 230)
+    message.Text = errorMessage
+    message.TextWrapped = true
+    message.TextXAlignment = Enum.TextXAlignment.Center
+    message.TextYAlignment = Enum.TextYAlignment.Center
+    message.ZIndex = 502
+    message.Parent = dialog
+
+    local buttonsFrame = Instance.new("Frame")
+    buttonsFrame.Size = UDim2.new(1, 0, 0, 24)
+    buttonsFrame.Position = UDim2.new(0, 0, 1, -30)
+    buttonsFrame.BackgroundTransparency = 1
+    buttonsFrame.ZIndex = 502
+    buttonsFrame.Parent = dialog
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.Padding = UDim.new(0, 15)
+    layout.Parent = buttonsFrame
+
+    local okBtn = Instance.new("TextButton")
+    okBtn.Size = UDim2.new(0, 60, 1, 0)
+    okBtn.BackgroundColor3 = Theme.ButtonBg
+    okBtn.BorderSizePixel = 1
+    okBtn.BorderColor3 = Theme.WindowBorder
+    applyFont(okBtn)
+    okBtn.TextSize = Theme.TextSize
+    okBtn.TextColor3 = Theme.TextColor
+    okBtn.Text = "Ok"
+    okBtn.ZIndex = 503
+    okBtn.Parent = buttonsFrame
+
+    local checkBtn = Instance.new("TextButton")
+    checkBtn.Size = UDim2.new(0, 60, 1, 0)
+    checkBtn.BackgroundColor3 = Theme.ButtonBg
+    checkBtn.BorderSizePixel = 1
+    checkBtn.BorderColor3 = Theme.WindowBorder
+    applyFont(checkBtn)
+    checkBtn.TextSize = Theme.TextSize
+    checkBtn.TextColor3 = Theme.TextColor
+    checkBtn.Text = "Check"
+    checkBtn.ZIndex = 503
+    checkBtn.Parent = buttonsFrame
+
+    okBtn.MouseButton1Click:Connect(function()
+        popup:Destroy()
+    end)
+
+    checkBtn.MouseButton1Click:Connect(function()
+        popup:Destroy()
+        if self.ConsoleTab and self.ConsoleTab.Select then
+            self.ConsoleTab.Select()
+        end
+    end)
+
+    local function addHover(btn)
+        btn.MouseEnter:Connect(function() btn.BackgroundColor3 = Theme.ButtonBgHovered end)
+        btn.MouseLeave:Connect(function() btn.BackgroundColor3 = Theme.ButtonBg end)
+    end
+    addHover(okBtn)
+    addHover(checkBtn)
 end
 
 -- Shared Widget Creator Setup
@@ -1679,6 +1813,17 @@ function setupContainerMethods(container, parentFrame)
                 }),
                 workspace = wrap(workspace),
                 script = wrap(Instance.new("Script")),
+                print = function(...)
+                    local args = {...}
+                    local strs = {}
+                    for i = 1, #args do
+                        strs[i] = tostring(args[i])
+                    end
+                    local msg = table.concat(strs, " ")
+                    if container.Window then
+                        container.Window:AddLog(msg, false)
+                    end
+                end,
             }, {
                 __index = getfenv(callback)
             })
@@ -1686,7 +1831,12 @@ function setupContainerMethods(container, parentFrame)
             setfenv(callback, env)
             local ok, err = pcall(callback, true)
             if not ok then
-                warn("[xGui Script Execution Error]:", tostring(err))
+                local errMsg = tostring(err)
+                warn("[xGui Script Execution Error]:", errMsg)
+                if container.Window then
+                    container.Window:AddLog(errMsg, true)
+                    container.Window:ShowErrorPopup(errMsg)
+                end
             end
         end
 

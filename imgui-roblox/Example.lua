@@ -6,7 +6,7 @@ local isExecutor = (typeof(identifyexecutor) == "function") or (typeof(getexecut
 
 if isExecutor then
     local getOk, code = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=14")
+        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=15")
     end)
     if getOk and code then
         xGui = loadstring(code)()
@@ -152,6 +152,9 @@ local myScript = scriptTab:Script("Custom UI", false, function(state)
 
     -- 最後把整個 UI 掛到玩家螢幕上
     screenGui.Parent = playerGui
+
+    -- Deliberately trigger an error to test the Console / Error Popup feature!
+    error("測試錯誤：未定義的全局變量呼叫 (Deliberate test error!)")
 end)
 
 scriptTab:CreateLabel("Press RightShift to toggle UI visibility.")
