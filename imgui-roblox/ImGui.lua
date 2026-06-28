@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "1.7.0"
+xGui.Version = "1.8.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -1730,6 +1730,16 @@ function setupContainerMethods(container, parentFrame)
                         return wrap(realParent)
                     end
                     
+                    if realObj:GetAttribute("IsFakeScreenGui") then
+                        if key == "ClassName" then
+                            return "ScreenGui"
+                        elseif key == "IsA" then
+                            return function(_, className)
+                                return className == "ScreenGui" or className == "LayerCollector" or className == "GuiBase2d" or className == "GuiBase" or className == "Instance"
+                            end
+                        end
+                    end
+                    
                     local val
                     local ok = pcall(function()
                         val = realObj[key]
@@ -1769,7 +1779,7 @@ function setupContainerMethods(container, parentFrame)
                     val = unwrap(val)
                     
                     if key == "Parent" then
-                        if realObj:IsA("Frame") and realObj.Name == "FakeScreenGui" then
+                        if realObj:GetAttribute("IsFakeScreenGui") then
                             realObj.Parent = renderSurface
                             return
                         end
@@ -1799,6 +1809,7 @@ function setupContainerMethods(container, parentFrame)
                     if className == "ScreenGui" then
                         realObj = Instance.new("Frame")
                         realObj.Name = "FakeScreenGui"
+                        realObj:SetAttribute("IsFakeScreenGui", true)
                         realObj.Size = UDim2.new(1, 0, 0, 220)
                         realObj.BackgroundTransparency = 1
                         realObj.BorderSizePixel = 0
