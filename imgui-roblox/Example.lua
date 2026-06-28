@@ -2,18 +2,23 @@
 -- Run this in your executor
 
 local xGui
-local ok, res = pcall(function()
-    return require(game:GetService("ReplicatedStorage"):WaitForChild("xGui", 1))
-end)
+local isExecutor = (typeof(identifyexecutor) == "function") or (typeof(getexecutorname) == "function") or (game:GetService("RunService"):IsStudio() == false)
 
-if ok and res then
-    xGui = res
-else
+if isExecutor then
     local getOk, code = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=13")
+        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=14")
     end)
     if getOk and code then
         xGui = loadstring(code)()
+    end
+end
+
+if not xGui then
+    local ok, res = pcall(function()
+        return require(game:GetService("ReplicatedStorage"):WaitForChild("xGui", 1))
+    end)
+    if ok and res then
+        xGui = res
     else
         error("[xGui] Failed to load library.")
     end

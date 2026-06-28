@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "1.2.0"
+xGui.Version = "1.3.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -1684,7 +1684,10 @@ function setupContainerMethods(container, parentFrame)
             })
             
             setfenv(callback, env)
-            pcall(callback, true)
+            local ok, err = pcall(callback, true)
+            if not ok then
+                warn("[xGui Script Execution Error]:", tostring(err))
+            end
         end
 
         local function toggle()
