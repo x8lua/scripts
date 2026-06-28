@@ -87,6 +87,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 		isProfileShifted = true
 		isNitroActive = true
 		
+		nitroOnceSound.TimePosition = 0.5
 		nitroOnceSound:Play()
 		nitroLoopSound:Play()
 		
