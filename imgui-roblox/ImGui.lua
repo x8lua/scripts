@@ -61,12 +61,16 @@ do
 end
 
 -- Helper: apply the correct font to any text GuiObject.
--- Uses FontFace (custom TTF) when loaded, otherwise Enum.Font.Code.
+-- Uses FontFace (custom TTF) when loaded, otherwise falls back to Enum.Font.Code.
+-- Wrapped in pcall so a bad font never crashes the whole UI.
 local function applyFont(obj)
     if Theme.FontFace then
-        obj.FontFace = Theme.FontFace
+        local ok = pcall(function() obj.FontFace = Theme.FontFace end)
+        if not ok then
+            pcall(function() obj.Font = Enum.Font.Code end)
+        end
     else
-        obj.Font = Theme.Font
+        pcall(function() obj.Font = Enum.Font.Code end)
     end
 end
 
