@@ -1555,29 +1555,130 @@ function setupContainerMethods(container, parentFrame)
             clearUI()
             if not state then return end
             
-            -- Setup sandbox environment for the callback
-            local env = setmetatable({
-                Button = function(txt, cb)
-                    return renderObj:CreateButton(txt, cb)
-                end,
-                Toggle = function(txt, def, cb)
-                    return renderObj:CreateToggle(txt, def, cb)
-                end,
-                Slider = function(txt, min, max, def, cb)
-                    return renderObj:CreateSlider(txt, min, max, def, cb)
-                end,
-                Dropdown = function(txt, opts, def, cb)
-                    return renderObj:CreateDropdown(txt, opts, def, cb)
-                end,
-                ColorPicker = function(txt, def, cb)
-                    return renderObj:CreateColorPicker(txt, def, cb)
-                end,
-                Label = function(txt)
-                    return renderObj:CreateLabel(txt)
-                end,
-                Section = function(secName)
-                    return renderObj:CreateSection(secName)
-                end,
+            local proxyMap = {}
+            local realMap = {}
+            
+            local function isProxy(obj)
+                return realMap[obj] ~= nil
+            end
+            
+            local function unwrap(obj)
+                return realMap[obj] or obj
+            end
+            
+            local function wrap(realObj)
+                if not realObj then return nil end
+                if typeof(realObj) ~= "Instance" and typeof(realObj) ~= "userdata" then
+                    return realObj
+                end
+                if proxyMap[realObj] then return proxyMap[realObj] end
+                
+                local proxy = newproxy(true)
+                local meta = getmetatable(proxy)
+                
+                meta.__index = function(self, key)
+                    if key == "Parent" then
+                        local realParent = realObj.Parent
+                        if realParent == renderSurface then
+                            return playerGui
+                        end
+                        return wrap(realParent)
+                    end
+                    
+                    local val = realObj[key]
+                    if typeof(val) == "function" then
+                        return function(_, ...)
+                            local args = {...}
+                            for i, arg in ipairs(args) do
+                                args[i] = unwrap(arg)
+                            end
+                            local results = {val(realObj, unpack(args))}
+                            for i, res in ipairs(results) do
+                                if typeof(res) == "Instance" then
+                                    results[i] = wrap(res)
+                                end
+                            end
+                            return unpack(results)
+                        end
+                    end
+                    
+                    if typeof(val) == "Instance" then
+                        return wrap(val)
+                    end
+                    return val
+                end
+                
+                meta.__newindex = function(self, key, val)
+                    val = unwrap(val)
+                    
+                    if key == "Parent" then
+                        if realObj:IsA("Frame") and realObj.Name == "FakeScreenGui" then
+                            local isUIHost = (val == playerGui) or (typeof(val) == "Instance" and (val:IsA("PlayerGui") or val:IsA("ScreenGui") or val:IsA("CoreGui")))
+                            if isUIHost then
+                                realObj.Parent = renderSurface
+                                return
+                            end
+                        end
+                    end
+                    
+                    realObj[key] = val
+                end
+                
+                meta.__tostring = function(self)
+                    return tostring(realObj)
+                end
+                
+                proxyMap[realObj] = proxy
+                realMap[proxy] = realObj
+                return proxy
+            end
+            
+            local customInstance = {
+                new = function(className, parent)
+                    parent = unwrap(parent)
+                    local realObj
+                    if className == "ScreenGui" then
+                        realObj = Instance.new("Frame")
+                        realObj.Name = "FakeScreenGui"
+                        realObj.Size = UDim2.new(1, 0, 0, 220)
+                        realObj.BackgroundTransparency = 1
+                        realObj.BorderSizePixel = 0
+                    else
+                        realObj = Instance.new(className)
+                    end
+                    
+                    if parent then
+                        realObj.Parent = parent
+                    end
+                    return wrap(realObj)
+                end
+            }
+            
+            local env
+            env = setmetatable({
+                Instance = customInstance,
+                game = setmetatable({
+                    GetService = function(_, serviceName)
+                        return wrap(game:GetService(serviceName))
+                    end,
+                    getService = function(_, serviceName)
+                        return wrap(game:GetService(serviceName))
+                    end,
+                    Players = wrap(game:GetService("Players")),
+                    players = wrap(game:GetService("Players")),
+                    Workspace = wrap(workspace),
+                    workspace = wrap(workspace),
+                }, {
+                    __index = function(_, k)
+                        local val = game[k]
+                        if typeof(val) == "Instance" then
+                            return wrap(val)
+                        end
+                        return val
+                    end
+                }),
+                workspace = wrap(workspace),
+                script = wrap(Instance.new("Script")),
             }, {
                 __index = getfenv(callback)
             })

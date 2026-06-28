@@ -10,7 +10,7 @@ if ok and res then
     xGui = res
 else
     local getOk, code = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=11")
+        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=12")
     end)
     if getOk and code then
         xGui = loadstring(code)()
@@ -62,25 +62,91 @@ local scriptTab = window:CreateTab("Script")
 scriptTab:CreateLabel("Script container demo:")
 
 local myScript = scriptTab:Script("Custom UI", false, function(state)
-    if state then
-        Section("Script Controls")
-        
-        local autoFarm = false
-        Toggle("Enable Auto-Farm", false, function(val)
-            autoFarm = val
-            print("Auto-farm status:", autoFarm)
-        end)
-        
-        Slider("Speed multiplier", 1, 10, 5, function(val)
-            print("Speed set to:", val)
-        end)
-        
-        Button("Execute Action", function()
-            print("Clicked Execute! AutoFarm is:", autoFarm)
-        end)
-    else
-        print("Script toggled off!")
+    if not state then
+        return
     end
+    --!strict
+    -- 上面那行是 Luau 的嚴格類型檢查宣告，強迫症工程師必備
+
+    -- 引用 Roblox 的內建服務
+    local Players = game:GetService("Players")
+    local TweenService = game:GetService("TweenService")
+
+    local localPlayer = Players.LocalPlayer
+    local playerGui = localPlayer:WaitForChild("PlayerGui") :: PlayerGui
+
+    -- 1. 建立 UI 外殼 (ScreenGui)
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "RandomGui"
+    screenGui.ResetOnSpawn = false
+
+    -- 2. 建立主視窗 (Frame)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 200)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -100) -- 居中
+    frame.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+
+    -- 加上一點點現代感的圓角
+    local frameCorner = Instance.new("UICorner")
+    frameCorner.CornerRadius = UDim.new(0, 12)
+    frameCorner.Parent = frame
+
+    -- 3. 建立標題文字 (TextLabel)
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, 0, 0, 50)
+    titleLabel.Text = "Luau 測試機關"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 20
+    titleLabel.Font = Enum.Font.SourceSansBold
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Parent = frame
+
+    -- 4. 建立那顆靈魂按鈕 (TextButton)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 180, 0, 50)
+    button.Position = UDim2.new(0.5, -90, 0.5, -10)
+    button.BackgroundColor3 = Color3.fromRGB(98, 86, 202)
+    button.Text = "點我！"
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.TextSize = 18
+    button.Font = Enum.Font.SourceSans
+    button.Parent = frame
+
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 8)
+    buttonCorner.Parent = button
+
+    -- 5. 計數與幹話邏輯
+    local clickCount: number = 0
+    local phrases: {string} = {
+        "哎呀，好爽！",
+        "力道不錯，再來！",
+        "在 Roblox 裡面點按鈕特別過癮？",
+        "恭喜你，你的滑鼠壽命減少了。",
+        "按鈕表示：別戳了，痛！"
+    }
+
+    -- 點擊事件
+    button.MouseButton1Click:Connect(function()
+        clickCount += 1
+        
+        -- 隨機換句話說
+        local randomPhrase = phrases[math.random(1, #phrases)]
+        button.Text = randomPhrase
+        
+        -- 點擊時搞個隨機顏色的動畫 (Tween)
+        local randomColor = Color3.fromRGB(math.random(50, 200), math.random(50, 200), math.random(150, 255))
+        local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tween = TweenService:Create(button, tweenInfo, {BackgroundColor3 = randomColor})
+        tween:Play()
+        
+        print("按鈕總共被臨幸了 " .. tostring(clickCount) .. " 次。")
+    end)
+
+    -- 最後把整個 UI 掛到玩家螢幕上
+    screenGui.Parent = playerGui
 end)
 
 scriptTab:CreateLabel("Press RightShift to toggle UI visibility.")
