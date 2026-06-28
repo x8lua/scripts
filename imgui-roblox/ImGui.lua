@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "1.8.0"
+xGui.Version = "2.1.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -317,36 +317,7 @@ function xGui.new(title, toggleKey)
     -- Keyboard toggle key support (customizable, defaults to Insert)
     self.ToggleConnection = UserInputService.InputBegan:Connect(function(input, processed)
         if not processed and input.KeyCode == self.ToggleKey then
-            self.Visible = not self.Visible
-            if not self.Visible then
-                -- Outro animation
-                local targetSize = self.WindowSize
-                local outroSize = UDim2.new(0, targetSize.X.Offset * 0.85, 0, targetSize.Y.Offset * 0.85)
-                local outroInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-                local t = TweenService:Create(cg, outroInfo, {
-                    GroupTransparency = 1,
-                    Size = outroSize
-                })
-                t:Play()
-                t.Completed:Connect(function()
-                    if not self.Visible then
-                        cg.Visible = false
-                    end
-                end)
-            else
-                -- Intro animation
-                cg.Visible = true
-                cg.GroupTransparency = 1
-                local targetSize = self.WindowSize
-                local startSize = UDim2.new(0, targetSize.X.Offset * 0.85, 0, targetSize.Y.Offset * 0.85)
-                cg.Size = startSize
-                
-                local introInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-                TweenService:Create(cg, introInfo, {
-                    GroupTransparency = 0,
-                    Size = targetSize
-                }):Play()
-            end
+            self:Toggle()
         end
     end)
 
@@ -477,6 +448,45 @@ function xGui.new(title, toggleKey)
     self.ConsoleLogs = {}
 
     return self
+end
+
+-- Programmatic Window Visibility Toggle (with transitions)
+function xGui:Toggle(visible)
+    if visible == nil then
+        visible = not self.Visible
+    end
+    self.Visible = visible
+    
+    local cg = self.CanvasGroup
+    if not self.Visible then
+        -- Outro animation
+        local targetSize = self.WindowSize
+        local outroSize = UDim2.new(0, targetSize.X.Offset * 0.85, 0, targetSize.Y.Offset * 0.85)
+        local outroInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+        local t = TweenService:Create(cg, outroInfo, {
+            GroupTransparency = 1,
+            Size = outroSize
+        })
+        t:Play()
+        t.Completed:Connect(function()
+            if not self.Visible then
+                cg.Visible = false
+            end
+        end)
+    else
+        -- Intro animation
+        cg.Visible = true
+        cg.GroupTransparency = 1
+        local targetSize = self.WindowSize
+        local startSize = UDim2.new(0, targetSize.X.Offset * 0.85, 0, targetSize.Y.Offset * 0.85)
+        cg.Size = startSize
+        
+        local introInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        TweenService:Create(cg, introInfo, {
+            GroupTransparency = 0,
+            Size = targetSize
+        }):Play()
+    end
 end
 
 -- Create Tab
@@ -697,6 +707,90 @@ function xGui:ShowErrorPopup(errorMessage)
     end
     addHover(okBtn)
     addHover(checkBtn)
+end
+
+-- Premium visual toast notification manager
+function xGui:Notify(options)
+    local titleText = options.Title or "Notification"
+    local contentText = options.Content or ""
+    local duration = options.Duration or 3
+    
+    local screenGui = self.ScreenGui
+    if not screenGui then return end
+    
+    local container = screenGui:FindFirstChild("NotificationContainer")
+    if not container then
+        container = Instance.new("Frame")
+        container.Name = "NotificationContainer"
+        container.Size = UDim2.new(0, 260, 1, -20)
+        container.Position = UDim2.new(1, -270, 0, 10)
+        container.BackgroundTransparency = 1
+        container.Parent = screenGui
+        
+        local layout = Instance.new("UIListLayout")
+        layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+        layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+        layout.Padding = UDim.new(0, 6)
+        layout.Parent = container
+    end
+    
+    local toast = Instance.new("CanvasGroup")
+    toast.Name = "Toast"
+    toast.Size = UDim2.new(1, 0, 0, 0)
+    toast.AutomaticSize = Enum.AutomaticSize.Y
+    toast.BackgroundColor3 = Theme.WindowBg
+    toast.BorderSizePixel = 1
+    toast.GroupTransparency = 1
+    toast.Parent = container
+    
+    local toastStroke = Instance.new("UIStroke")
+    toastStroke.Color = Theme.WindowBorder
+    toastStroke.Thickness = 1
+    toastStroke.Parent = toast
+    
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -10, 0, 20)
+    title.Position = UDim2.new(0, 10, 0, 4)
+    title.BackgroundTransparency = 1
+    applyFont(title)
+    title.TextSize = Theme.TextSize
+    title.TextColor3 = Theme.TitleBg
+    title.Text = titleText
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = toast
+    
+    local desc = Instance.new("TextLabel")
+    desc.Size = UDim2.new(1, -20, 0, 0)
+    desc.Position = UDim2.new(0, 10, 0, 24)
+    desc.BackgroundTransparency = 1
+    applyFont(desc)
+    desc.TextSize = Theme.TextSize - 1
+    desc.TextColor3 = Theme.TextColor
+    desc.Text = contentText
+    desc.TextXAlignment = Enum.TextXAlignment.Left
+    desc.TextWrapped = true
+    desc.AutomaticSize = Enum.AutomaticSize.Y
+    desc.Parent = toast
+    
+    local bottomPadding = Instance.new("UIPadding")
+    bottomPadding.PaddingBottom = UDim.new(0, 8)
+    bottomPadding.Parent = toast
+    
+    TweenService:Create(toast, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+        GroupTransparency = 0
+    }):Play()
+    
+    task.delay(duration, function()
+        if toast and toast.Parent then
+            local tw = TweenService:Create(toast, TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+                GroupTransparency = 1
+            })
+            tw:Play()
+            tw.Completed:Connect(function()
+                toast:Destroy()
+            end)
+        end
+    end)
 end
 
 -- Shared Widget Creator Setup
@@ -1255,6 +1349,66 @@ function setupContainerMethods(container, parentFrame)
             if isOpen then
                 populateOptions()
             end
+        end
+        return methods
+    end
+
+    -- 7. Create Text Input
+    function container:CreateTextInput(text, defaultText, callback)
+        local inputContainer = Instance.new("Frame")
+        inputContainer.Size = UDim2.new(1, 0, 0, 22)
+        inputContainer.BackgroundTransparency = 1
+        inputContainer.Parent = parentFrame
+        
+        local textInput = Instance.new("TextBox")
+        textInput.Size = UDim2.new(0, 150, 1, -4)
+        textInput.Position = UDim2.new(0, 0, 0, 2)
+        textInput.BackgroundColor3 = Theme.FrameBg
+        textInput.BorderSizePixel = 1
+        textInput.BorderColor3 = Theme.WindowBorder
+        applyFont(textInput)
+        textInput.TextSize = Theme.TextSize
+        textInput.TextColor3 = Theme.TextColor
+        textInput.Text = defaultText or ""
+        textInput.PlaceholderText = "Enter text..."
+        textInput.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+        textInput.ClearTextOnFocus = false
+        textInput.TextXAlignment = Enum.TextXAlignment.Left
+        textInput.Parent = inputContainer
+        
+        local padding = Instance.new("UIPadding")
+        padding.PaddingLeft = UDim.new(0, 5)
+        padding.Parent = textInput
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -165, 1, 0)
+        label.Position = UDim2.new(0, 160, 0, 0)
+        label.BackgroundTransparency = 1
+        applyFont(label)
+        label.TextSize = Theme.TextSize
+        label.TextColor3 = Theme.TextColor
+        label.Text = text
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = inputContainer
+        
+        textInput.FocusLost:Connect(function(enterPressed)
+            pcall(callback, textInput.Text, enterPressed)
+        end)
+        
+        textInput.MouseEnter:Connect(function()
+            textInput.BackgroundColor3 = Theme.FrameBgHovered
+        end)
+        textInput.MouseLeave:Connect(function()
+            textInput.BackgroundColor3 = Theme.FrameBg
+        end)
+        
+        local methods = {}
+        function methods:SetText(val)
+            textInput.Text = val
+            pcall(callback, val, false)
+        end
+        function methods:GetText()
+            return textInput.Text
         end
         return methods
     end
