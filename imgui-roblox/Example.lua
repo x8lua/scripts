@@ -6,7 +6,7 @@ local isExecutor = (typeof(identifyexecutor) == "function") or (typeof(getexecut
 
 if isExecutor then
     local getOk, code = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=16")
+        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?nocache=" .. tostring(tick()))
     end)
     if getOk and code then
         xGui = loadstring(code)()
