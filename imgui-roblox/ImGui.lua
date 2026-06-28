@@ -38,22 +38,34 @@ local Theme = {
     Font = Enum.Font.Code,
     TextSize = 13,
     FontFace = nil,  -- set below after table closes
-    
+
     HeaderBg = Color3.fromRGB(35, 40, 50),
     HeaderHovered = Color3.fromRGB(45, 50, 60),
 }
 
--- Load ProggyClean.ttf as a FontFace object.
--- getcustomasset() returns an rbxasset:// path; we pass that to Font.new().
--- Falls back gracefully to Enum.Font.Code if anything fails.
+-- Load ProggyClean.ttf via the font-family JSON trick.
+-- getcustomasset() only returns an rbxasset:// path; Font.new() requires a
+-- font-family JSON that references that path — so we generate one on the fly.
 do
     local ok, face = pcall(function()
-        local fontPath = "ProggyClean.ttf"
-        if not isfile(fontPath) then
-            writefile(fontPath, game:HttpGet(
-                "https://raw.githubusercontent.com/x8lua/scripts/main/ProggyClean.ttf", true))
+        local ttfPath  = "ProggyClean.ttf"
+        local jsonPath = "ProggyClean_Family.json"
+
+        -- Download TTF if not cached locally
+        if not isfile(ttfPath) then
+            writefile(ttfPath,
+                game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/ProggyClean.ttf", true))
         end
-        return Font.new(getcustomasset(fontPath))
+
+        local ttfAsset = getcustomasset(ttfPath)
+
+        -- Write the font-family descriptor JSON
+        local json = '{"name":"ProggyClean","faces":[{"name":"Regular","weight":400,"style":"normal","assetId":"'
+                     .. ttfAsset .. '"}]}'
+        writefile(jsonPath, json)
+
+        local jsonAsset = getcustomasset(jsonPath)
+        return Font.new(jsonAsset, Enum.FontWeight.Regular, Enum.FontStyle.Normal)
     end)
     if ok and face then
         Theme.FontFace = face
