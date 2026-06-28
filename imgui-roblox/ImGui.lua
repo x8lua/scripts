@@ -872,6 +872,322 @@ function setupContainerMethods(container, parentFrame)
         end
         return methods
     end
+
+    -- 7. Create Color Picker
+    function container:CreateColorPicker(text, defaultColor, callback)
+        local pickerContainer = Instance.new("Frame")
+        pickerContainer.Name = text .. "_ColorPicker"
+        pickerContainer.Size = UDim2.new(1, 0, 0, 20)
+        pickerContainer.BackgroundTransparency = 1
+        pickerContainer.AutomaticSize = Enum.AutomaticSize.Y
+        pickerContainer.Parent = parentFrame
+        
+        local defaultColor = defaultColor or Color3.fromRGB(255, 255, 255)
+        local H, S, V = Color3.toHSV(defaultColor)
+        
+        -- Closed/Header state elements
+        local previewBtn = Instance.new("TextButton")
+        previewBtn.Name = "PreviewButton"
+        previewBtn.Size = UDim2.new(0, 36, 0, 14)
+        previewBtn.Position = UDim2.new(0, 0, 0.5, -7)
+        previewBtn.BackgroundColor3 = defaultColor
+        previewBtn.BorderSizePixel = 1
+        previewBtn.BorderColor3 = Theme.WindowBorder
+        previewBtn.Text = ""
+        previewBtn.AutoButtonColor = false
+        previewBtn.Parent = pickerContainer
+        
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -45, 1, 0)
+        label.Position = UDim2.new(0, 42, 0, 0)
+        label.BackgroundTransparency = 1
+        label.Font = Theme.Font
+        label.TextSize = Theme.TextSize
+        label.TextColor3 = Theme.TextColor
+        label.Text = text
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = pickerContainer
+        
+        -- Expanded panel containing the actual sliders and inputs
+        local pickerPanel = Instance.new("Frame")
+        pickerPanel.Name = "PickerPanel"
+        pickerPanel.Size = UDim2.new(0, 192, 0, 196)
+        pickerPanel.Position = UDim2.new(0, 0, 0, 22)
+        pickerPanel.BackgroundColor3 = Theme.WindowBg
+        pickerPanel.BorderSizePixel = 1
+        pickerPanel.BorderColor3 = Theme.WindowBorder
+        pickerPanel.Visible = false
+        pickerPanel.ZIndex = 50
+        pickerPanel.Parent = pickerContainer
+        
+        -- Border shadow for the popup panel
+        local panelStroke = Instance.new("UIStroke")
+        panelStroke.Color = Color3.fromRGB(0, 0, 0)
+        panelStroke.Thickness = 1
+        panelStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        panelStroke.Parent = pickerPanel
+
+        -- Saturation-Value Square
+        local svSquare = Instance.new("TextButton")
+        svSquare.Name = "SVSquare"
+        svSquare.Size = UDim2.new(0, 120, 0, 120)
+        svSquare.Position = UDim2.new(0, 6, 0, 6)
+        svSquare.BackgroundColor3 = Color3.fromHSV(H, 1, 1)
+        svSquare.BorderSizePixel = 1
+        svSquare.BorderColor3 = Theme.WindowBorder
+        svSquare.Text = ""
+        svSquare.AutoButtonColor = false
+        svSquare.Parent = pickerPanel
+        
+        -- Saturation Gradient Overlay (White -> Transparent)
+        local satOverlay = Instance.new("Frame")
+        satOverlay.Size = UDim2.new(1, 0, 1, 0)
+        satOverlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        satOverlay.BorderSizePixel = 0
+        satOverlay.Parent = svSquare
+        
+        local satGradient = Instance.new("UIGradient")
+        satGradient.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+        satGradient.Transparency = NumberSequence.new(0, 1)
+        satGradient.Parent = satOverlay
+        
+        -- Value Gradient Overlay (Transparent -> Black)
+        local valOverlay = Instance.new("Frame")
+        valOverlay.Size = UDim2.new(1, 0, 1, 0)
+        valOverlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        valOverlay.BorderSizePixel = 0
+        valOverlay.Parent = svSquare
+        
+        local valGradient = Instance.new("UIGradient")
+        valGradient.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0))
+        valGradient.Rotation = 90
+        valGradient.Transparency = NumberSequence.new(1, 0)
+        valGradient.Parent = valOverlay
+        
+        -- SV Picker Cursor (Circle indicator)
+        local svPointer = Instance.new("Frame")
+        svPointer.Size = UDim2.new(0, 6, 0, 6)
+        svPointer.AnchorPoint = Vector2.new(0.5, 0.5)
+        svPointer.Position = UDim2.new(S, 0, 1 - V, 0)
+        svPointer.BackgroundTransparency = 1
+        svPointer.Parent = svSquare
+        
+        local svPointerStroke = Instance.new("UIStroke")
+        svPointerStroke.Color = Color3.fromRGB(255, 255, 255)
+        svPointerStroke.Thickness = 1
+        svPointerStroke.Parent = svPointer
+        
+        local svPointerCorner = Instance.new("UICorner")
+        svPointerCorner.CornerRadius = UDim.new(1, 0)
+        svPointerCorner.Parent = svPointer
+
+        -- Vertical Hue Slider (Rainbow)
+        local hueSlider = Instance.new("TextButton")
+        hueSlider.Name = "HueSlider"
+        hueSlider.Size = UDim2.new(0, 16, 0, 120)
+        hueSlider.Position = UDim2.new(0, 132, 0, 6)
+        hueSlider.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        hueSlider.BorderSizePixel = 1
+        hueSlider.BorderColor3 = Theme.WindowBorder
+        hueSlider.Text = ""
+        hueSlider.AutoButtonColor = false
+        hueSlider.Parent = pickerPanel
+        
+        local hueGradient = Instance.new("UIGradient")
+        hueGradient.Rotation = 90
+        hueGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 1, 1)),
+            ColorSequenceKeypoint.new(0.17, Color3.fromHSV(0.17, 1, 1)),
+            ColorSequenceKeypoint.new(0.33, Color3.fromHSV(0.33, 1, 1)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromHSV(0.5, 1, 1)),
+            ColorSequenceKeypoint.new(0.67, Color3.fromHSV(0.67, 1, 1)),
+            ColorSequenceKeypoint.new(0.83, Color3.fromHSV(0.83, 1, 1)),
+            ColorSequenceKeypoint.new(1, Color3.fromHSV(1, 1, 1))
+        })
+        hueGradient.Parent = hueSlider
+        
+        -- Hue Slider Pointer Indicator
+        local huePointer = Instance.new("Frame")
+        huePointer.Size = UDim2.new(1, 4, 0, 2)
+        huePointer.AnchorPoint = Vector2.new(0.5, 0.5)
+        huePointer.Position = UDim2.new(0.5, 0, H, 0)
+        huePointer.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        huePointer.BorderSizePixel = 0
+        huePointer.Parent = hueSlider
+
+        -- Large Color Preview Panel (Next to inputs)
+        local largePreview = Instance.new("Frame")
+        largePreview.Size = UDim2.new(0, 32, 0, 56)
+        largePreview.Position = UDim2.new(0, 154, 0, 132)
+        largePreview.BackgroundColor3 = defaultColor
+        largePreview.BorderSizePixel = 1
+        largePreview.BorderColor3 = Theme.WindowBorder
+        largePreview.Parent = pickerPanel
+
+        -- RGB value boxes
+        local function createValueBox(name, x, y, width)
+            local box = Instance.new("TextBox")
+            box.Name = name
+            box.Size = UDim2.new(0, width, 0, 16)
+            box.Position = UDim2.new(0, x, 0, y)
+            box.BackgroundColor3 = Theme.FrameBg
+            box.BorderSizePixel = 1
+            box.BorderColor3 = Theme.WindowBorder
+            box.Font = Theme.Font
+            box.TextSize = Theme.TextSize - 1
+            box.TextColor3 = Theme.TextColor
+            box.ClearTextOnFocus = false
+            box.TextEditable = false
+            box.Parent = pickerPanel
+            return box
+        end
+        
+        local rBox = createValueBox("R_Box", 6, 132, 46)
+        local gBox = createValueBox("G_Box", 55, 132, 46)
+        local bBox = createValueBox("B_Box", 104, 132, 46)
+        
+        local hBox = createValueBox("H_Box", 6, 152, 46)
+        local sBox = createValueBox("S_Box", 55, 152, 46)
+        local vBox = createValueBox("V_Box", 104, 152, 46)
+        
+        local hexBox = createValueBox("Hex_Box", 6, 172, 144)
+
+        -- Update display values
+        local function updateColor()
+            local activeColor = Color3.fromHSV(H, S, V)
+            previewBtn.BackgroundColor3 = activeColor
+            largePreview.BackgroundColor3 = activeColor
+            
+            local rInt = math.round(activeColor.R * 255)
+            local gInt = math.round(activeColor.G * 255)
+            local bInt = math.round(activeColor.B * 255)
+            
+            rBox.Text = "R: " .. tostring(rInt)
+            gBox.Text = "G: " .. tostring(gInt)
+            bBox.Text = "B: " .. tostring(bInt)
+            
+            hBox.Text = string.format("H: %.2f", H)
+            sBox.Text = string.format("S: %.2f", S)
+            vBox.Text = string.format("V: %.2f", V)
+            
+            hexBox.Text = string.format("#%02X%02X%02X", rInt, gInt, bInt)
+            
+            pcall(callback, activeColor)
+        end
+        
+        -- Initial UI population
+        updateColor()
+
+        -- Drag SV square
+        local isDraggingSV = false
+        local function dragSV(inputPos)
+            local absPos = svSquare.AbsolutePosition
+            local absSize = svSquare.AbsoluteSize
+            local pctX = math.clamp((inputPos.X - absPos.X) / absSize.X, 0, 1)
+            local pctY = math.clamp((inputPos.Y - absPos.Y) / absSize.Y, 0, 1)
+            
+            S = pctX
+            V = 1 - pctY
+            svPointer.Position = UDim2.new(S, 0, 1 - V, 0)
+            updateColor()
+        end
+        
+        svSquare.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isDraggingSV = true
+                dragSV(input.Position)
+                
+                local moveCon, releaseCon
+                moveCon = UserInputService.InputChanged:Connect(function(moveInput)
+                    if isDraggingSV and (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) then
+                        dragSV(moveInput.Position)
+                    end
+                end)
+                
+                releaseCon = UserInputService.InputEnded:Connect(function(releaseInput)
+                    if releaseInput.UserInputType == Enum.UserInputType.MouseButton1 or releaseInput.UserInputType == Enum.UserInputType.Touch then
+                        isDraggingSV = false
+                        if moveCon then moveCon:Disconnect() end
+                        if releaseCon then releaseCon:Disconnect() end
+                    end
+                end)
+            end
+        end)
+
+        -- Drag Hue Slider
+        local isDraggingHue = false
+        local function dragHue(inputPos)
+            local absPos = hueSlider.AbsolutePosition
+            local absSize = hueSlider.AbsoluteSize
+            local pctY = math.clamp((inputPos.Y - absPos.Y) / absSize.Y, 0, 1)
+            
+            H = pctY
+            huePointer.Position = UDim2.new(0.5, 0, H, 0)
+            svSquare.BackgroundColor3 = Color3.fromHSV(H, 1, 1)
+            updateColor()
+        end
+        
+        hueSlider.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isDraggingHue = true
+                dragHue(input.Position)
+                
+                local moveCon, releaseCon
+                moveCon = UserInputService.InputChanged:Connect(function(moveInput)
+                    if isDraggingHue and (moveInput.UserInputType == Enum.UserInputType.MouseMovement or moveInput.UserInputType == Enum.UserInputType.Touch) then
+                        dragHue(moveInput.Position)
+                    end
+                end)
+                
+                releaseCon = UserInputService.InputEnded:Connect(function(releaseInput)
+                    if releaseInput.UserInputType == Enum.UserInputType.MouseButton1 or releaseInput.UserInputType == Enum.UserInputType.Touch then
+                        isDraggingHue = false
+                        if moveCon then moveCon:Disconnect() end
+                        if releaseCon then releaseCon:Disconnect() end
+                    end
+                end)
+            end
+        end)
+        
+        -- Toggle expand panel visibility
+        previewBtn.MouseButton1Click:Connect(function()
+            pickerPanel.Visible = not pickerPanel.Visible
+        end)
+        
+        -- Close panel when clicking outside
+        UserInputService.InputBegan:Connect(function(input)
+            if pickerPanel.Visible and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+                local mousePos = input.Position
+                local panelPos = pickerPanel.AbsolutePosition
+                local panelSize = pickerPanel.AbsoluteSize
+                
+                local insidePanel = mousePos.X >= panelPos.X and mousePos.X <= (panelPos.X + panelSize.X) and
+                                    mousePos.Y >= (panelPos.Y + 36) and mousePos.Y <= (panelPos.Y + panelSize.Y + 36)
+                                    
+                local btnPos = previewBtn.AbsolutePosition
+                local btnSize = previewBtn.AbsoluteSize
+                local insideBtn = mousePos.X >= btnPos.X and mousePos.X <= (btnPos.X + btnSize.X) and
+                                  mousePos.Y >= (btnPos.Y + 36) and mousePos.Y <= (btnPos.Y + btnSize.Y + 36)
+                                  
+                if not insidePanel and not insideBtn then
+                    pickerPanel.Visible = false
+                end
+            end
+        end)
+        
+        local methods = {}
+        function methods:SetColor(newColor)
+            H, S, V = Color3.toHSV(newColor)
+            svPointer.Position = UDim2.new(S, 0, 1 - V, 0)
+            huePointer.Position = UDim2.new(0.5, 0, H, 0)
+            svSquare.BackgroundColor3 = Color3.fromHSV(H, 1, 1)
+            updateColor()
+        end
+        function methods:GetColor()
+            return Color3.fromHSV(H, S, V)
+        end
+        return methods
+    end
 end
 
 return ImGui

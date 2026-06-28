@@ -52,8 +52,13 @@ local floatSlider = demoTab:CreateSlider("float", 0, 1, 0.5, function(value)
 end)
 
 -- Dropdown
-local dropdown = demoTab:CreateDropdown("clear color", {"R:117, G:130, B:131", "R:255, G:0, B:0", "R:0, G:255, B:0", "R:0, G:0, B:255"}, "R:117, G:130, B:131", function(selected)
+local dropdown = demoTab:CreateDropdown("clear color preset", {"R:117, G:130, B:131", "R:255, G:0, B:0", "R:0, G:255, B:0", "R:0, G:0, B:255"}, "R:117, G:130, B:131", function(selected)
     print("Selected color option:", selected)
+end)
+
+-- Color Picker
+local colorPicker = demoTab:CreateColorPicker("clear color", Color3.fromRGB(117, 130, 131), function(selectedColor)
+    print("Color picker changed:", selectedColor)
 end)
 
 -- Button with Click Counter
