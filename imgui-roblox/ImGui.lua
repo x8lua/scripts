@@ -1,8 +1,8 @@
--- ImGui Roblox UI Library
--- Recreating the Dear ImGui interface in Roblox Luau
+-- xGui Roblox UI Library
+-- A Dear ImGui-style interface for Roblox exploits
 
-local ImGui = {}
-ImGui.__index = ImGui
+local xGui = {}
+xGui.__index = xGui
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -150,8 +150,8 @@ local function MakeDraggable(dragFrame, dragHandle)
 end
 
 -- Create Main Window
-function ImGui.new(title)
-    local self = setmetatable({}, ImGui)
+function xGui.new(title)
+    local self = setmetatable({}, xGui)
     
     -- Create ScreenGui
     local screenGui = Instance.new("ScreenGui")
@@ -164,15 +164,24 @@ function ImGui.new(title)
     self.ActiveTab = nil
     self.Collapsed = false
     
-    -- Main Window Frame
+    -- CanvasGroup wrapper — lets us tween the entire window's transparency at once
+    local cg = Instance.new("CanvasGroup")
+    cg.Name = "xGui_CanvasGroup"
+    cg.Size = UDim2.new(0, 500, 0, 380)
+    cg.Position = UDim2.new(0.5, -250, 0.5, -190)
+    cg.BackgroundTransparency = 1
+    cg.GroupTransparency = 1
+    cg.Parent = screenGui
+    self.CanvasGroup = cg
+
+    -- Main Window Frame (fills the CanvasGroup)
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainWindow"
-    mainFrame.Size = UDim2.new(0, 500, 0, 380)
-    mainFrame.Position = UDim2.new(0.5, -250, 0.5, -190)
+    mainFrame.Size = UDim2.new(1, 0, 1, 0)
     mainFrame.BackgroundColor3 = Theme.WindowBg
     mainFrame.BorderSizePixel = 1
     mainFrame.BorderColor3 = Theme.WindowBorder
-    mainFrame.Parent = screenGui
+    mainFrame.Parent = cg
     self.MainFrame = mainFrame
     
     -- Add subtle border shadow
@@ -279,23 +288,134 @@ function ImGui.new(title)
         end
     end)
     
-    -- Window Close Functionality
+    -- Window Close Functionality (with smooth outro)
     closeButton.MouseButton1Click:Connect(function()
-        screenGui:Destroy()
+        local outroInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+        local tw = TweenService:Create(cg, outroInfo, {
+            GroupTransparency = 1,
+            Size = UDim2.new(0, cg.Size.X.Offset * 0.85, 0, cg.Size.Y.Offset * 0.85)
+        })
+        tw:Play()
+        tw.Completed:Connect(function()
+            screenGui:Destroy()
+        end)
     end)
     
     -- Keyboard toggle key support (Insert key by default)
     self.ToggleConnection = UserInputService.InputBegan:Connect(function(input, processed)
         if not processed and input.KeyCode == Enum.KeyCode.Insert then
-            mainFrame.Visible = not mainFrame.Visible
+            if mainFrame.Visible then
+                -- Outro animation
+                local outroInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+                TweenService:Create(cg, outroInfo, {GroupTransparency = 1, Size = UDim2.new(0, mainFrame.Size.X.Offset * 0.85, 0, mainFrame.Size.Y.Offset * 0.85)}):Play()
+                task.delay(0.27, function() mainFrame.Visible = false end)
+            else
+                mainFrame.Visible = true
+                cg.GroupTransparency = 1
+                cg.Size = UDim2.new(0, mainFrame.Size.X.Offset * 0.85, 0, mainFrame.Size.Y.Offset * 0.85)
+                local introInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+                TweenService:Create(cg, introInfo, {GroupTransparency = 0, Size = UDim2.new(1, 0, 1, 0)}):Play()
+            end
         end
     end)
-    
+
+    -- ── Resize Handles ──────────────────────────────────────────────────
+    local MIN_W, MIN_H = 300, 200
+    local MAX_W, MAX_H = 900, 700
+
+    local function makeResizeHandle(anchorX, anchorY, cursorX, cursorY, applyW, applyH)
+        local handle = Instance.new("TextButton")
+        handle.Size   = UDim2.new(0, 8, 0, 8)
+        handle.AnchorPoint = Vector2.new(anchorX, anchorY)
+        handle.Position    = UDim2.new(anchorX, 0, anchorY, 0)
+        handle.BackgroundTransparency = 1
+        handle.Text = ""
+        handle.ZIndex = 10
+        handle.Parent = mainFrame
+
+        -- Corner indicators (tiny squares)
+        local dot = Instance.new("Frame")
+        dot.Size = UDim2.new(0, 4, 0, 4)
+        dot.AnchorPoint = Vector2.new(0.5, 0.5)
+        dot.Position = UDim2.new(0.5, 0, 0.5, 0)
+        dot.BackgroundColor3 = Theme.WindowBorder
+        dot.BorderSizePixel = 0
+        dot.Parent = handle
+
+        local resizing   = false
+        local resizeStart, startSize, startPos
+
+        handle.InputBegan:Connect(function(inp)
+            if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                resizing    = true
+                resizeStart = inp.Position
+                startSize   = mainFrame.Size
+                startPos    = mainFrame.Position
+            end
+        end)
+
+        UserInputService.InputChanged:Connect(function(inp)
+            if resizing and inp.UserInputType == Enum.UserInputType.MouseMovement then
+                local dx = inp.Position.X - resizeStart.X
+                local dy = inp.Position.Y - resizeStart.Y
+                local newW = math.clamp(startSize.X.Offset + (applyW and dx or 0), MIN_W, MAX_W)
+                local newH = math.clamp(startSize.Y.Offset + (applyH and dy or 0), MIN_H, MAX_H)
+                mainFrame.Size = UDim2.new(0, newW, 0, newH)
+                -- Update originalSize so collapse/restore uses new size
+                originalSize = mainFrame.Size
+                -- Reposition for anchors on left/top edges
+                if applyW and anchorX == 0 then
+                    local diffW = newW - startSize.X.Offset
+                    mainFrame.Position = UDim2.new(
+                        startPos.X.Scale, startPos.X.Offset - diffW,
+                        startPos.Y.Scale, startPos.Y.Offset)
+                end
+                if applyH and anchorY == 0 then
+                    local diffH = newH - startSize.Y.Offset
+                    mainFrame.Position = UDim2.new(
+                        startPos.X.Scale, startPos.X.Offset,
+                        startPos.Y.Scale, startPos.Y.Offset - diffH)
+                end
+            end
+        end)
+
+        UserInputService.InputEnded:Connect(function(inp)
+            if inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                resizing = false
+            end
+        end)
+
+        handle.MouseEnter:Connect(function() dot.BackgroundColor3 = Theme.TitleBg end)
+        handle.MouseLeave:Connect(function() dot.BackgroundColor3 = Theme.WindowBorder end)
+    end
+
+    -- 4 corners
+    makeResizeHandle(0, 0, 0, 0,  true,  true)  -- NW
+    makeResizeHandle(1, 0, 1, 0,  true,  true)  -- NE
+    makeResizeHandle(0, 1, 0, 1,  true,  true)  -- SW
+    makeResizeHandle(1, 1, 1, 1,  true,  true)  -- SE  (main grip)
+    -- 4 edges
+    makeResizeHandle(0.5, 0, 0.5, 0,  false, true)  -- N
+    makeResizeHandle(0.5, 1, 0.5, 1,  false, true)  -- S
+    makeResizeHandle(0, 0.5, 0, 0.5,  true, false)  -- W
+    makeResizeHandle(1, 0.5, 1, 0.5,  true, false)  -- E
+
+    -- ── Intro animation ─────────────────────────────────────────────────
+    cg.GroupTransparency = 1
+    cg.Size = UDim2.new(0, 500 * 0.88, 0, 380 * 0.88)
+    task.defer(function()
+        local introInfo = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        TweenService:Create(cg, introInfo, {
+            GroupTransparency = 0,
+            Size = UDim2.new(1, 0, 1, 0)
+        }):Play()
+    end)
+
     return self
 end
 
 -- Create Tab
-function ImGui:CreateTab(name)
+function xGui:CreateTab(name)
     local tab = {}
     tab.Name = name
     tab.Window = self
@@ -1282,6 +1402,168 @@ function setupContainerMethods(container, parentFrame)
         end
         return methods
     end
+
+    -- 8. CreateScript — inline code editor with Run button and output display
+    function container:CreateScript(defaultCode, onRun)
+        defaultCode = defaultCode or "-- write your script here\nprint('hello from xGui!')"
+
+        -- Outer container
+        local scriptContainer = Instance.new("Frame")
+        scriptContainer.Name = "ScriptWidget"
+        scriptContainer.Size = UDim2.new(1, 0, 0, 180)
+        scriptContainer.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+        scriptContainer.BorderSizePixel = 1
+        scriptContainer.BorderColor3 = Theme.WindowBorder
+        scriptContainer.ClipsDescendants = true
+        scriptContainer.Parent = parentFrame
+
+        -- Header bar
+        local header = Instance.new("Frame")
+        header.Size = UDim2.new(1, 0, 0, 18)
+        header.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+        header.BorderSizePixel = 0
+        header.Parent = scriptContainer
+
+        local headerLabel = Instance.new("TextLabel")
+        headerLabel.Size = UDim2.new(1, -60, 1, 0)
+        headerLabel.Position = UDim2.new(0, 6, 0, 0)
+        headerLabel.BackgroundTransparency = 1
+        applyFont(headerLabel)
+        headerLabel.TextSize = Theme.TextSize - 1
+        headerLabel.TextColor3 = Theme.TextDisabled
+        headerLabel.Text = "Script Editor"
+        headerLabel.TextXAlignment = Enum.TextXAlignment.Left
+        headerLabel.Parent = header
+
+        -- Run button (top-right of header)
+        local runBtn = Instance.new("TextButton")
+        runBtn.Size = UDim2.new(0, 50, 1, 0)
+        runBtn.Position = UDim2.new(1, -50, 0, 0)
+        runBtn.BackgroundColor3 = Theme.ButtonBg
+        runBtn.BorderSizePixel = 0
+        applyFont(runBtn)
+        runBtn.TextSize = Theme.TextSize - 1
+        runBtn.TextColor3 = Theme.TextColor
+        runBtn.Text = "▶  Run"
+        runBtn.Parent = header
+
+        -- Line-number gutter
+        local gutter = Instance.new("Frame")
+        gutter.Size = UDim2.new(0, 24, 1, -18 - 40)
+        gutter.Position = UDim2.new(0, 0, 0, 18)
+        gutter.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+        gutter.BorderSizePixel = 0
+        gutter.Parent = scriptContainer
+
+        local gutterLabel = Instance.new("TextLabel")
+        gutterLabel.Size = UDim2.new(1, -2, 1, 0)
+        gutterLabel.BackgroundTransparency = 1
+        gutterLabel.Position = UDim2.new(0, 0, 0, 4)
+        applyFont(gutterLabel)
+        gutterLabel.TextSize = Theme.TextSize - 1
+        gutterLabel.TextColor3 = Theme.TextDisabled
+        gutterLabel.TextXAlignment = Enum.TextXAlignment.Right
+        gutterLabel.TextYAlignment = Enum.TextYAlignment.Top
+        gutterLabel.Parent = gutter
+
+        local function updateGutter(text)
+            local lines = 1
+            for _ in text:gmatch("\n") do lines = lines + 1 end
+            local nums = {}
+            for i = 1, lines do nums[i] = tostring(i) end
+            gutterLabel.Text = table.concat(nums, "\n")
+        end
+
+        -- Code editor TextBox
+        local codeBox = Instance.new("TextBox")
+        codeBox.Size = UDim2.new(1, -26, 1, -18 - 40)
+        codeBox.Position = UDim2.new(0, 26, 0, 18)
+        codeBox.BackgroundTransparency = 1
+        applyFont(codeBox)
+        codeBox.TextSize = Theme.TextSize - 1
+        codeBox.TextColor3 = Color3.fromRGB(200, 210, 220)
+        codeBox.PlaceholderColor3 = Theme.TextDisabled
+        codeBox.Text = defaultCode
+        codeBox.MultiLine = true
+        codeBox.ClearTextOnFocus = false
+        codeBox.TextXAlignment = Enum.TextXAlignment.Left
+        codeBox.TextYAlignment = Enum.TextYAlignment.Top
+        codeBox.TextWrapped = false
+        codeBox.Parent = scriptContainer
+
+        updateGutter(defaultCode)
+        codeBox:GetPropertyChangedSignal("Text"):Connect(function()
+            updateGutter(codeBox.Text)
+        end)
+
+        -- Output area (bottom 40px)
+        local outputBar = Instance.new("Frame")
+        outputBar.Size = UDim2.new(1, 0, 0, 40)
+        outputBar.Position = UDim2.new(0, 0, 1, -40)
+        outputBar.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
+        outputBar.BorderSizePixel = 0
+        outputBar.Parent = scriptContainer
+
+        local outputLabel = Instance.new("TextLabel")
+        outputLabel.Size = UDim2.new(1, -6, 1, -4)
+        outputLabel.Position = UDim2.new(0, 4, 0, 2)
+        outputLabel.BackgroundTransparency = 1
+        applyFont(outputLabel)
+        outputLabel.TextSize = Theme.TextSize - 1
+        outputLabel.TextColor3 = Theme.TextDisabled
+        outputLabel.Text = "> Ready"
+        outputLabel.TextXAlignment = Enum.TextXAlignment.Left
+        outputLabel.TextYAlignment = Enum.TextYAlignment.Top
+        outputLabel.TextWrapped = true
+        outputLabel.Parent = outputBar
+
+        -- Run button logic
+        runBtn.MouseButton1Click:Connect(function()
+            local code = codeBox.Text
+            runBtn.Text = "..."
+            runBtn.BackgroundColor3 = Theme.ButtonBgActive
+
+            local ok, err = pcall(function()
+                local fn, loadErr = loadstring(code)
+                if not fn then error(loadErr, 2) end
+                fn()
+            end)
+
+            task.delay(0.1, function()
+                runBtn.Text = "▶  Run"
+                runBtn.BackgroundColor3 = Theme.ButtonBg
+            end)
+
+            if ok then
+                outputLabel.TextColor3 = Color3.fromRGB(100, 220, 100)
+                outputLabel.Text = "> OK"
+            else
+                outputLabel.TextColor3 = Color3.fromRGB(255, 90, 90)
+                outputLabel.Text = "> " .. tostring(err)
+            end
+
+            if onRun then pcall(onRun, ok, err) end
+        end)
+
+        -- Hover effect on run button
+        runBtn.MouseEnter:Connect(function() runBtn.BackgroundColor3 = Theme.ButtonBgHovered end)
+        runBtn.MouseLeave:Connect(function() runBtn.BackgroundColor3 = Theme.ButtonBg end)
+
+        local methods = {}
+        function methods:SetCode(code)
+            codeBox.Text = code
+        end
+        function methods:GetCode()
+            return codeBox.Text
+        end
+        function methods:SetHeight(px)
+            scriptContainer.Size = UDim2.new(1, 0, 0, px)
+            gutter.Size    = UDim2.new(0, 24, 1, -18 - 40)
+            codeBox.Size   = UDim2.new(1, -26, 1, -18 - 40)
+            outputBar.Position = UDim2.new(0, 0, 1, -40)
+        end
+        return methods
+    end
 end
 
-return ImGui
+return xGui

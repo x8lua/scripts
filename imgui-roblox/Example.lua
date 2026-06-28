@@ -1,104 +1,106 @@
--- Dear ImGui Roblox - Example Script
--- Paste this script into your Roblox Executor or local script (with ImGui loaded as a ModuleScript)
+-- xGui Roblox UI Library — Example Script
+-- Run this in your executor
 
--- [How to use in standard Roblox Studio]:
--- 1. Create a ModuleScript named "ImGui" in ReplicatedStorage.
--- 2. Paste the code from ImGui.lua into it.
--- 3. Use: local ImGui = require(game.ReplicatedStorage.ImGui)
--- 
--- [How to use in Roblox Exploit Executor]:
--- The script will automatically load the ImGui library from your GitHub repository if it's not found in ReplicatedStorage:
--- local ImGui = loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua"))()
-
-local ImGui
-local success, result = pcall(function()
-    return require(game:GetService("ReplicatedStorage"):WaitForChild("ImGui", 1))
+local xGui
+local ok, res = pcall(function()
+    return require(game:GetService("ReplicatedStorage"):WaitForChild("xGui", 1))
 end)
 
-if success and result then
-    ImGui = result
+if ok and res then
+    xGui = res
 else
-    -- Fallback: Load directly from your GitHub repository (cache-busted)
-    local getUrlSuccess, code = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=6")
+    local getOk, code = pcall(function()
+        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=7")
     end)
-    if getUrlSuccess and code then
-        ImGui = loadstring(code)()
+    if getOk and code then
+        xGui = loadstring(code)()
     else
-        error("[Dear ImGui] Failed to load library locally or from GitHub.")
+        error("[xGui] Failed to load library.")
     end
 end
 
--- Initialize the window
-local window = ImGui.new("Dear ImGui GLW+OpenGL3 example")
+-- Create window
+local window = xGui.new("xGui — Demo  (resize me!)")
 
--- 1. Create "Hello, world!" Tab
+-- ─── Tab 1: Hello World ───────────────────────────────────────────────────────
 local demoTab = window:CreateTab("Hello, World!")
 
 demoTab:CreateLabel("This is some useful text.")
 
--- Checkboxes (Toggles)
 local demoWindowToggle = demoTab:CreateToggle("Demo Window", true, function(state)
-    print("Demo Window state:", state)
+    print("Demo Window:", state)
 end)
 
 local anotherWindowToggle = demoTab:CreateToggle("Another Window", false, function(state)
-    print("Another Window state:", state)
+    print("Another Window:", state)
 end)
 
--- Slider
 local floatSlider = demoTab:CreateSlider("float", 0, 1, 0.5, function(value)
-    print("Float slider changed:", value)
+    print("Float slider:", value)
 end)
 
--- Dropdown
-local dropdown = demoTab:CreateDropdown("clear color preset", {"R:117, G:130, B:131", "R:255, G:0, B:0", "R:0, G:255, B:0", "R:0, G:0, B:255"}, "R:117, G:130, B:131", function(selected)
-    print("Selected color option:", selected)
-end)
+local dropdown = demoTab:CreateDropdown("clear color preset",
+    {"R:117, G:130, B:131", "R:255, G:0, B:0", "R:0, G:255, B:0"},
+    "R:117, G:130, B:131",
+    function(sel) print("Selected:", sel) end)
 
--- Color Picker
-local colorPicker = demoTab:CreateColorPicker("clear color", Color3.fromRGB(117, 130, 131), function(selectedColor)
-    print("Color picker changed:", selectedColor)
-end)
+local colorPicker = demoTab:CreateColorPicker("clear color",
+    Color3.fromRGB(117, 130, 131),
+    function(c) print("Color:", c) end)
 
--- Button with Click Counter
 local counter = 0
-local countButton
-countButton = demoTab:CreateButton("Button", function()
+demoTab:CreateButton("Button", function()
     counter = counter + 1
     print("Button pressed! Counter:", counter)
-    -- Dynamic label update could be paired here
 end)
 
 demoTab:CreateLabel("Application average 13.355 ms/frame (74.9 FPS)")
 
+-- ─── Tab 2: Script Editor ─────────────────────────────────────────────────────
+local scriptTab = window:CreateTab("Script")
 
--- 2. Create "Dear ImGui Demo" Tab
-local widgetsTab = window:CreateTab("Dear ImGui Demo")
+scriptTab:CreateLabel("Write and run Lua code below:")
 
--- Section 1: Help
-local helpSection = widgetsTab:CreateSection("Help")
-helpSection:CreateLabel("Dear ImGui says hello! (1.89.6 WIP)")
-helpSection:CreateButton("Show Documentation", function()
-    print("Documentation button clicked!")
+local editor = scriptTab:CreateScript([[
+-- Example: move your character up
+local Players = game:GetService("Players")
+local char = Players.LocalPlayer.Character
+if char and char:FindFirstChild("HumanoidRootPart") then
+    char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame + Vector3.new(0, 50, 0)
+    print("Teleported up!")
+end]], function(success, err)
+    if success then
+        print("[xGui Script] ran OK")
+    else
+        warn("[xGui Script] error:", err)
+    end
 end)
 
--- Section 2: Configuration
-local configSection = widgetsTab:CreateSection("Configuration")
+-- Give it a bit more height
+editor:SetHeight(240)
+
+scriptTab:CreateLabel("Press Insert to toggle the window.")
+
+-- ─── Tab 3: Configuration ─────────────────────────────────────────────────────
+local configTab = window:CreateTab("Config")
+
+local helpSection = configTab:CreateSection("Help")
+helpSection:CreateLabel("xGui — a Dear ImGui style library for exploits.")
+helpSection:CreateButton("Documentation", function()
+    print("Docs: github.com/x8lua/scripts")
+end)
+
+local configSection = configTab:CreateSection("Configuration")
 configSection:CreateToggle("Show FPS Counter", true, function(state)
-    print("Toggle FPS:", state)
+    print("FPS Counter:", state)
 end)
 configSection:CreateSlider("UI Scale", 0.5, 2.0, 1.0, function(val)
-    print("UI Scale updated:", val)
+    print("UI Scale:", val)
 end)
 
--- Section 3: Window Options
-local windowOptions = widgetsTab:CreateSection("Window options")
+local windowOptions = configTab:CreateSection("Window options")
 windowOptions:CreateToggle("No Titlebar", false, function(state)
     window.TitleBar.Visible = not state
 end)
-windowOptions:CreateToggle("No Scrollbar", false, function(state)
-    -- Example toggle
-end)
 
-print("[Dear ImGui] Demo window created successfully! Press 'Insert' key to toggle GUI visibility.")
+print("[xGui] Window created! Press Insert to toggle. Drag edges/corners to resize.")
