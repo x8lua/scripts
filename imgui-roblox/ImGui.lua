@@ -35,12 +35,30 @@ local Theme = {
     TextColor = Color3.fromRGB(240, 240, 240),
     TextDisabled = Color3.fromRGB(150, 150, 150),
     
-    Font = Enum.Font.Code,                          -- Monospace font for authentic look
+    Font = Enum.Font.Code,
     TextSize = 13,
     
-    HeaderBg = Color3.fromRGB(35, 40, 50),          -- Section header background
+    HeaderBg = Color3.fromRGB(35, 40, 50),
     HeaderHovered = Color3.fromRGB(45, 50, 60),
 }
+
+-- Load custom font (ProggyClean.ttf); falls back to Enum.Font.Code on failure
+local function LoadCustomFont()
+    local fontPath = "ProggyClean.ttf"
+    local ok, result = pcall(function()
+        if not isfile(fontPath) then
+            local url = "https://raw.githubusercontent.com/x8lua/scripts/main/ProggyClean.ttf"
+            writefile(fontPath, game:HttpGet(url, true))
+        end
+        return getcustomasset(fontPath)
+    end)
+    if ok and result then
+        return result
+    end
+    return Enum.Font.Code
+end
+
+Theme.Font = LoadCustomFont()
 
 -- Utility: Safe parenting for exploit environments
 local function ParentGui(gui)
