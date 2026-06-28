@@ -493,6 +493,17 @@ function setupContainerMethods(container, parentFrame)
             local newWidth = game:GetService("TextService"):GetTextSize(newText, Theme.TextSize, Theme.Font, Vector2.new(1000, 1000)).X
             btn.Size = UDim2.new(0, math.max(80, newWidth + 20), 1, 0)
         end
+        -- Update(props) — accepts {Text, Callback}
+        function methods:Update(props)
+            if props.Text then
+                btn.Text = props.Text
+                local newWidth = game:GetService("TextService"):GetTextSize(props.Text, Theme.TextSize, Theme.Font, Vector2.new(1000, 1000)).X
+                btn.Size = UDim2.new(0, math.max(80, newWidth + 20), 1, 0)
+            end
+            if props.Callback then
+                callback = props.Callback
+            end
+        end
         return methods
     end
     
@@ -563,6 +574,20 @@ function setupContainerMethods(container, parentFrame)
         end
         function methods:GetState()
             return state
+        end
+        -- Update(props) — accepts {Text, State, Callback}
+        function methods:Update(props)
+            if props.Text ~= nil then
+                label.Text = props.Text
+            end
+            if props.State ~= nil then
+                state = props.State
+                check.Text = state and "✓" or ""
+                box.BackgroundColor3 = state and Theme.SliderBg or Theme.FrameBg
+            end
+            if props.Callback then
+                callback = props.Callback
+            end
         end
         return methods
     end
@@ -908,17 +933,19 @@ function setupContainerMethods(container, parentFrame)
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = pickerContainer
         
-        -- Expanded panel containing the actual sliders and inputs
+        -- Expanded panel — parented to ScreenGui root to avoid clipping inside ScrollingFrame
         local pickerPanel = Instance.new("Frame")
         pickerPanel.Name = "PickerPanel"
         pickerPanel.Size = UDim2.new(0, 192, 0, 196)
-        pickerPanel.Position = UDim2.new(0, 0, 0, 22)
+        pickerPanel.Position = UDim2.new(0, 0, 0, 0) -- positioned dynamically via RenderStepped
         pickerPanel.BackgroundColor3 = Theme.WindowBg
         pickerPanel.BorderSizePixel = 1
         pickerPanel.BorderColor3 = Theme.WindowBorder
         pickerPanel.Visible = false
-        pickerPanel.ZIndex = 50
-        pickerPanel.Parent = pickerContainer
+        pickerPanel.ZIndex = 200
+        -- Reparent to ScreenGui root so it isn't clipped by any scroll frame
+        local rootGui = parentFrame:FindFirstAncestorOfClass("ScreenGui")
+        pickerPanel.Parent = rootGui or parentFrame
         
         -- Border shadow for the popup panel
         local panelStroke = Instance.new("UIStroke")
@@ -1149,8 +1176,31 @@ function setupContainerMethods(container, parentFrame)
             end
         end)
         
+        -- Track panel position via RenderStepped to follow window drag
+        local guiService = game:GetService("GuiService")
+        local posConn = RunService.RenderStepped:Connect(function()
+            if not pickerContainer.Parent then
+                posConn:Disconnect()
+                pickerPanel:Destroy()
+                return
+            end
+            if pickerPanel.Visible then
+                local inset = guiService:GetGuiInset().Y
+                local btnAbs = previewBtn.AbsolutePosition
+                local btnSize = previewBtn.AbsoluteSize
+                pickerPanel.Position = UDim2.new(0, btnAbs.X, 0, btnAbs.Y + btnSize.Y + inset + 2)
+            end
+        end)
+
         -- Toggle expand panel visibility
         previewBtn.MouseButton1Click:Connect(function()
+            if not pickerPanel.Visible then
+                -- snap into position before showing
+                local inset = guiService:GetGuiInset().Y
+                local btnAbs = previewBtn.AbsolutePosition
+                local btnSize = previewBtn.AbsoluteSize
+                pickerPanel.Position = UDim2.new(0, btnAbs.X, 0, btnAbs.Y + btnSize.Y + inset + 2)
+            end
             pickerPanel.Visible = not pickerPanel.Visible
         end)
         
@@ -1162,12 +1212,12 @@ function setupContainerMethods(container, parentFrame)
                 local panelSize = pickerPanel.AbsoluteSize
                 
                 local insidePanel = mousePos.X >= panelPos.X and mousePos.X <= (panelPos.X + panelSize.X) and
-                                    mousePos.Y >= (panelPos.Y + 36) and mousePos.Y <= (panelPos.Y + panelSize.Y + 36)
+                                    mousePos.Y >= panelPos.Y and mousePos.Y <= (panelPos.Y + panelSize.Y)
                                     
                 local btnPos = previewBtn.AbsolutePosition
-                local btnSize = previewBtn.AbsoluteSize
-                local insideBtn = mousePos.X >= btnPos.X and mousePos.X <= (btnPos.X + btnSize.X) and
-                                  mousePos.Y >= (btnPos.Y + 36) and mousePos.Y <= (btnPos.Y + btnSize.Y + 36)
+                local btnSize2 = previewBtn.AbsoluteSize
+                local insideBtn = mousePos.X >= btnPos.X and mousePos.X <= (btnPos.X + btnSize2.X) and
+                                  mousePos.Y >= btnPos.Y and mousePos.Y <= (btnPos.Y + btnSize2.Y)
                                   
                 if not insidePanel and not insideBtn then
                     pickerPanel.Visible = false
