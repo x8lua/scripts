@@ -1455,26 +1455,40 @@ function setupContainerMethods(container, parentFrame)
         return methods
     end
 
-    -- 8. CreateScript — inline code editor with Run button and output display
+    -- 8. CreateScript — inline code editor with Run button, output, and dynamic render surface
     function container:CreateScript(defaultCode, onRun)
-        defaultCode = defaultCode or "-- write your script here\nprint('hello from xGui!')"
+        defaultCode = defaultCode or "-- Write layout code here\nButton(\"Hello\", function()\n    print(\"World!\")\nend)"
 
-        -- Outer container
+        -- Outer container stacking the editor and render surface
         local scriptContainer = Instance.new("Frame")
         scriptContainer.Name = "ScriptWidget"
-        scriptContainer.Size = UDim2.new(1, 0, 0, 180)
-        scriptContainer.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
-        scriptContainer.BorderSizePixel = 1
-        scriptContainer.BorderColor3 = Theme.WindowBorder
-        scriptContainer.ClipsDescendants = true
+        scriptContainer.Size = UDim2.new(1, 0, 0, 0)
+        scriptContainer.AutomaticSize = Enum.AutomaticSize.Y
+        scriptContainer.BackgroundTransparency = 1
         scriptContainer.Parent = parentFrame
+
+        local containerLayout = Instance.new("UIListLayout")
+        containerLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        containerLayout.Padding = UDim.new(0, 6)
+        containerLayout.Parent = scriptContainer
+
+        -- Editor Frame
+        local editorFrame = Instance.new("Frame")
+        editorFrame.Name = "EditorFrame"
+        editorFrame.Size = UDim2.new(1, 0, 0, 180)
+        editorFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+        editorFrame.BorderSizePixel = 1
+        editorFrame.BorderColor3 = Theme.WindowBorder
+        editorFrame.ClipsDescendants = true
+        editorFrame.LayoutOrder = 1
+        editorFrame.Parent = scriptContainer
 
         -- Header bar
         local header = Instance.new("Frame")
         header.Size = UDim2.new(1, 0, 0, 18)
         header.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
         header.BorderSizePixel = 0
-        header.Parent = scriptContainer
+        header.Parent = editorFrame
 
         local headerLabel = Instance.new("TextLabel")
         headerLabel.Size = UDim2.new(1, -60, 1, 0)
@@ -1505,7 +1519,7 @@ function setupContainerMethods(container, parentFrame)
         gutter.Position = UDim2.new(0, 0, 0, 18)
         gutter.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
         gutter.BorderSizePixel = 0
-        gutter.Parent = scriptContainer
+        gutter.Parent = editorFrame
 
         local gutterLabel = Instance.new("TextLabel")
         gutterLabel.Size = UDim2.new(1, -2, 1, 0)
@@ -1541,7 +1555,7 @@ function setupContainerMethods(container, parentFrame)
         codeBox.TextXAlignment = Enum.TextXAlignment.Left
         codeBox.TextYAlignment = Enum.TextYAlignment.Top
         codeBox.TextWrapped = false
-        codeBox.Parent = scriptContainer
+        codeBox.Parent = editorFrame
 
         updateGutter(defaultCode)
         codeBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -1554,7 +1568,7 @@ function setupContainerMethods(container, parentFrame)
         outputBar.Position = UDim2.new(0, 0, 1, -40)
         outputBar.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
         outputBar.BorderSizePixel = 0
-        outputBar.Parent = scriptContainer
+        outputBar.Parent = editorFrame
 
         local outputLabel = Instance.new("TextLabel")
         outputLabel.Size = UDim2.new(1, -6, 1, -4)
@@ -1569,15 +1583,77 @@ function setupContainerMethods(container, parentFrame)
         outputLabel.TextWrapped = true
         outputLabel.Parent = outputBar
 
+        -- Render Surface (where script UIs are drawn)
+        local renderSurface = Instance.new("Frame")
+        renderSurface.Name = "RenderSurface"
+        renderSurface.Size = UDim2.new(1, 0, 0, 0)
+        renderSurface.AutomaticSize = Enum.AutomaticSize.Y
+        renderSurface.BackgroundTransparency = 1
+        renderSurface.LayoutOrder = 2
+        renderSurface.Parent = scriptContainer
+
+        local renderLayout = Instance.new("UIListLayout")
+        renderLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        renderLayout.Padding = UDim.new(0, 5)
+        renderLayout.Parent = renderSurface
+
         -- Run button logic
         runBtn.MouseButton1Click:Connect(function()
             local code = codeBox.Text
             runBtn.Text = "..."
             runBtn.BackgroundColor3 = Theme.ButtonBgActive
 
+            -- Clear previous rendered elements
+            for _, child in ipairs(renderSurface:GetChildren()) do
+                if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
+                    child:Destroy()
+                end
+            end
+
+            -- Setup widget creators bound to our render surface
+            local renderObj = {}
+            setupContainerMethods(renderObj, renderSurface)
+
+            -- Build the sandboxed environment with UI helper shortcuts
+            local env = setmetatable({
+                Button = function(text, callback)
+                    return renderObj:CreateButton(text, callback)
+                end,
+                Toggle = function(text, default, callback)
+                    return renderObj:CreateToggle(text, default, callback)
+                end,
+                Slider = function(text, min, max, default, callback)
+                    return renderObj:CreateSlider(text, min, max, default, callback)
+                end,
+                Dropdown = function(text, options, default, callback)
+                    return renderObj:CreateDropdown(text, options, default, callback)
+                end,
+                ColorPicker = function(text, default, callback)
+                    return renderObj:CreateColorPicker(text, default, callback)
+                end,
+                Label = function(text)
+                    return renderObj:CreateLabel(text)
+                end,
+                Section = function(name)
+                    return renderObj:CreateSection(name)
+                end,
+                print = function(...)
+                    local args = {...}
+                    local strs = {}
+                    for i = 1, #args do
+                        strs[i] = tostring(args[i])
+                    end
+                    outputLabel.TextColor3 = Color3.fromRGB(150, 200, 255)
+                    outputLabel.Text = "> [Print] " .. table.concat(strs, " ")
+                end
+            }, {
+                __index = getfenv(0)
+            })
+
             local ok, err = pcall(function()
                 local fn, loadErr = loadstring(code)
                 if not fn then error(loadErr, 2) end
+                setfenv(fn, env)
                 fn()
             end)
 
@@ -1587,8 +1663,12 @@ function setupContainerMethods(container, parentFrame)
             end)
 
             if ok then
-                outputLabel.TextColor3 = Color3.fromRGB(100, 220, 100)
-                outputLabel.Text = "> OK"
+                if outputLabel.Text:find("^> %[%w+%]") then
+                    -- keep print output
+                else
+                    outputLabel.TextColor3 = Color3.fromRGB(100, 220, 100)
+                    outputLabel.Text = "> OK"
+                end
             else
                 outputLabel.TextColor3 = Color3.fromRGB(255, 90, 90)
                 outputLabel.Text = "> " .. tostring(err)
@@ -1609,7 +1689,7 @@ function setupContainerMethods(container, parentFrame)
             return codeBox.Text
         end
         function methods:SetHeight(px)
-            scriptContainer.Size = UDim2.new(1, 0, 0, px)
+            editorFrame.Size = UDim2.new(1, 0, 0, px)
             gutter.Size    = UDim2.new(0, 24, 1, -18 - 40)
             codeBox.Size   = UDim2.new(1, -26, 1, -18 - 40)
             outputBar.Position = UDim2.new(0, 0, 1, -40)

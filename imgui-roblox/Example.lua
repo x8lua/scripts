@@ -10,7 +10,7 @@ if ok and res then
     xGui = res
 else
     local getOk, code = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=8")
+        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=9")
     end)
     if getOk and code then
         xGui = loadstring(code)()
@@ -61,18 +61,28 @@ local scriptTab = window:CreateTab("Script")
 
 scriptTab:CreateLabel("Write and run Lua code below:")
 
-local editor = scriptTab:CreateScript([[
--- Example: move your character up
-local Players = game:GetService("Players")
-local char = Players.LocalPlayer.Character
-if char and char:FindFirstChild("HumanoidRootPart") then
-    char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame + Vector3.new(0, 50, 0)
-    print("Teleported up!")
-end]], function(success, err)
+local editor = scriptTab:CreateScript([[-- xGui Live UI Builder Demo
+local autoFarm = false
+
+Section("Main Settings")
+
+Toggle("Enable Auto-Farm", false, function(state)
+    autoFarm = state
+    print("Auto-farm set to:", state)
+end)
+
+Slider("Farm speed", 1, 10, 5, function(val)
+    print("Farm speed set to:", val)
+end)
+
+Button("Execute Function", function()
+    print("Executing farm with speed status:", autoFarm)
+end)
+]], function(success, err)
     if success then
-        print("[xGui Script] ran OK")
+        print("[xGui Script] UI generated successfully")
     else
-        warn("[xGui Script] error:", err)
+        warn("[xGui Script] execution error:", err)
     end
 end)
 
