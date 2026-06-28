@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "1.5.0"
+xGui.Version = "1.6.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -579,7 +579,8 @@ function xGui:AddLog(text, isError)
     applyFont(logLabel)
     logLabel.TextSize = Theme.TextSize - 1
     logLabel.TextColor3 = isError and Color3.fromRGB(255, 90, 90) or Color3.fromRGB(220, 220, 220)
-    logLabel.Text = (isError and "[Error] " or "[Log] ") .. tostring(text)
+    local timeStr = os.date("%H:%M:%S")
+    logLabel.Text = string.format("[%s] %s %s", timeStr, isError and "[Error]" or "[Log]", tostring(text))
     logLabel.TextXAlignment = Enum.TextXAlignment.Left
     logLabel.TextYAlignment = Enum.TextYAlignment.Top
     logLabel.TextWrapped = true
