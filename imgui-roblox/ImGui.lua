@@ -1455,247 +1455,176 @@ function setupContainerMethods(container, parentFrame)
         return methods
     end
 
-    -- 8. CreateScript — inline code editor with Run button, output, and dynamic render surface
-    function container:CreateScript(defaultCode, onRun)
-        defaultCode = defaultCode or "-- Write layout code here\nButton(\"Hello\", function()\n    print(\"World!\")\nend)"
+    -- 8. Script — collapsable sub-GUI container widget that renders code from a callback function
+    function container:Script(name, default, callback)
+        local state = default or false
 
-        -- Outer container stacking the editor and render surface
-        local scriptContainer = Instance.new("Frame")
-        scriptContainer.Name = "ScriptWidget"
-        scriptContainer.Size = UDim2.new(1, 0, 0, 0)
-        scriptContainer.AutomaticSize = Enum.AutomaticSize.Y
-        scriptContainer.BackgroundTransparency = 1
-        scriptContainer.Parent = parentFrame
+        -- Outer container
+        local scriptFrame = Instance.new("Frame")
+        scriptFrame.Name = name .. "_ScriptWidget"
+        scriptFrame.Size = UDim2.new(1, 0, 0, 0)
+        scriptFrame.AutomaticSize = Enum.AutomaticSize.Y
+        scriptFrame.BackgroundTransparency = 1
+        scriptFrame.Parent = parentFrame
 
-        local containerLayout = Instance.new("UIListLayout")
-        containerLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        containerLayout.Padding = UDim.new(0, 6)
-        containerLayout.Parent = scriptContainer
+        local layout = Instance.new("UIListLayout")
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout.Padding = UDim.new(0, 4)
+        layout.Parent = scriptFrame
 
-        -- Editor Frame
-        local editorFrame = Instance.new("Frame")
-        editorFrame.Name = "EditorFrame"
-        editorFrame.Size = UDim2.new(1, 0, 0, 180)
-        editorFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
-        editorFrame.BorderSizePixel = 1
-        editorFrame.BorderColor3 = Theme.WindowBorder
-        editorFrame.ClipsDescendants = true
-        editorFrame.LayoutOrder = 1
-        editorFrame.Parent = scriptContainer
+        -- Header button/toggle
+        local headerFrame = Instance.new("TextButton")
+        headerFrame.Name = "Header"
+        headerFrame.Size = UDim2.new(1, 0, 0, 20)
+        headerFrame.BackgroundColor3 = Theme.HeaderBg
+        headerFrame.BorderSizePixel = 1
+        headerFrame.BorderColor3 = Theme.WindowBorder
+        headerFrame.Text = ""
+        headerFrame.AutoButtonColor = false
+        headerFrame.LayoutOrder = 1
+        headerFrame.Parent = scriptFrame
 
-        -- Header bar
-        local header = Instance.new("Frame")
-        header.Size = UDim2.new(1, 0, 0, 18)
-        header.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
-        header.BorderSizePixel = 0
-        header.Parent = editorFrame
+        -- Checkbox indicator
+        local box = Instance.new("Frame")
+        box.Size = UDim2.new(0, 12, 0, 12)
+        box.Position = UDim2.new(0, 4, 0.5, -6)
+        box.BackgroundColor3 = state and Theme.SliderBg or Theme.FrameBg
+        box.BorderSizePixel = 1
+        box.BorderColor3 = Theme.WindowBorder
+        box.Parent = headerFrame
 
-        local headerLabel = Instance.new("TextLabel")
-        headerLabel.Size = UDim2.new(1, -60, 1, 0)
-        headerLabel.Position = UDim2.new(0, 6, 0, 0)
-        headerLabel.BackgroundTransparency = 1
-        applyFont(headerLabel)
-        headerLabel.TextSize = Theme.TextSize - 1
-        headerLabel.TextColor3 = Theme.TextDisabled
-        headerLabel.Text = "Script Editor"
-        headerLabel.TextXAlignment = Enum.TextXAlignment.Left
-        headerLabel.Parent = header
+        local check = Instance.new("TextLabel")
+        check.Size = UDim2.new(1, 0, 1, 0)
+        check.BackgroundTransparency = 1
+        applyFont(check)
+        check.TextSize = Theme.TextSize
+        check.TextColor3 = Theme.TextColor
+        check.Text = state and "✓" or ""
+        check.Parent = box
 
-        -- Run button (top-right of header)
-        local runBtn = Instance.new("TextButton")
-        runBtn.Size = UDim2.new(0, 50, 1, 0)
-        runBtn.Position = UDim2.new(1, -50, 0, 0)
-        runBtn.BackgroundColor3 = Theme.ButtonBg
-        runBtn.BorderSizePixel = 0
-        applyFont(runBtn)
-        runBtn.TextSize = Theme.TextSize - 1
-        runBtn.TextColor3 = Theme.TextColor
-        runBtn.Text = "▶  Run"
-        runBtn.Parent = header
+        -- Label
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, -24, 1, 0)
+        label.Position = UDim2.new(0, 22, 0, 0)
+        label.BackgroundTransparency = 1
+        applyFont(label)
+        label.TextSize = Theme.TextSize
+        label.TextColor3 = Theme.TextColor
+        label.Text = name
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = headerFrame
 
-        -- Line-number gutter
-        local gutter = Instance.new("Frame")
-        gutter.Size = UDim2.new(0, 24, 1, -18 - 40)
-        gutter.Position = UDim2.new(0, 0, 0, 18)
-        gutter.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
-        gutter.BorderSizePixel = 0
-        gutter.Parent = editorFrame
-
-        local gutterLabel = Instance.new("TextLabel")
-        gutterLabel.Size = UDim2.new(1, -2, 1, 0)
-        gutterLabel.BackgroundTransparency = 1
-        gutterLabel.Position = UDim2.new(0, 0, 0, 4)
-        applyFont(gutterLabel)
-        gutterLabel.TextSize = Theme.TextSize - 1
-        gutterLabel.TextColor3 = Theme.TextDisabled
-        gutterLabel.TextXAlignment = Enum.TextXAlignment.Right
-        gutterLabel.TextYAlignment = Enum.TextYAlignment.Top
-        gutterLabel.Parent = gutter
-
-        local function updateGutter(text)
-            local lines = 1
-            for _ in text:gmatch("\n") do lines = lines + 1 end
-            local nums = {}
-            for i = 1, lines do nums[i] = tostring(i) end
-            gutterLabel.Text = table.concat(nums, "\n")
-        end
-
-        -- Code editor TextBox
-        local codeBox = Instance.new("TextBox")
-        codeBox.Size = UDim2.new(1, -26, 1, -18 - 40)
-        codeBox.Position = UDim2.new(0, 26, 0, 18)
-        codeBox.BackgroundTransparency = 1
-        applyFont(codeBox)
-        codeBox.TextSize = Theme.TextSize - 1
-        codeBox.TextColor3 = Color3.fromRGB(200, 210, 220)
-        codeBox.PlaceholderColor3 = Theme.TextDisabled
-        codeBox.Text = defaultCode
-        codeBox.MultiLine = true
-        codeBox.ClearTextOnFocus = false
-        codeBox.TextXAlignment = Enum.TextXAlignment.Left
-        codeBox.TextYAlignment = Enum.TextYAlignment.Top
-        codeBox.TextWrapped = false
-        codeBox.Parent = editorFrame
-
-        updateGutter(defaultCode)
-        codeBox:GetPropertyChangedSignal("Text"):Connect(function()
-            updateGutter(codeBox.Text)
-        end)
-
-        -- Output area (bottom 40px)
-        local outputBar = Instance.new("Frame")
-        outputBar.Size = UDim2.new(1, 0, 0, 40)
-        outputBar.Position = UDim2.new(0, 0, 1, -40)
-        outputBar.BackgroundColor3 = Color3.fromRGB(8, 8, 10)
-        outputBar.BorderSizePixel = 0
-        outputBar.Parent = editorFrame
-
-        local outputLabel = Instance.new("TextLabel")
-        outputLabel.Size = UDim2.new(1, -6, 1, -4)
-        outputLabel.Position = UDim2.new(0, 4, 0, 2)
-        outputLabel.BackgroundTransparency = 1
-        applyFont(outputLabel)
-        outputLabel.TextSize = Theme.TextSize - 1
-        outputLabel.TextColor3 = Theme.TextDisabled
-        outputLabel.Text = "> Ready"
-        outputLabel.TextXAlignment = Enum.TextXAlignment.Left
-        outputLabel.TextYAlignment = Enum.TextYAlignment.Top
-        outputLabel.TextWrapped = true
-        outputLabel.Parent = outputBar
-
-        -- Render Surface (where script UIs are drawn)
+        -- Render surface frame for the mini GUI
         local renderSurface = Instance.new("Frame")
         renderSurface.Name = "RenderSurface"
         renderSurface.Size = UDim2.new(1, 0, 0, 0)
         renderSurface.AutomaticSize = Enum.AutomaticSize.Y
         renderSurface.BackgroundTransparency = 1
         renderSurface.LayoutOrder = 2
-        renderSurface.Parent = scriptContainer
+        renderSurface.Visible = state
+        renderSurface.Parent = scriptFrame
+
+        -- Indent padding for the mini GUI elements so they align beautifully inside the script widget
+        local padding = Instance.new("UIPadding")
+        padding.PaddingLeft = UDim.new(0, 14)
+        padding.PaddingTop = UDim.new(0, 2)
+        padding.PaddingBottom = UDim.new(0, 2)
+        padding.Parent = renderSurface
 
         local renderLayout = Instance.new("UIListLayout")
         renderLayout.SortOrder = Enum.SortOrder.LayoutOrder
         renderLayout.Padding = UDim.new(0, 5)
         renderLayout.Parent = renderSurface
 
-        -- Run button logic
-        runBtn.MouseButton1Click:Connect(function()
-            local code = codeBox.Text
-            runBtn.Text = "..."
-            runBtn.BackgroundColor3 = Theme.ButtonBgActive
+        -- Render/Execute helper
+        local renderObj = {}
+        setupContainerMethods(renderObj, renderSurface)
 
-            -- Clear previous rendered elements
+        local function clearUI()
             for _, child in ipairs(renderSurface:GetChildren()) do
                 if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then
                     child:Destroy()
                 end
             end
+        end
 
-            -- Setup widget creators bound to our render surface
-            local renderObj = {}
-            setupContainerMethods(renderObj, renderSurface)
-
-            -- Build the sandboxed environment with UI helper shortcuts
+        local function runUI()
+            clearUI()
+            if not state then return end
+            
+            -- Setup sandbox environment for the callback
             local env = setmetatable({
-                Button = function(text, callback)
-                    return renderObj:CreateButton(text, callback)
+                Button = function(txt, cb)
+                    return renderObj:CreateButton(txt, cb)
                 end,
-                Toggle = function(text, default, callback)
-                    return renderObj:CreateToggle(text, default, callback)
+                Toggle = function(txt, def, cb)
+                    return renderObj:CreateToggle(txt, def, cb)
                 end,
-                Slider = function(text, min, max, default, callback)
-                    return renderObj:CreateSlider(text, min, max, default, callback)
+                Slider = function(txt, min, max, def, cb)
+                    return renderObj:CreateSlider(txt, min, max, def, cb)
                 end,
-                Dropdown = function(text, options, default, callback)
-                    return renderObj:CreateDropdown(text, options, default, callback)
+                Dropdown = function(txt, opts, def, cb)
+                    return renderObj:CreateDropdown(txt, opts, def, cb)
                 end,
-                ColorPicker = function(text, default, callback)
-                    return renderObj:CreateColorPicker(text, default, callback)
+                ColorPicker = function(txt, def, cb)
+                    return renderObj:CreateColorPicker(txt, def, cb)
                 end,
-                Label = function(text)
-                    return renderObj:CreateLabel(text)
+                Label = function(txt)
+                    return renderObj:CreateLabel(txt)
                 end,
-                Section = function(name)
-                    return renderObj:CreateSection(name)
+                Section = function(secName)
+                    return renderObj:CreateSection(secName)
                 end,
-                print = function(...)
-                    local args = {...}
-                    local strs = {}
-                    for i = 1, #args do
-                        strs[i] = tostring(args[i])
-                    end
-                    outputLabel.TextColor3 = Color3.fromRGB(150, 200, 255)
-                    outputLabel.Text = "> [Print] " .. table.concat(strs, " ")
-                end
             }, {
-                __index = getfenv(0)
+                __index = getfenv(callback)
             })
+            
+            setfenv(callback, env)
+            pcall(callback, true)
+        end
 
-            local ok, err = pcall(function()
-                local fn, loadErr = loadstring(code)
-                if not fn then error(loadErr, 2) end
-                setfenv(fn, env)
-                fn()
-            end)
-
-            task.delay(0.1, function()
-                runBtn.Text = "▶  Run"
-                runBtn.BackgroundColor3 = Theme.ButtonBg
-            end)
-
-            if ok then
-                if outputLabel.Text:find("^> %[%w+%]") then
-                    -- keep print output
-                else
-                    outputLabel.TextColor3 = Color3.fromRGB(100, 220, 100)
-                    outputLabel.Text = "> OK"
-                end
+        local function toggle()
+            state = not state
+            check.Text = state and "✓" or ""
+            box.BackgroundColor3 = state and Theme.SliderBg or Theme.FrameBg
+            renderSurface.Visible = state
+            if state then
+                runUI()
             else
-                outputLabel.TextColor3 = Color3.fromRGB(255, 90, 90)
-                outputLabel.Text = "> " .. tostring(err)
+                clearUI()
+                pcall(callback, false)
             end
+        end
 
-            if onRun then pcall(onRun, ok, err) end
+        headerFrame.MouseButton1Click:Connect(toggle)
+
+        -- Hover states
+        headerFrame.MouseEnter:Connect(function()
+            headerFrame.BackgroundColor3 = Theme.HeaderHovered
+            box.BackgroundColor3 = state and Theme.SliderBgHovered or Theme.FrameBgHovered
+        end)
+        headerFrame.MouseLeave:Connect(function()
+            headerFrame.BackgroundColor3 = Theme.HeaderBg
+            box.BackgroundColor3 = state and Theme.SliderBg or Theme.FrameBg
         end)
 
-        -- Hover effect on run button
-        runBtn.MouseEnter:Connect(function() runBtn.BackgroundColor3 = Theme.ButtonBgHovered end)
-        runBtn.MouseLeave:Connect(function() runBtn.BackgroundColor3 = Theme.ButtonBg end)
+        -- Run once initially if default is true
+        if state then
+            runUI()
+        end
 
         local methods = {}
-        function methods:SetCode(code)
-            codeBox.Text = code
+        function methods:SetState(newState)
+            if state ~= newState then
+                toggle()
+            end
         end
-        function methods:GetCode()
-            return codeBox.Text
-        end
-        function methods:SetHeight(px)
-            editorFrame.Size = UDim2.new(1, 0, 0, px)
-            gutter.Size    = UDim2.new(0, 24, 1, -18 - 40)
-            codeBox.Size   = UDim2.new(1, -26, 1, -18 - 40)
-            outputBar.Position = UDim2.new(0, 0, 1, -40)
+        function methods:GetState()
+            return state
         end
         return methods
     end
+    container.CreateScript = container.Script
 end
 
 return xGui

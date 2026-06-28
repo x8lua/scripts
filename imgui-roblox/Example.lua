@@ -10,7 +10,7 @@ if ok and res then
     xGui = res
 else
     local getOk, code = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=9")
+        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=10")
     end)
     if getOk and code then
         xGui = loadstring(code)()
@@ -59,37 +59,31 @@ demoTab:CreateLabel("Application average 13.355 ms/frame (74.9 FPS)")
 -- ─── Tab 2: Script Editor ─────────────────────────────────────────────────────
 local scriptTab = window:CreateTab("Script")
 
-scriptTab:CreateLabel("Write and run Lua code below:")
+scriptTab:CreateLabel("Script container demo:")
 
-local editor = scriptTab:CreateScript([[-- xGui Live UI Builder Demo
-local autoFarm = false
-
-Section("Main Settings")
-
-Toggle("Enable Auto-Farm", false, function(state)
-    autoFarm = state
-    print("Auto-farm set to:", state)
-end)
-
-Slider("Farm speed", 1, 10, 5, function(val)
-    print("Farm speed set to:", val)
-end)
-
-Button("Execute Function", function()
-    print("Executing farm with speed status:", autoFarm)
-end)
-]], function(success, err)
-    if success then
-        print("[xGui Script] UI generated successfully")
+local myScript = scriptTab:Script("Custom UI", false, function(state)
+    if state then
+        Section("Script Controls")
+        
+        local autoFarm = false
+        Toggle("Enable Auto-Farm", false, function(val)
+            autoFarm = val
+            print("Auto-farm status:", autoFarm)
+        end)
+        
+        Slider("Speed multiplier", 1, 10, 5, function(val)
+            print("Speed set to:", val)
+        end)
+        
+        Button("Execute Action", function()
+            print("Clicked Execute! AutoFarm is:", autoFarm)
+        end)
     else
-        warn("[xGui Script] execution error:", err)
+        print("Script toggled off!")
     end
 end)
 
--- Give it a bit more height
-editor:SetHeight(240)
-
-scriptTab:CreateLabel("Press Insert to toggle the window.")
+scriptTab:CreateLabel("Press RightShift to toggle UI visibility.")
 
 -- ─── Tab 3: Configuration ─────────────────────────────────────────────────────
 local configTab = window:CreateTab("Config")
