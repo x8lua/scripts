@@ -7,23 +7,26 @@
 -- 3. Use: local ImGui = require(game.ReplicatedStorage.ImGui)
 -- 
 -- [How to use in Roblox Exploit Executor]:
--- You can load the code dynamically or paste ImGui.lua directly at the top of this script.
--- Example of dynamic load (if you host the script online):
--- local ImGui = loadstring(game:HttpGet("https://raw.githubusercontent.com/yourpath/ImGui.lua"))()
+-- The script will automatically load the ImGui library from your GitHub repository if it's not found in ReplicatedStorage:
+-- local ImGui = loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua"))()
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ImGui
 local success, result = pcall(function()
-    return require(ReplicatedStorage:WaitForChild("ImGui", 2))
+    return require(game:GetService("ReplicatedStorage"):WaitForChild("ImGui", 1))
 end)
 
 if success and result then
     ImGui = result
 else
-    -- Fallback: If not in Studio, warn user or define how they can manually integrate it.
-    warn("[Dear ImGui] Module not found in ReplicatedStorage. Please ensure ImGui.lua is placed there, or load it via loadstring.")
-    -- For demonstration, we assume ImGui is already loaded in the environment.
-    return
+    -- Fallback: Load directly from your GitHub repository
+    local getUrlSuccess, code = pcall(function()
+        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua")
+    end)
+    if getUrlSuccess and code then
+        ImGui = loadstring(code)()
+    else
+        error("[Dear ImGui] Failed to load library locally or from GitHub.")
+    end
 end
 
 -- Initialize the window
