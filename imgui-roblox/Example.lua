@@ -10,7 +10,7 @@ if ok and res then
     xGui = res
 else
     local getOk, code = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=7")
+        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=8")
     end)
     if getOk and code then
         xGui = loadstring(code)()
@@ -19,8 +19,8 @@ else
     end
 end
 
--- Create window
-local window = xGui.new("xGui — Demo  (resize me!)")
+-- Create window (passing Enum.KeyCode.RightShift as the toggle key)
+local window = xGui.new("xGui — Demo  (resize me!)", Enum.KeyCode.RightShift)
 
 -- ─── Tab 1: Hello World ───────────────────────────────────────────────────────
 local demoTab = window:CreateTab("Hello, World!")

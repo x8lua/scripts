@@ -150,7 +150,7 @@ local function MakeDraggable(dragFrame, dragHandle)
 end
 
 -- Create Main Window
-function xGui.new(title)
+function xGui.new(title, toggleKey)
     local self = setmetatable({}, xGui)
     
     -- Create ScreenGui
@@ -163,11 +163,22 @@ function xGui.new(title)
     self.Tabs = {}
     self.ActiveTab = nil
     self.Collapsed = false
+    self.Visible = true
+    self.WindowSize = UDim2.new(0, 500, 0, 380)
+    
+    self.ToggleKey = Enum.KeyCode.Insert
+    if toggleKey then
+        if typeof(toggleKey) == "string" then
+            pcall(function() self.ToggleKey = Enum.KeyCode[toggleKey] end)
+        elseif typeof(toggleKey) == "EnumItem" then
+            self.ToggleKey = toggleKey
+        end
+    end
     
     -- CanvasGroup wrapper — lets us tween the entire window's transparency at once
     local cg = Instance.new("CanvasGroup")
     cg.Name = "xGui_CanvasGroup"
-    cg.Size = UDim2.new(0, 500, 0, 380)
+    cg.Size = self.WindowSize
     cg.Position = UDim2.new(0.5, -250, 0.5, -190)
     cg.BackgroundTransparency = 1
     cg.GroupTransparency = 1
@@ -240,8 +251,8 @@ function xGui.new(title)
     closeButton.Text = "X"
     closeButton.Parent = titleBar
     
-    -- Set up window drag
-    MakeDraggable(mainFrame, titleBar)
+    -- Set up window drag (drags the CanvasGroup!)
+    MakeDraggable(cg, titleBar)
     
     -- Content Container (Holds Tabs & Options)
     local contentContainer = Instance.new("Frame")
@@ -270,7 +281,6 @@ function xGui.new(title)
     tabLayout.Parent = tabBar
     
     -- Window Collapse Functionality
-    local originalSize = mainFrame.Size
     collapseArrow.MouseButton1Click:Connect(function()
         self.Collapsed = not self.Collapsed
         if self.Collapsed then
@@ -278,22 +288,24 @@ function xGui.new(title)
             titleBar.BackgroundColor3 = Theme.TitleBgCollapsed
             contentContainer.Visible = false
             tabBar.Visible = false
-            mainFrame.Size = UDim2.new(0, mainFrame.Size.X.Offset, 0, 22)
+            cg.Size = UDim2.new(0, cg.Size.X.Offset, 0, 22)
         else
             collapseArrow.Text = "▼"
             titleBar.BackgroundColor3 = Theme.TitleBg
             contentContainer.Visible = true
             tabBar.Visible = true
-            mainFrame.Size = originalSize
+            cg.Size = self.WindowSize
         end
     end)
     
     -- Window Close Functionality (with smooth outro)
     closeButton.MouseButton1Click:Connect(function()
         local outroInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+        local targetSize = self.WindowSize
+        local outroSize = UDim2.new(0, targetSize.X.Offset * 0.85, 0, targetSize.Y.Offset * 0.85)
         local tw = TweenService:Create(cg, outroInfo, {
             GroupTransparency = 1,
-            Size = UDim2.new(0, cg.Size.X.Offset * 0.85, 0, cg.Size.Y.Offset * 0.85)
+            Size = outroSize
         })
         tw:Play()
         tw.Completed:Connect(function()
@@ -301,20 +313,38 @@ function xGui.new(title)
         end)
     end)
     
-    -- Keyboard toggle key support (Insert key by default)
+    -- Keyboard toggle key support (customizable, defaults to Insert)
     self.ToggleConnection = UserInputService.InputBegan:Connect(function(input, processed)
-        if not processed and input.KeyCode == Enum.KeyCode.Insert then
-            if mainFrame.Visible then
+        if not processed and input.KeyCode == self.ToggleKey then
+            self.Visible = not self.Visible
+            if not self.Visible then
                 -- Outro animation
+                local targetSize = self.WindowSize
+                local outroSize = UDim2.new(0, targetSize.X.Offset * 0.85, 0, targetSize.Y.Offset * 0.85)
                 local outroInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-                TweenService:Create(cg, outroInfo, {GroupTransparency = 1, Size = UDim2.new(0, mainFrame.Size.X.Offset * 0.85, 0, mainFrame.Size.Y.Offset * 0.85)}):Play()
-                task.delay(0.27, function() mainFrame.Visible = false end)
+                local t = TweenService:Create(cg, outroInfo, {
+                    GroupTransparency = 1,
+                    Size = outroSize
+                })
+                t:Play()
+                t.Completed:Connect(function()
+                    if not self.Visible then
+                        cg.Visible = false
+                    end
+                end)
             else
-                mainFrame.Visible = true
+                -- Intro animation
+                cg.Visible = true
                 cg.GroupTransparency = 1
-                cg.Size = UDim2.new(0, mainFrame.Size.X.Offset * 0.85, 0, mainFrame.Size.Y.Offset * 0.85)
+                local targetSize = self.WindowSize
+                local startSize = UDim2.new(0, targetSize.X.Offset * 0.85, 0, targetSize.Y.Offset * 0.85)
+                cg.Size = startSize
+                
                 local introInfo = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-                TweenService:Create(cg, introInfo, {GroupTransparency = 0, Size = UDim2.new(1, 0, 1, 0)}):Play()
+                TweenService:Create(cg, introInfo, {
+                    GroupTransparency = 0,
+                    Size = targetSize
+                }):Play()
             end
         end
     end)
@@ -346,11 +376,12 @@ function xGui.new(title)
         local resizeStart, startSize, startPos
 
         handle.InputBegan:Connect(function(inp)
+            if self.Collapsed then return end
             if inp.UserInputType == Enum.UserInputType.MouseButton1 then
                 resizing    = true
                 resizeStart = inp.Position
-                startSize   = mainFrame.Size
-                startPos    = mainFrame.Position
+                startSize   = cg.Size
+                startPos    = cg.Position
             end
         end)
 
@@ -358,24 +389,43 @@ function xGui.new(title)
             if resizing and inp.UserInputType == Enum.UserInputType.MouseMovement then
                 local dx = inp.Position.X - resizeStart.X
                 local dy = inp.Position.Y - resizeStart.Y
-                local newW = math.clamp(startSize.X.Offset + (applyW and dx or 0), MIN_W, MAX_W)
-                local newH = math.clamp(startSize.Y.Offset + (applyH and dy or 0), MIN_H, MAX_H)
-                mainFrame.Size = UDim2.new(0, newW, 0, newH)
-                -- Update originalSize so collapse/restore uses new size
-                originalSize = mainFrame.Size
-                -- Reposition for anchors on left/top edges
+                
+                local newW = startSize.X.Offset
+                local newH = startSize.Y.Offset
+                
+                if applyW then
+                    if anchorX == 0 then
+                        newW = math.clamp(startSize.X.Offset - dx, MIN_W, MAX_W)
+                    else
+                        newW = math.clamp(startSize.X.Offset + dx, MIN_W, MAX_W)
+                    end
+                end
+                
+                if applyH then
+                    if anchorY == 0 then
+                        newH = math.clamp(startSize.Y.Offset - dy, MIN_H, MAX_H)
+                    else
+                        newH = math.clamp(startSize.Y.Offset + dy, MIN_H, MAX_H)
+                    end
+                end
+                
+                cg.Size = UDim2.new(0, newW, 0, newH)
+                self.WindowSize = cg.Size
+                
+                local newX = startPos.X.Offset
+                local newY = startPos.Y.Offset
+                
                 if applyW and anchorX == 0 then
-                    local diffW = newW - startSize.X.Offset
-                    mainFrame.Position = UDim2.new(
-                        startPos.X.Scale, startPos.X.Offset - diffW,
-                        startPos.Y.Scale, startPos.Y.Offset)
+                    local actualDiffX = newW - startSize.X.Offset
+                    newX = startPos.X.Offset - actualDiffX
                 end
+                
                 if applyH and anchorY == 0 then
-                    local diffH = newH - startSize.Y.Offset
-                    mainFrame.Position = UDim2.new(
-                        startPos.X.Scale, startPos.X.Offset,
-                        startPos.Y.Scale, startPos.Y.Offset - diffH)
+                    local actualDiffY = newH - startSize.Y.Offset
+                    newY = startPos.Y.Offset - actualDiffY
                 end
+                
+                cg.Position = UDim2.new(startPos.X.Scale, newX, startPos.Y.Scale, newY)
             end
         end)
 
@@ -402,14 +452,16 @@ function xGui.new(title)
 
     -- ── Intro animation ─────────────────────────────────────────────────
     cg.GroupTransparency = 1
-    cg.Size = UDim2.new(0, 500 * 0.88, 0, 380 * 0.88)
+    local targetSize = self.WindowSize
+    cg.Size = UDim2.new(0, targetSize.X.Offset * 0.85, 0, targetSize.Y.Offset * 0.85)
     task.defer(function()
         local introInfo = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
         TweenService:Create(cg, introInfo, {
             GroupTransparency = 0,
-            Size = UDim2.new(1, 0, 1, 0)
+            Size = targetSize
         }):Play()
     end)
+
 
     return self
 end
