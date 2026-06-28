@@ -10,7 +10,22 @@ local Players = cloneref(game:GetService("Players"))
 local LocalPlayer = Players.LocalPlayer
 
 -- // Load xGui (Dear ImGui-Style UI Library)
-local xGui = loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?nocache=" .. tostring(tick())))()
+local xGui
+do
+	local commitSha = "main"
+	local apiOk, commitJson = pcall(function()
+		return game:HttpGet("https://api.github.com/repos/x8lua/scripts/commits/main?t=" .. tostring(tick()))
+	end)
+	if apiOk and commitJson then
+		local decodeOk, commitData = pcall(function()
+			return HttpService:JSONDecode(commitJson)
+		end)
+		if decodeOk and commitData and commitData.sha then
+			commitSha = commitData.sha
+		end
+	end
+	xGui = loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/" .. commitSha .. "/imgui-roblox/ImGui.lua"))()
+end
 
 -- // Vehicle Physics State Variables
 local velocityEnabled = true
