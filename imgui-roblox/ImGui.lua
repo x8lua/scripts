@@ -463,9 +463,15 @@ function xGui.new(title, toggleKey)
         }):Play()
     end)
 
-    -- Built-in Console Tab (layout always rightmost)
+    -- Built-in Console Tab (layout separate, positioned at bottom-right corner)
     local consoleTab = self:CreateTab("Console")
-    consoleTab.Button.LayoutOrder = 99999
+    consoleTab.Button.Parent = mainFrame
+    consoleTab.Button.Size = UDim2.new(0, 50, 0, 16)
+    consoleTab.Button.Position = UDim2.new(1, -60, 1, -21)
+    consoleTab.Button.BackgroundColor3 = Theme.TabBg
+    consoleTab.Button.BorderSizePixel = 1
+    consoleTab.Button.BorderColor3 = Theme.WindowBorder
+    consoleTab.Button.Text = "Console"
     consoleTab.Button.TextColor3 = Color3.fromRGB(150, 150, 150)
     self.ConsoleTab = consoleTab
     self.ConsoleLogs = {}
@@ -566,7 +572,7 @@ end
 function xGui:AddLog(text, isError)
     table.insert(self.ConsoleLogs, {Text = text, IsError = isError})
     
-    local logLabel = Instance.new("TextLabel")
+    local logLabel = Instance.new("TextBox")
     logLabel.Size = UDim2.new(1, 0, 0, 0)
     logLabel.AutomaticSize = Enum.AutomaticSize.Y
     logLabel.BackgroundTransparency = 1
@@ -575,7 +581,10 @@ function xGui:AddLog(text, isError)
     logLabel.TextColor3 = isError and Color3.fromRGB(255, 90, 90) or Color3.fromRGB(220, 220, 220)
     logLabel.Text = (isError and "[Error] " or "[Log] ") .. tostring(text)
     logLabel.TextXAlignment = Enum.TextXAlignment.Left
+    logLabel.TextYAlignment = Enum.TextYAlignment.Top
     logLabel.TextWrapped = true
+    logLabel.ClearTextOnFocus = false
+    logLabel.TextEditable = false
     logLabel.Parent = self.ConsoleTab.View
 end
 
