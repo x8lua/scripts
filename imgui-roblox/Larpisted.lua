@@ -169,11 +169,43 @@ local shiftTurnReleaseSlider = ShiftFadingSection:CreateSlider("Shift - Steering
 end)
 
 -- ─── Configuration Profile Manager ───
+local function listConfigs()
+	local list = {}
+	if typeof(listfiles) == "function" then
+		local ok, files = pcall(listfiles, "")
+		if ok and typeof(files) == "table" then
+			for _, filepath in ipairs(files) do
+				local filename = filepath:match("([^/\\]+)$") or filepath
+				if filename:sub(-5) == ".json" then
+					local confName = filename:sub(1, -6)
+					table.insert(list, confName)
+				end
+			end
+		end
+	end
+	if #list == 0 then
+		table.insert(list, "DefaultCarSetup")
+	end
+	return list
+end
+
 local currentConfigName = "DefaultCarSetup"
 local ConfigSection = VehicleTab:CreateSection("Configuration Profile Manager")
 
 local ConfigInput = ConfigSection:CreateTextInput("Profile Name", currentConfigName, function(val)
 	currentConfigName = val
+end)
+
+local configDropdown
+local function refreshDropdown(selectName)
+	if configDropdown then
+		configDropdown:Refresh(listConfigs(), selectName or currentConfigName)
+	end
+end
+
+configDropdown = ConfigSection:CreateDropdown("Select Profile", listConfigs(), currentConfigName, function(selected)
+	currentConfigName = selected
+	ConfigInput:SetText(selected)
 end)
 
 local function saveConfig(name)
@@ -199,6 +231,7 @@ local function saveConfig(name)
 	end)
 	if success then
 		Window:Notify({ Title = "Config Saved", Content = "Successfully saved " .. name .. ".json!", Duration = 2 })
+		refreshDropdown(name)
 	else
 		Window:Notify({ Title = "Save Failed", Content = tostring(err), Duration = 3 })
 	end
@@ -288,6 +321,7 @@ local function loadConfig(name)
 	end
 
 	Window:Notify({ Title = "Config Loaded", Content = "Successfully loaded " .. filename .. "!", Duration = 2 })
+	refreshDropdown(name)
 end
 
 ConfigSection:CreateButton("Save Config File", function()
