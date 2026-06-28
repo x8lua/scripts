@@ -8,6 +8,8 @@ local HttpService = cloneref(game:GetService("HttpService"))
 local UserInputService = cloneref(game:GetService("UserInputService"))
 local Players = cloneref(game:GetService("Players"))
 local LocalPlayer = Players.LocalPlayer
+local SoundService = cloneref(game:GetService("SoundService"))
+local Debris = cloneref(game:GetService("Debris"))
 
 -- // Load xGui (Dear ImGui-Style UI Library)
 local xGui
@@ -60,25 +62,106 @@ local currentBrakeFade = 0
 local currentTurnFade = 0
 
 local isProfileShifted = false
+local isNitroActive = false
+
+-- // Nitro sound setup
+local nitroOnceSound = Instance.new("Sound")
+nitroOnceSound.SoundId = "rbxassetid://1386598740"
+nitroOnceSound.Volume = 1.5
+nitroOnceSound.Looped = false
+nitroOnceSound.Parent = SoundService
+
+local nitroLoopSound = Instance.new("Sound")
+nitroLoopSound.SoundId = "rbxassetid://9058734199"
+nitroLoopSound.Volume = 1.5
+nitroLoopSound.Looped = true
+nitroLoopSound.Parent = SoundService
 
 -- // Create xGui Window
 local Window = xGui.new("Larpisted", Enum.KeyCode.RightBracket)
 
--- Shift monitoring with xGui Notification
+-- Shift & Nitro monitoring with xGui Notification
 UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 	if gameProcessedEvent then return end
 	if input.KeyCode == Enum.KeyCode.LeftShift and velocityEnabled then
 		isProfileShifted = true
-		Window:Notify({ Title = "Profile Shifted", Content = "⚡ Profile 2 (Shift Mode) Active!", Duration = 1.5 })
+		isNitroActive = true
+		
+		nitroOnceSound:Play()
+		nitroLoopSound:Play()
+		
+		Window:Notify({ Title = "Nitro Activated", Content = "⚡ Nitro Mode Active!", Duration = 1.5 })
 	end
 end)
 
 UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
 	if input.KeyCode == Enum.KeyCode.LeftShift then
 		isProfileShifted = false
-		Window:Notify({ Title = "Profile Restored", Content = "Standard handling restored.", Duration = 1.5 })
+		isNitroActive = false
+		
+		nitroOnceSound:Stop()
+		nitroLoopSound:Stop()
+		
+		Window:Notify({ Title = "Nitro Deactivated", Content = "Standard handling restored.", Duration = 1.5 })
 	end
 end)
+
+-- ─── Audio and Health Monitoring ───
+local function playDamageSFX()
+	local sound = Instance.new("Sound")
+	sound.SoundId = "rbxassetid://139459336979009"
+	sound.Volume = 2
+	sound.Parent = SoundService
+	sound:Play()
+	Debris:AddItem(sound, 5)
+end
+
+local function playDeathSFX()
+	local deathSounds = { "APEX/die1.wav", "APEX/die2.wav" }
+	local chosenPath = deathSounds[math.random(1, #deathSounds)]
+	
+	local success, assetId = pcall(function()
+		return getcustomasset(chosenPath)
+	end)
+	
+	if success and assetId then
+		local sound = Instance.new("Sound")
+		sound.SoundId = assetId
+		sound.Volume = 2
+		sound.Parent = SoundService
+		sound:Play()
+		Debris:AddItem(sound, 5)
+	else
+		warn("[ftgs hub] Failed to load/play death SFX: " .. tostring(assetId or "file path error"))
+	end
+end
+
+local function onCharacterAdded(character)
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if not humanoid then return end
+	
+	local lastHealth = humanoid.Health
+	
+	local healthConnection
+	healthConnection = humanoid.HealthChanged:Connect(function(health)
+		if health < lastHealth and health > 0 then
+			playDamageSFX()
+		end
+		lastHealth = health
+	end)
+	
+	local diedConnection
+	diedConnection = humanoid.Died:Connect(function()
+		playDeathSFX()
+		if healthConnection then healthConnection:Disconnect() end
+		if diedConnection then diedConnection:Disconnect() end
+	end)
+end
+
+if LocalPlayer.Character then
+	task.spawn(onCharacterAdded, LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 
 -- Main Tab
 local VehicleTab = Window:CreateTab("Vehicle Mod")
