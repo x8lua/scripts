@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "1.4.0"
+xGui.Version = "1.5.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -1729,7 +1729,19 @@ function setupContainerMethods(container, parentFrame)
                         return wrap(realParent)
                     end
                     
-                    local val = realObj[key]
+                    local val
+                    local ok = pcall(function()
+                        val = realObj[key]
+                    end)
+                    if not ok then
+                        if key == "ResetOnSpawn" then return false
+                        elseif key == "IgnoreGuiInset" then return false
+                        elseif key == "DisplayOrder" then return 0
+                        elseif key == "Enabled" then return true
+                        end
+                        return nil
+                    end
+                    
                     if typeof(val) == "function" then
                         return function(_, ...)
                             local args = {...}
@@ -1762,7 +1774,12 @@ function setupContainerMethods(container, parentFrame)
                         end
                     end
                     
-                    realObj[key] = val
+                    local ok = pcall(function()
+                        realObj[key] = val
+                    end)
+                    if not ok then
+                        -- silently ignore unsupported Frame writes (e.g. ResetOnSpawn)
+                    end
                 end
                 
                 meta.__tostring = function(self)
