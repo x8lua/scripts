@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "1.6.0"
+xGui.Version = "1.7.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -507,7 +507,7 @@ function xGui:CreateTab(name)
     tabView.ScrollBarThickness = 4
     tabView.ScrollBarImageColor3 = Theme.TitleBg
     tabView.CanvasSize = UDim2.new(0, 0, 0, 0)
-    tabView.AutomaticSize = Enum.AutomaticSize.Y
+    tabView.AutomaticCanvasSize = Enum.AutomaticSize.Y
     tabView.Visible = false
     tabView.Parent = self.ContentContainer
     tab.View = tabView
