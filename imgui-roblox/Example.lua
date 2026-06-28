@@ -18,9 +18,9 @@ end)
 if success and result then
     ImGui = result
 else
-    -- Fallback: Load directly from your GitHub repository
+    -- Fallback: Load directly from your GitHub repository (cache-busted)
     local getUrlSuccess, code = pcall(function()
-        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua")
+        return game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?v=2")
     end)
     if getUrlSuccess and code then
         ImGui = loadstring(code)()
