@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "1.3.0"
+xGui.Version = "1.4.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
