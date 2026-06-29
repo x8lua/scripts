@@ -81,7 +81,8 @@ nitroLoopSound.Parent = SoundService
 local Window = xGui.new("Larpisted", Enum.KeyCode.RightBracket)
 
 -- Shift & Nitro monitoring with xGui Notification
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+local shiftBeganConnection
+shiftBeganConnection = UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 	if gameProcessedEvent then return end
 	if input.KeyCode == Enum.KeyCode.LeftShift and velocityEnabled then
 		isProfileShifted = true
@@ -95,7 +96,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
 	end
 end)
 
-UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
+local shiftEndedConnection
+shiftEndedConnection = UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
 	if input.KeyCode == Enum.KeyCode.LeftShift then
 		isProfileShifted = false
 		isNitroActive = false
@@ -137,32 +139,36 @@ local function playDeathSFX()
 	end
 end
 
+local currentHealthConnection
+local currentDiedConnection
+local charAddedConnection
+
 local function onCharacterAdded(character)
 	local humanoid = character:WaitForChild("Humanoid", 10)
 	if not humanoid then return end
 	
 	local lastHealth = humanoid.Health
 	
-	local healthConnection
-	healthConnection = humanoid.HealthChanged:Connect(function(health)
+	if currentHealthConnection then currentHealthConnection:Disconnect() end
+	currentHealthConnection = humanoid.HealthChanged:Connect(function(health)
 		if health < lastHealth and health > 0 then
 			playDamageSFX()
 		end
 		lastHealth = health
 	end)
 	
-	local diedConnection
-	diedConnection = humanoid.Died:Connect(function()
+	if currentDiedConnection then currentDiedConnection:Disconnect() end
+	currentDiedConnection = humanoid.Died:Connect(function()
 		playDeathSFX()
-		if healthConnection then healthConnection:Disconnect() end
-		if diedConnection then diedConnection:Disconnect() end
+		if currentHealthConnection then currentHealthConnection:Disconnect() end
+		if currentDiedConnection then currentDiedConnection:Disconnect() end
 	end)
 end
 
 if LocalPlayer.Character then
 	task.spawn(onCharacterAdded, LocalPlayer.Character)
 end
-LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+charAddedConnection = LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 
 -- Main Tab
 local VehicleTab = Window:CreateTab("Vehicle Mod")
@@ -417,7 +423,8 @@ ConfigSection:CreateButton("Load Config File", function()
 end)
 
 -- ─── Physical Drive Loop ───
-RunService.Stepped:Connect(function()
+local driveLoopConnection
+driveLoopConnection = RunService.Stepped:Connect(function()
 	local Character = LocalPlayer.Character
 	if not Character or not Character:FindFirstChildWhichIsA("Humanoid") then return end
 	
@@ -1098,12 +1105,34 @@ end
 charAddedConnectionMusic = LocalPlayer.CharacterAdded:Connect(onCharacterAddedMusic)
 
 local isDestroyed = false
-destroyScript = function()
+local function disableAllFeatures()
 	if isDestroyed then return end
 	isDestroyed = true
 	
-	warn("[xGui Music Player] Permanently destroying script instance and cleaning up...")
+	warn("[Larpisted] Disabling all vehicle features and cleaning up listeners...")
 	
+	velocityEnabled = false
+	flightEnabled = false
+	isProfileShifted = false
+	isNitroActive = false
+	
+	-- Stop sounds
+	if nitroOnceSound then nitroOnceSound:Stop() end
+	if nitroLoopSound then nitroLoopSound:Stop() end
+	
+	-- Disconnect vehicle loops
+	if driveLoopConnection then driveLoopConnection:Disconnect() end
+	
+	-- Disconnect input listeners
+	if shiftBeganConnection then shiftBeganConnection:Disconnect() end
+	if shiftEndedConnection then shiftEndedConnection:Disconnect() end
+	
+	-- Disconnect character connections
+	if charAddedConnection then charAddedConnection:Disconnect() end
+	if currentHealthConnection then currentHealthConnection:Disconnect() end
+	if currentDiedConnection then currentDiedConnection:Disconnect() end
+	
+	-- Disconnect music player connections
 	if playbackConnection then playbackConnection:Disconnect() end
 	if endedConnection then endedConnection:Disconnect() end
 	if charAddedConnectionMusic then charAddedConnectionMusic:Disconnect() end
@@ -1122,9 +1151,9 @@ end
 local titleBar = Window.TitleBar
 local closeButton = titleBar and titleBar:FindFirstChild("CloseButton")
 if closeButton then
-	closeButton.MouseButton1Click:Connect(destroyScript)
+	closeButton.MouseButton1Click:Connect(disableAllFeatures)
 end
-Window.ScreenGui.Destroying:Connect(destroyScript)
+Window.ScreenGui.Destroying:Connect(disableAllFeatures)
 
 -- Start playing immediately on startup
 task.spawn(function()
