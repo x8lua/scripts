@@ -794,9 +794,9 @@ end
 local function shufflePlaylist()
 	local n = #playlistQueue
 	if n <= 1 then return end
-	math.randomseed(tick())
+	local rng = Random.new()
 	for i = n, 2, -1 do
-		local j = math.random(i)
+		local j = rng:NextInteger(1, i)
 		playlistQueue[i], playlistQueue[j] = playlistQueue[j], playlistQueue[i]
 	end
 	Window:AddLog("Playlist randomized & shuffled successfully.")
@@ -865,7 +865,7 @@ applyOutsideEffect = function(sound, outside)
 	
 	if outside and sound.Parent and sound.Parent:IsA("VehicleSeat") then
 		muffle.Enabled = true
-		sound.Volume = currentVolume * 0.5
+		sound.Volume = currentVolume
 	else
 		muffle.Enabled = false
 		sound.Volume = currentVolume
@@ -924,13 +924,7 @@ playNextSong = function()
 					local relativeX = mouse.X - volBar.AbsolutePosition.X
 					local percentage = math.clamp(relativeX / absoluteWidth, 0, 1)
 					currentVolume = percentage
-					
-					local _, isOutsideCurrently = getAudioParent()
-					if isOutsideCurrently and activeSound.Parent and activeSound.Parent:IsA("VehicleSeat") then
-						activeSound.Volume = percentage * 0.5
-					else
-						activeSound.Volume = percentage
-					end
+					activeSound.Volume = percentage
 					
 					if volFill then volFill.Size = UDim2.new(percentage, 0, 1, 0) end
 					
@@ -1078,7 +1072,7 @@ local function onCharacterAddedMusic(character)
 			applyOutsideEffect(activeSound, false)
 		else
 			if activeSound and activeSound:IsDescendantOf(game) then
-				Window:AddLog("Exited vehicle seat. Enabling muffle effect, volume set to 0.5")
+				Window:AddLog("Exited vehicle seat. Enabling muffle effect.")
 				applyOutsideEffect(activeSound, true)
 			end
 		end
