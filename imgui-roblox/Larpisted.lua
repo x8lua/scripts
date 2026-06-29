@@ -535,3 +535,604 @@ if game.PlaceId == 3351674303 then
 		end)
 	end)
 end
+
+-- ─── YouTube Music Player ───
+local SERVER_URL = "http://localhost:5000"
+
+-- Ensure directories exist
+if not isfolder("Larpisted") then pcall(makefolder, "Larpisted") end
+if not isfolder("Larpisted/Musics") then pcall(makefolder, "Larpisted/Musics") end
+
+-- Load default URL or saved URL
+local YOUTUBE_MUSIC_URL = "https://music.youtube.com/watch?v=Mf-vzfNuQiI&list=RDAMVMSm_DVsixxsk"
+if isfile("Larpisted/ytmusic_url.txt") then
+	local saved = readfile("Larpisted/ytmusic_url.txt")
+	if saved and #saved > 0 then
+		YOUTUBE_MUSIC_URL = saved
+	end
+end
+
+local MusicPlayerTab = Window:CreateTab("Music Player")
+local MusicSettingsTab = Window:CreateTab("Music Settings")
+
+-- Initialize Console to show it is active and not bugged
+Window:AddLog("YouTube Music Player Console Initialized.")
+Window:AddLog("Initializing playback...")
+
+-- Player Tab Elements
+MusicPlayerTab:CreateLabel("─── Currently Playing ───")
+local songLabel = MusicPlayerTab:CreateLabel("🎵 Status: Connecting...")
+
+-- Media Player variables
+local timelineFill = nil
+local timelineBar = nil
+local timeLabel = nil
+local playPauseBtn = nil
+local speakerLabel = nil
+local volFill = nil
+local volBar = nil
+
+local isDraggingTimeline = false
+local isDraggingVolume = false
+local currentVolume = 1.0
+local isPaused = false
+local isLooping = true
+
+local playlistQueue = {}
+local currentTrackIndex = 1
+local activeSound = nil
+local playbackConnection = nil
+local endedConnection = nil
+local charAddedConnectionMusic = nil
+local seatConnection = nil
+local mouse = LocalPlayer:GetMouse()
+
+-- Forward declarations
+local playNextSong
+local preDownloadNext
+local applyOutsideEffect
+local getAudioParent
+local isPlayerSittingInVehicle
+local playNow
+local destroyScript
+
+isPlayerSittingInVehicle = function()
+	local char = LocalPlayer.Character
+	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+	local seat = humanoid and humanoid.SeatPart
+	return seat and seat:IsA("VehicleSeat")
+end
+
+getAudioParent = function()
+	local char = LocalPlayer.Character
+	local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+	local seat = humanoid and humanoid.SeatPart
+	
+	if seat and seat:IsA("VehicleSeat") then
+		return seat, false
+	elseif activeSound and activeSound:IsDescendantOf(game) and activeSound.Parent and activeSound.Parent:IsA("VehicleSeat") then
+		return activeSound.Parent, true
+	else
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		return hrp or workspace, false
+	end
+end
+
+-- Create custom interactive YouTube Player Controls bar
+local playerScript = MusicPlayerTab:Script("YouTube Player Widget", true, function(enabled)
+	if not enabled then return end
+	
+	local screen = Instance.new("ScreenGui")
+	screen.Size = UDim2.new(1, 0, 0, 48)
+	
+	local mainFrame = Instance.new("Frame")
+	mainFrame.Size = UDim2.new(1, 0, 0, 48)
+	mainFrame.BackgroundTransparency = 1
+	mainFrame.Parent = screen
+	
+	timelineBar = Instance.new("TextButton")
+	timelineBar.Size = UDim2.new(1, -10, 0, 4)
+	timelineBar.Position = UDim2.new(0, 5, 0, 6)
+	timelineBar.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	timelineBar.BorderSizePixel = 0
+	timelineBar.Text = ""
+	timelineBar.Parent = mainFrame
+	
+	timelineFill = Instance.new("Frame")
+	timelineFill.Size = UDim2.new(0, 0, 1, 0)
+	timelineFill.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+	timelineFill.BorderSizePixel = 0
+	timelineFill.Parent = timelineBar
+	
+	local handle = Instance.new("Frame")
+	handle.Size = UDim2.new(0, 10, 0, 10)
+	handle.AnchorPoint = Vector2.new(0.5, 0.5)
+	handle.Position = UDim2.new(1, 0, 0.5, 0)
+	handle.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+	handle.BorderSizePixel = 0
+	handle.Parent = timelineFill
+	
+	local handleCorner = Instance.new("UICorner")
+	handleCorner.CornerRadius = UDim.new(1, 0)
+	handleCorner.Parent = handle
+	
+	timelineBar.MouseButton1Down:Connect(function()
+		isDraggingTimeline = true
+	end)
+	
+	local controlsContainer = Instance.new("Frame")
+	controlsContainer.Size = UDim2.new(1, -10, 0, 24)
+	controlsContainer.Position = UDim2.new(0, 5, 0, 18)
+	controlsContainer.BackgroundTransparency = 1
+	controlsContainer.Parent = mainFrame
+	
+	local layout = Instance.new("UIListLayout")
+	layout.FillDirection = Enum.FillDirection.Horizontal
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	layout.Padding = UDim.new(0, 10)
+	layout.Parent = controlsContainer
+	
+	playPauseBtn = Instance.new("TextButton")
+	playPauseBtn.Size = UDim2.new(0, 20, 0, 20)
+	playPauseBtn.BackgroundTransparency = 1
+	playPauseBtn.Text = isPaused and "▶" or "⏸"
+	playPauseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	playPauseBtn.TextSize = 14
+	playPauseBtn.LayoutOrder = 1
+	playPauseBtn.Parent = controlsContainer
+	
+	playPauseBtn.MouseButton1Click:Connect(function()
+		if not activeSound or not activeSound:IsDescendantOf(game) then return end
+		if isPaused then
+			activeSound:Resume()
+			isPaused = false
+			playPauseBtn.Text = "⏸"
+			Window:AddLog("Resumed playback.")
+		else
+			activeSound:Pause()
+			isPaused = true
+			playPauseBtn.Text = "▶"
+			Window:AddLog("Paused playback.")
+		end
+	end)
+	
+	local skipBtn = Instance.new("TextButton")
+	skipBtn.Size = UDim2.new(0, 20, 0, 20)
+	skipBtn.BackgroundTransparency = 1
+	skipBtn.Text = "⏭"
+	skipBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	skipBtn.TextSize = 14
+	skipBtn.LayoutOrder = 2
+	skipBtn.Parent = controlsContainer
+	
+	skipBtn.MouseButton1Click:Connect(function()
+		if #playlistQueue == 0 then return end
+		Window:AddLog("User skipped current song.")
+		if endedConnection then endedConnection:Disconnect() end
+		if playbackConnection then playbackConnection:Disconnect() end
+		
+		currentTrackIndex = (currentTrackIndex % #playlistQueue) + 1
+		playNextSong()
+	end)
+	
+	speakerLabel = Instance.new("TextLabel")
+	speakerLabel.Size = UDim2.new(0, 16, 0, 20)
+	speakerLabel.BackgroundTransparency = 1
+	speakerLabel.Text = currentVolume == 0 and "🔇" or "🔊"
+	speakerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	speakerLabel.TextSize = 12
+	speakerLabel.LayoutOrder = 3
+	speakerLabel.Parent = controlsContainer
+	
+	volBar = Instance.new("TextButton")
+	volBar.Size = UDim2.new(0, 50, 0, 20)
+	volBar.BackgroundTransparency = 1
+	volBar.Text = ""
+	volBar.LayoutOrder = 4
+	volBar.Parent = controlsContainer
+	
+	local volBg = Instance.new("Frame")
+	volBg.Size = UDim2.new(1, 0, 0, 3)
+	volBg.Position = UDim2.new(0, 0, 0.5, -1)
+	volBg.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+	volBg.BorderSizePixel = 0
+	volBg.Parent = volBar
+	
+	volFill = Instance.new("Frame")
+	volFill.Size = UDim2.new(currentVolume, 0, 1, 0)
+	volFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	volFill.BorderSizePixel = 0
+	volFill.Parent = volBg
+	
+	local volHandle = Instance.new("Frame")
+	volHandle.Size = UDim2.new(0, 8, 0, 8)
+	volHandle.AnchorPoint = Vector2.new(0.5, 0.5)
+	volHandle.Position = UDim2.new(1, 0, 0.5, 0)
+	volHandle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	volHandle.BorderSizePixel = 0
+	volHandle.Parent = volFill
+	
+	local volHandleCorner = Instance.new("UICorner")
+	volHandleCorner.CornerRadius = UDim.new(1, 0)
+	volHandleCorner.Parent = volHandle
+	
+	volBar.MouseButton1Down:Connect(function()
+		isDraggingVolume = true
+	end)
+	
+	timeLabel = Instance.new("TextLabel")
+	timeLabel.Size = UDim2.new(0, 80, 0, 20)
+	timeLabel.BackgroundTransparency = 1
+	timeLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+	timeLabel.TextSize = 11
+	timeLabel.TextXAlignment = Enum.TextXAlignment.Left
+	pcall(function() timeLabel.Font = Enum.Font.Code end)
+	timeLabel.Text = "0:00 / 0:00"
+	timeLabel.LayoutOrder = 5
+	timeLabel.Parent = controlsContainer
+	
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			isDraggingTimeline = false
+			isDraggingVolume = false
+		end
+	end)
+end)
+
+MusicPlayerTab:CreateLabel("─── Options ───")
+MusicPlayerTab:CreateToggle("Loop Playlist", true, function(state)
+	isLooping = state
+	Window:AddLog("Loop Playlist set to: " .. tostring(state))
+end)
+
+local function formatTime(seconds)
+	if not seconds or seconds ~= seconds then seconds = 0 end
+	return string.format("%d:%02d", math.floor(seconds / 60), math.floor(seconds % 60))
+end
+
+local function shufflePlaylist()
+	local n = #playlistQueue
+	if n <= 1 then return end
+	math.randomseed(tick())
+	for i = n, 2, -1 do
+		local j = math.random(i)
+		playlistQueue[i], playlistQueue[j] = playlistQueue[j], playlistQueue[i]
+	end
+	Window:AddLog("Playlist randomized & shuffled successfully.")
+end
+
+local function makeRequest(url)
+	local success, response = pcall(function()
+		return request({
+			Url = url,
+			Method = "GET"
+		})
+	end)
+	if success and response.StatusCode == 200 then
+		return response
+	end
+	return nil
+end
+
+local function downloadSong(videoId)
+	local fileName = "Larpisted/Musics/ytmusic_" .. videoId .. ".mp3"
+	if isfile(fileName) then
+		Window:AddLog("Loading song from local cache: " .. videoId)
+		return getcustomasset(fileName)
+	end
+	
+	Window:AddLog("Downloading song from server: " .. videoId)
+	local response = makeRequest(SERVER_URL .. "/download/" .. videoId)
+	if response then
+		writefile(fileName, response.Body)
+		Window:AddLog("Song download complete: " .. videoId)
+		return getcustomasset(fileName)
+	end
+	Window:AddLog("Error: Failed to download song: " .. videoId, true)
+	return nil
+end
+
+preDownloadNext = function()
+	if #playlistQueue <= 1 then return end
+	local nextIndex = (currentTrackIndex % #playlistQueue) + 1
+	local nextTrack = playlistQueue[nextIndex]
+	if nextTrack then
+		task.spawn(function()
+			local nextFileName = "Larpisted/Musics/ytmusic_" .. nextTrack.videoId .. ".mp3"
+			if not isfile(nextFileName) then
+				Window:AddLog("Pre-downloading next song: " .. nextTrack.title)
+				downloadSong(nextTrack.videoId)
+			else
+				Window:AddLog("Next song already cached: " .. nextTrack.title)
+			end
+		end)
+	end
+end
+
+applyOutsideEffect = function(sound, outside)
+	if not sound or not sound:IsDescendantOf(game) then return end
+	
+	local muffle = sound:FindFirstChild("MuffleEffect")
+	if not muffle then
+		muffle = Instance.new("EqualizerSoundEffect")
+		muffle.Name = "MuffleEffect"
+		muffle.LowGain = 3
+		muffle.MidGain = -15
+		muffle.HighGain = -80
+		muffle.Parent = sound
+	end
+	
+	if outside and sound.Parent and sound.Parent:IsA("VehicleSeat") then
+		muffle.Enabled = true
+		sound.Volume = currentVolume * 0.5
+	else
+		muffle.Enabled = false
+		sound.Volume = currentVolume
+	end
+end
+
+playNextSong = function()
+	if #playlistQueue == 0 then
+		songLabel:SetText("🎵 Status: Playlist empty")
+		return
+	end
+	
+	local track = playlistQueue[currentTrackIndex]
+	songLabel:SetText("🎵 Playing: " .. track.title)
+	Window:AddLog("Loading track: " .. track.title)
+	
+	local assetId = downloadSong(track.videoId)
+	if assetId then
+		local targetParent, isOutside = getAudioParent()
+		
+		if not activeSound or not activeSound:IsDescendantOf(game) then
+			activeSound = Instance.new("Sound")
+			activeSound.Name = "CarMusic"
+			activeSound.RollOffMaxDistance = 150
+			activeSound.RollOffMinDistance = 10
+			activeSound.RollOffMode = Enum.RollOffMode.Linear
+		end
+		
+		if activeSound.Parent ~= targetParent then
+			pcall(function()
+				activeSound.Parent = targetParent
+			end)
+		end
+		
+		activeSound.SoundId = assetId
+		activeSound:Play()
+		isPaused = false
+		if playPauseBtn then playPauseBtn.Text = "⏸" end
+		Window:AddLog("Now playing: " .. track.title .. " (parent: " .. tostring(targetParent) .. ")")
+		
+		applyOutsideEffect(activeSound, isOutside)
+		preDownloadNext()
+		
+		if playbackConnection then playbackConnection:Disconnect() end
+		playbackConnection = RunService.RenderStepped:Connect(function()
+			if activeSound and activeSound:IsDescendantOf(game) and activeSound.TimeLength > 0 then
+				if isDraggingTimeline and timelineBar then
+					local absoluteWidth = timelineBar.AbsoluteSize.X
+					local relativeX = mouse.X - timelineBar.AbsolutePosition.X
+					local percentage = math.clamp(relativeX / absoluteWidth, 0, 1)
+					activeSound.TimePosition = percentage * activeSound.TimeLength
+				end
+				
+				if isDraggingVolume and volBar then
+					local absoluteWidth = volBar.AbsoluteSize.X
+					local relativeX = mouse.X - volBar.AbsolutePosition.X
+					local percentage = math.clamp(relativeX / absoluteWidth, 0, 1)
+					currentVolume = percentage
+					
+					local _, isOutsideCurrently = getAudioParent()
+					if isOutsideCurrently and activeSound.Parent and activeSound.Parent:IsA("VehicleSeat") then
+						activeSound.Volume = percentage * 0.5
+					else
+						activeSound.Volume = percentage
+					end
+					
+					if volFill then volFill.Size = UDim2.new(percentage, 0, 1, 0) end
+					
+					if speakerLabel then
+						if percentage == 0 then
+							speakerLabel.Text = "🔇"
+						elseif percentage < 0.4 then
+							speakerLabel.Text = "🔈"
+						else
+							speakerLabel.Text = "🔊"
+						end
+					end
+				end
+				
+				local ratio = activeSound.TimePosition / activeSound.TimeLength
+				if timeLabel then
+					timeLabel.Text = formatTime(activeSound.TimePosition) .. " / " .. formatTime(activeSound.TimeLength)
+				end
+				
+				if timelineFill then
+					timelineFill.Size = UDim2.new(math.clamp(ratio, 0, 1), 0, 1, 0)
+				end
+			else
+				if timeLabel then
+					timeLabel.Text = "0:00 / 0:00"
+				end
+				if timelineFill then
+					timelineFill.Size = UDim2.new(0, 0, 1, 0)
+				end
+			end
+		end)
+		
+		if endedConnection then endedConnection:Disconnect() end
+		endedConnection = activeSound.Ended:Connect(function()
+			endedConnection:Disconnect()
+			if playbackConnection then playbackConnection:Disconnect() end
+			Window:AddLog("Song ended naturally: " .. track.title)
+			if isLooping then
+				currentTrackIndex = (currentTrackIndex % #playlistQueue) + 1
+				playNextSong()
+			else
+				songLabel:SetText("🎵 Status: Playback finished")
+				if timeLabel then timeLabel.Text = "0:00 / 0:00" end
+				if playPauseBtn then playPauseBtn.Text = "▶" end
+			end
+		end)
+	else
+		Window:AddLog("Failed to load asset ID for: " .. track.title .. ". Skipping.", true)
+		currentTrackIndex = (currentTrackIndex % #playlistQueue) + 1
+		playNextSong()
+	end
+end
+
+local function loadPlaylist()
+	songLabel:SetText("🎵 Status: Loading playlist...")
+	Window:AddLog("Fetching playlist from API URL...")
+	local encodedUrl = HttpService:UrlEncode(YOUTUBE_MUSIC_URL)
+	local response = makeRequest(SERVER_URL .. "/get_playlist?url=" .. encodedUrl)
+	if response then
+		playlistQueue = HttpService:JSONDecode(response.Body)
+		shufflePlaylist()
+		Window:AddLog("Playlist loaded successfully! " .. tostring(#playlistQueue) .. " songs.")
+		songLabel:SetText("🎵 Status: Playlist Loaded (" .. tostring(#playlistQueue) .. " songs)")
+		return true
+	else
+		Window:AddLog("Error: Failed to fetch playlist from python server.", true)
+		songLabel:SetText("❌ Status: Failed to load playlist. Check server.")
+		return false
+	end
+end
+
+playNow = function()
+	if #playlistQueue == 0 then
+		if loadPlaylist() then
+			currentTrackIndex = 1
+			playNextSong()
+		end
+	else
+		currentTrackIndex = 1
+		playNextSong()
+	end
+end
+
+-- Settings Tab Elements
+MusicSettingsTab:CreateLabel("─── Source Configuration ───")
+local urlInput = MusicSettingsTab:CreateTextInput("URL", YOUTUBE_MUSIC_URL, function(text)
+	YOUTUBE_MUSIC_URL = text
+	playlistQueue = {}
+	pcall(writefile, "Larpisted/ytmusic_url.txt", text)
+	Window:AddLog("Saved target URL config to Larpisted/ytmusic_url.txt")
+end)
+
+local loadBtn = MusicSettingsTab:CreateButton("Load & Play URL", function()
+	Window:AddLog("User triggered URL reload.")
+	playNow()
+end)
+
+-- Customize layout programmatically
+task.spawn(function()
+	task.wait(0.5)
+	
+	local textBoxInstance, buttonInstance
+	for _, desc in ipairs(Window.ScreenGui:GetDescendants()) do
+		if desc:IsA("TextBox") and desc.Text == YOUTUBE_MUSIC_URL then
+			textBoxInstance = desc
+		elseif desc:IsA("TextButton") and desc.Text == "Load & Play URL" then
+			buttonInstance = desc
+		end
+	end
+	
+	if textBoxInstance then
+		textBoxInstance.Size = UDim2.new(0, 320, 1, -4)
+		local parent = textBoxInstance.Parent
+		if parent then
+			local label = parent:FindFirstChildOfClass("TextLabel")
+			if label then
+				label.Visible = false
+			end
+		end
+	end
+	
+	if buttonInstance then
+		buttonInstance.Size = UDim2.new(0, 160, 1, 0)
+	end
+end)
+
+local function onCharacterAddedMusic(character)
+	local humanoid = character:WaitForChild("Humanoid")
+	
+	if seatConnection then seatConnection:Disconnect() end
+	seatConnection = humanoid:GetPropertyChangedSignal("SeatPart"):Connect(function()
+		local seat = humanoid.SeatPart
+		if seat and seat:IsA("VehicleSeat") then
+			Window:AddLog("Entered vehicle seat. Disabling muffle effect, volume set to 1.0")
+			if not activeSound or not activeSound:IsDescendantOf(game) then
+				playNow()
+			else
+				local ok = pcall(function()
+					activeSound.Parent = seat
+				end)
+				if not ok then
+					playNow()
+				end
+			end
+			applyOutsideEffect(activeSound, false)
+		else
+			if activeSound and activeSound:IsDescendantOf(game) then
+				Window:AddLog("Exited vehicle seat. Enabling muffle effect, volume set to 0.5")
+				applyOutsideEffect(activeSound, true)
+			end
+		end
+	end)
+	
+	task.spawn(function()
+		local hrp = character:WaitForChild("HumanoidRootPart", 5)
+		if hrp and activeSound and activeSound:IsDescendantOf(game) then
+			local targetParent, isOutside = getAudioParent()
+			if not isPlayerSittingInVehicle() then
+				pcall(function()
+					activeSound.Parent = hrp
+				end)
+				applyOutsideEffect(activeSound, false)
+			end
+		end
+	end)
+end
+
+if LocalPlayer.Character then
+	onCharacterAddedMusic(LocalPlayer.Character)
+end
+charAddedConnectionMusic = LocalPlayer.CharacterAdded:Connect(onCharacterAddedMusic)
+
+local isDestroyed = false
+destroyScript = function()
+	if isDestroyed then return end
+	isDestroyed = true
+	
+	warn("[xGui Music Player] Permanently destroying script instance and cleaning up...")
+	
+	if playbackConnection then playbackConnection:Disconnect() end
+	if endedConnection then endedConnection:Disconnect() end
+	if charAddedConnectionMusic then charAddedConnectionMusic:Disconnect() end
+	if seatConnection then seatConnection:Disconnect() end
+	
+	if activeSound then
+		pcall(function()
+			activeSound:Stop()
+			activeSound:Destroy()
+		end)
+		activeSound = nil
+	end
+end
+
+-- Bind clean up to the Window close click and destruction event
+local titleBar = Window.TitleBar
+local closeButton = titleBar and titleBar:FindFirstChild("CloseButton")
+if closeButton then
+	closeButton.MouseButton1Click:Connect(destroyScript)
+end
+Window.ScreenGui.Destroying:Connect(destroyScript)
+
+-- Start playing immediately on startup
+task.spawn(function()
+	playNow()
+end)
