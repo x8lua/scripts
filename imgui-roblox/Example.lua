@@ -54,9 +54,36 @@ local colorPicker = demoTab:CreateColorPicker("clear color",
     function(c) print("Color:", c) end)
 
 local counter = 0
-demoTab:CreateButton("Button", function()
+demoTab:CreateButton("Increment Counter", function()
     counter = counter + 1
     print("Button pressed! Counter:", counter)
+end)
+
+local textInput = demoTab:CreateTextInput("Player Custom Tag", "L33t Haxor", function(text)
+    print("Custom tag updated to:", text)
+end)
+
+local keybind = demoTab:CreateKeybind("Self-Destruct Key", Enum.KeyCode.K, function(key, isPressedGlobally)
+    if isPressedGlobally then
+        window:Notify({ Title = "Warning", Content = "Self-Destruct activated by key " .. key.Name .. "!", Duration = 3 })
+    else
+        print("Self-destruct key re-bound to:", key.Name)
+    end
+end)
+
+demoTab:CreateButton("Send Toast Notification", function()
+    window:Notify({
+        Title = "Demo Toast",
+        Content = "Hello from xGui notification manager! This message is inside the window.",
+        Duration = 2.5
+    })
+end)
+
+demoTab:CreateButton("Hide Window Programmatically", function()
+    window:Notify({ Title = "Hiding Window", Content = "The window will hide in 1 second. Press RightShift to show again.", Duration = 2 })
+    task.delay(1, function()
+        window:Toggle(false)
+    end)
 end)
 
 demoTab:CreateLabel("Application average 13.355 ms/frame (74.9 FPS)")
