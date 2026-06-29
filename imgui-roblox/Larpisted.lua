@@ -809,6 +809,54 @@ local function shufflePlaylist()
 	Window:AddLog("Playlist randomized & shuffled successfully.")
 end
 
+-- ─── Player State Persistence ───
+local savedTimePosition = nil
+local lastStateSave = 0
+
+local function savePlayerState()
+	if #playlistQueue == 0 then return end
+	local track = playlistQueue[currentTrackIndex]
+	if not track then return end
+	
+	local pos = 0
+	if activeSound and activeSound:IsDescendantOf(game) then
+		pos = activeSound.TimePosition
+	end
+	
+	local state = {
+		playlistUrl = YOUTUBE_MUSIC_URL,
+		videoId = track.videoId,
+		trackIndex = currentTrackIndex,
+		timePosition = pos
+	}
+	
+	pcall(function()
+		writefile("Larpisted/ytmusic_state.json", HttpService:JSONEncode(state))
+	end)
+end
+
+local function loadPlayerState()
+	if not isfile("Larpisted/ytmusic_state.json") then return end
+	local success, content = pcall(readfile, "Larpisted/ytmusic_state.json")
+	if not success or not content or #content == 0 then return end
+	
+	local decodeSuccess, state = pcall(function()
+		return HttpService:JSONDecode(content)
+	end)
+	if not decodeSuccess or not state then return end
+	
+	if state.playlistUrl == YOUTUBE_MUSIC_URL then
+		for i, track in ipairs(playlistQueue) do
+			if track.videoId == state.videoId then
+				currentTrackIndex = i
+				savedTimePosition = state.timePosition
+				Window:AddLog("Restored playlist position for: " .. track.title .. " at " .. formatTime(savedTimePosition))
+				break
+			end
+		end
+	end
+end
+
 local function makeRequest(url)
 	local success, response = pcall(function()
 		return request({
@@ -913,12 +961,34 @@ playNextSong = function()
 		if playPauseBtn then playPauseBtn.Text = "⏸" end
 		Window:AddLog("Now playing: " .. track.title .. " (parent: " .. tostring(targetParent) .. ")")
 		
+		savePlayerState()
+		
+		if savedTimePosition and savedTimePosition > 0 then
+			local posToRestore = savedTimePosition
+			savedTimePosition = nil
+			task.spawn(function()
+				local startTime = tick()
+				while activeSound and activeSound:IsDescendantOf(game) and activeSound.TimeLength == 0 and tick() - startTime < 6 do
+					task.wait(0.15)
+				end
+				if activeSound and activeSound:IsDescendantOf(game) and activeSound.TimeLength > 0 then
+					activeSound.TimePosition = math.clamp(posToRestore, 0, activeSound.TimeLength - 1)
+					Window:AddLog("Restored sound position to " .. formatTime(posToRestore))
+				end
+			end)
+		end
+		
 		applyOutsideEffect(activeSound, isOutside)
 		preDownloadNext()
 		
 		if playbackConnection then playbackConnection:Disconnect() end
 		playbackConnection = RunService.RenderStepped:Connect(function()
 			if activeSound and activeSound:IsDescendantOf(game) and activeSound.TimeLength > 0 then
+				if tick() - lastStateSave > 3 then
+					lastStateSave = tick()
+					savePlayerState()
+				end
+				
 				if isDraggingTimeline and timelineBar then
 					local absoluteWidth = timelineBar.AbsoluteSize.X
 					local relativeX = mouse.X - timelineBar.AbsolutePosition.X
@@ -995,6 +1065,7 @@ local function loadPlaylist()
 		shufflePlaylist()
 		Window:AddLog("Playlist loaded successfully! " .. tostring(#playlistQueue) .. " songs.")
 		songLabel:SetText("🎵 Status: Playlist Loaded (" .. tostring(#playlistQueue) .. " songs)")
+		loadPlayerState()
 		return true
 	else
 		Window:AddLog("Error: Failed to fetch playlist from python server.", true)
@@ -1110,6 +1181,9 @@ local function disableAllFeatures()
 	isDestroyed = true
 	
 	warn("[Larpisted] Disabling all vehicle features and cleaning up listeners...")
+	
+	-- Save playback state before deactivating
+	savePlayerState()
 	
 	velocityEnabled = false
 	flightEnabled = false
