@@ -437,6 +437,175 @@ function xGui.new(title, toggleKey)
     self.ConsoleTab = consoleTab
     self.ConsoleLogs = {}
 
+
+    -- Search Button (bottom-right, left of Console)
+    local searchBtn = Instance.new("TextButton")
+    searchBtn.Name             = "SearchButton"
+    searchBtn.Size             = UDim2.new(0, 55, 0, 16)
+    searchBtn.Position         = UDim2.new(1, -120, 1, -21)
+    searchBtn.BackgroundColor3 = Theme.TabBg
+    searchBtn.BorderSizePixel  = 1
+    searchBtn.BorderColor3     = Theme.WindowBorder
+    applyFont(searchBtn)
+    searchBtn.TextSize   = Theme.TextSize - 2
+    searchBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    searchBtn.Text       = "ð Search"
+    searchBtn.Parent     = mainFrame
+    searchBtn.MouseEnter:Connect(function() searchBtn.BackgroundColor3 = Theme.TabHovered end)
+    searchBtn.MouseLeave:Connect(function() searchBtn.BackgroundColor3 = Theme.TabBg      end)
+
+    -- Floating Search Panel
+    local searchPanel = Instance.new("Frame")
+    searchPanel.Name             = "SearchPanel"
+    searchPanel.Size             = UDim2.new(1, -10, 1, -60)
+    searchPanel.Position         = UDim2.new(0, 5, 0, 50)
+    searchPanel.BackgroundColor3 = Theme.WindowBg
+    searchPanel.BorderSizePixel  = 1
+    searchPanel.BorderColor3     = Theme.TitleBg
+    searchPanel.ZIndex           = 300
+    searchPanel.Visible          = false
+    searchPanel.Parent           = mainFrame
+    local _ss = Instance.new("UIStroke")
+    _ss.Color = Theme.TitleBg; _ss.Thickness = 1; _ss.Parent = searchPanel
+
+    local searchBox = Instance.new("TextBox")
+    searchBox.Size              = UDim2.new(1, -10, 0, 22)
+    searchBox.Position          = UDim2.new(0, 5, 0, 5)
+    searchBox.BackgroundColor3  = Theme.FrameBg
+    searchBox.BorderSizePixel   = 1
+    searchBox.BorderColor3      = Theme.TitleBg
+    applyFont(searchBox)
+    searchBox.TextSize          = Theme.TextSize
+    searchBox.TextColor3        = Theme.TextColor
+    searchBox.PlaceholderText   = "Search elements..."
+    searchBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
+    searchBox.ClearTextOnFocus  = false
+    searchBox.Text              = ""
+    searchBox.ZIndex            = 301
+    searchBox.Parent            = searchPanel
+
+    local resultsList = Instance.new("ScrollingFrame")
+    resultsList.Size                 = UDim2.new(1, -10, 1, -35)
+    resultsList.Position             = UDim2.new(0, 5, 0, 32)
+    resultsList.BackgroundTransparency = 1
+    resultsList.ScrollBarThickness   = 3
+    resultsList.ScrollBarImageColor3 = Theme.TitleBg
+    resultsList.CanvasSize           = UDim2.new(0, 0, 0, 0)
+    resultsList.AutomaticCanvasSize  = Enum.AutomaticSize.Y
+    resultsList.ZIndex               = 301
+    resultsList.Parent               = searchPanel
+    local _rl = Instance.new("UIListLayout")
+    _rl.SortOrder = Enum.SortOrder.LayoutOrder
+    _rl.Padding   = UDim.new(0, 2)
+    _rl.Parent    = resultsList
+
+    local noResultsLbl = Instance.new("TextLabel")
+    noResultsLbl.Size                = UDim2.new(1, 0, 0, 30)
+    noResultsLbl.BackgroundTransparency = 1
+    applyFont(noResultsLbl)
+    noResultsLbl.TextSize   = Theme.TextSize - 1
+    noResultsLbl.TextColor3 = Theme.TextDisabled
+    noResultsLbl.Text       = "Type to searchâ¦"
+    noResultsLbl.ZIndex     = 302
+    noResultsLbl.Parent     = resultsList
+
+    local SEARCH_SKIP = {
+        TitleLabel=true, Arrow=true, CollapseButton=true,
+        CloseButton=true, SearchButton=true
+    }
+
+    local function doSearch(query)
+        for _, child in ipairs(resultsList:GetChildren()) do
+            if not child:IsA("UIListLayout") then child:Destroy() end
+        end
+        if query == "" then
+            noResultsLbl.Parent = resultsList
+            noResultsLbl.Text   = "Type to searchâ¦"
+            return
+        end
+        local lq    = query:lower()
+        local found = 0
+        for _, tab in ipairs(self.Tabs) do
+            if tab == self.ConsoleTab then continue end
+            for _, desc in ipairs(tab.View:GetDescendants()) do
+                if (desc:IsA("TextLabel") or desc:IsA("TextButton"))
+                    and desc.Text ~= ""
+                    and not SEARCH_SKIP[desc.Name]
+                    and desc.Text:lower():find(lq, 1, true) then
+                    found += 1
+                    local row = Instance.new("TextButton")
+                    row.Size             = UDim2.new(1, 0, 0, 30)
+                    row.BackgroundColor3 = Theme.FrameBg
+                    row.BorderSizePixel  = 0
+                    row.Text             = ""
+                    row.AutoButtonColor  = false
+                    row.ZIndex           = 302
+                    row.Parent           = resultsList
+                    local tabLbl = Instance.new("TextLabel")
+                    tabLbl.Size               = UDim2.new(1, -8, 0, 11)
+                    tabLbl.Position           = UDim2.new(0, 8, 0, 2)
+                    tabLbl.BackgroundTransparency = 1
+                    applyFont(tabLbl)
+                    tabLbl.TextSize       = Theme.TextSize - 3
+                    tabLbl.TextColor3     = Theme.TitleBg
+                    tabLbl.Text           = "  " .. tab.Name
+                    tabLbl.TextXAlignment = Enum.TextXAlignment.Left
+                    tabLbl.ZIndex         = 303
+                    tabLbl.Parent         = row
+                    local elemLbl = Instance.new("TextLabel")
+                    elemLbl.Size               = UDim2.new(1, -8, 0, 16)
+                    elemLbl.Position           = UDim2.new(0, 8, 0, 12)
+                    elemLbl.BackgroundTransparency = 1
+                    applyFont(elemLbl)
+                    elemLbl.TextSize       = Theme.TextSize - 1
+                    elemLbl.TextColor3     = Theme.TextColor
+                    elemLbl.Text           = desc.Text
+                    elemLbl.TextXAlignment = Enum.TextXAlignment.Left
+                    elemLbl.TextTruncate   = Enum.TextTruncate.AtEnd
+                    elemLbl.ZIndex         = 303
+                    elemLbl.Parent         = row
+                    local capturedTab  = tab
+                    local capturedDesc = desc
+                    row.MouseButton1Click:Connect(function()
+                        capturedTab.Select()
+                        task.defer(function()
+                            local absY  = capturedDesc.AbsolutePosition.Y
+                            local viewY = capturedTab.View.AbsolutePosition.Y
+                            capturedTab.View.CanvasPosition = Vector2.new(0, math.max(0, absY - viewY - 40))
+                            pcall(function()
+                                local orig = capturedDesc.BackgroundColor3
+                                TweenService:Create(capturedDesc, TweenInfo.new(0.15), {BackgroundColor3 = Theme.TitleBg}):Play()
+                                task.delay(0.5, function()
+                                    pcall(function()
+                                        TweenService:Create(capturedDesc, TweenInfo.new(0.3), {BackgroundColor3 = orig}):Play()
+                                    end)
+                                end)
+                            end)
+                        end)
+                    end)
+                    row.MouseEnter:Connect(function() row.BackgroundColor3 = Theme.HeaderHovered end)
+                    row.MouseLeave:Connect(function() row.BackgroundColor3 = Theme.FrameBg end)
+                end
+            end
+        end
+        if found == 0 then
+            noResultsLbl.Parent = resultsList
+            noResultsLbl.Text   = 'No results for "' .. query .. '"'
+        end
+    end
+
+    searchBox:GetPropertyChangedSignal("Text"):Connect(function()
+        doSearch(searchBox.Text)
+    end)
+    searchBtn.MouseButton1Click:Connect(function()
+        searchPanel.Visible = not searchPanel.Visible
+        if searchPanel.Visible then
+            searchBox.Text = ""
+            doSearch("")
+            task.defer(function() searchBox:CaptureFocus() end)
+        end
+    end)
+
     return self
 end
 
@@ -1013,6 +1182,10 @@ function setupContainerMethods(container, parentFrame)
         function methods:SetColor(color)
             label.TextColor3 = color
         end
+        function methods:Update(props)
+            if props.Text  ~= nil then label.Text       = props.Text  end
+            if props.Color ~= nil then label.TextColor3 = props.Color end
+        end
         return methods
     end
     
@@ -1162,13 +1335,29 @@ function setupContainerMethods(container, parentFrame)
     end
     
     -- 5. Create Slider
-    function container:CreateSlider(text, min, max, default, callback)
+    function container:CreateSlider(text, min, max, default, increment, callback)
         local sliderContainer = Instance.new("Frame")
         sliderContainer.Size = UDim2.new(1, 0, 0, 20)
         sliderContainer.BackgroundTransparency = 1
         sliderContainer.Parent = parentFrame
         
+        if type(increment) == "function" then
+            callback  = increment
+            increment = nil
+        end
         local value = math.clamp(default or min, min, max)
+
+        local function fmtVal(v)
+            if increment then
+                local s   = tostring(increment)
+                local dec = s:match("%.(.+)$")
+                if dec then
+                    return string.format("%." .. dec .. "f", v)
+                end
+                return tostring(math.floor(v + 0.5))
+            end
+            return string.format("%.3f", v)
+        end
         
         -- Slider Bar Background
         local sliderBar = Instance.new("TextButton")
@@ -1197,7 +1386,7 @@ function setupContainerMethods(container, parentFrame)
         applyFont(valueLabel)
         valueLabel.TextSize = Theme.TextSize - 1
         valueLabel.TextColor3 = Theme.TextColor
-        valueLabel.Text = string.format("%.3f", value)
+        valueLabel.Text = fmtVal(value)
         valueLabel.Parent = sliderBar
         
         -- Parameter Label to the right of the Slider
@@ -1216,14 +1405,19 @@ function setupContainerMethods(container, parentFrame)
         local isAdjusting = false
         
         local function updateValue(inputPos)
-            local barAbsPos = sliderBar.AbsolutePosition
+            local barAbsPos  = sliderBar.AbsolutePosition
             local barAbsSize = sliderBar.AbsoluteSize
-            local relativeX = inputPos.X - barAbsPos.X
+            local relativeX  = inputPos.X - barAbsPos.X
             local percentage = math.clamp(relativeX / barAbsSize.X, 0, 1)
-            
-            value = min + (max - min) * percentage
-            sliderFill.Size = UDim2.new(percentage, 0, 1, 0)
-            valueLabel.Text = string.format("%.3f", value)
+
+            local raw = min + (max - min) * percentage
+            if increment then
+                raw = math.round(raw / increment) * increment
+            end
+            value = math.clamp(raw, min, max)
+            local pct = (value - min) / (max - min)
+            sliderFill.Size = UDim2.new(pct, 0, 1, 0)
+            valueLabel.Text = fmtVal(value)
             pcall(callback, value)
         end
         
@@ -1264,11 +1458,24 @@ function setupContainerMethods(container, parentFrame)
             value = math.clamp(newVal, min, max)
             local pct = (value - min) / (max - min)
             sliderFill.Size = UDim2.new(pct, 0, 1, 0)
-            valueLabel.Text = string.format("%.3f", value)
+            valueLabel.Text = fmtVal(value)
             pcall(callback, value)
         end
         function methods:GetValue()
             return value
+        end
+        function methods:Update(props)
+            if props.Text      ~= nil then label.Text = props.Text end
+            if props.Min       ~= nil then min = props.Min end
+            if props.Max       ~= nil then max = props.Max end
+            if props.Increment ~= nil then increment = props.Increment end
+            if props.Value     ~= nil then
+                value = math.clamp(props.Value, min, max)
+                local pct = (value - min) / (max - min)
+                sliderFill.Size = UDim2.new(pct, 0, 1, 0)
+                valueLabel.Text = fmtVal(value)
+            end
+            if props.Callback  ~= nil then callback = props.Callback end
         end
         return methods
     end
@@ -1464,6 +1671,15 @@ function setupContainerMethods(container, parentFrame)
                 populateOptions()
             end
         end
+        function methods:Update(props)
+            if props.Text      ~= nil then label.Text = props.Text end
+            if props.Options   ~= nil then options = props.Options end
+            if props.Selection ~= nil then
+                currentSelection = props.Selection
+                dropdownBtn.Text = " " .. props.Selection
+            end
+            if props.Callback  ~= nil then callback = props.Callback end
+        end
         return methods
     end
 
@@ -1523,6 +1739,11 @@ function setupContainerMethods(container, parentFrame)
         end
         function methods:GetText()
             return textInput.Text
+        end
+        function methods:Update(props)
+            if props.Text     ~= nil then textInput.Text = props.Text end
+            if props.Label    ~= nil then label.Text     = props.Label end
+            if props.Callback ~= nil then callback       = props.Callback end
         end
         return methods
     end
@@ -1622,6 +1843,14 @@ function setupContainerMethods(container, parentFrame)
             currentKey = newKey
             keyBtn.Text = " [ " .. currentKey.Name .. " ] "
             pcall(callback, currentKey, false)
+        end
+        function methods:Update(props)
+            if props.Key ~= nil then
+                currentKey = props.Key
+                keyBtn.Text = " [ " .. currentKey.Name .. " ] "
+            end
+            if props.Text     ~= nil then label.Text = props.Text end
+            if props.Callback ~= nil then callback   = props.Callback end
         end
         return methods
     end
@@ -1966,6 +2195,16 @@ function setupContainerMethods(container, parentFrame)
         end
         function methods:GetColor()
             return Color3.fromHSV(H, S, V)
+        end
+        function methods:Update(props)
+            if props.Color ~= nil then
+                H, S, V = Color3.toHSV(props.Color)
+                svPointer.Position = UDim2.new(S, 0, 1 - V, 0)
+                huePointer.Position = UDim2.new(0.5, 0, H, 0)
+                svSquare.BackgroundColor3 = Color3.fromHSV(H, 1, 1)
+                updateColor()
+            end
+            if props.Callback ~= nil then callback = props.Callback end
         end
         return methods
     end
