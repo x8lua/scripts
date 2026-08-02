@@ -324,7 +324,8 @@ function PurgatoryNotify:destroy()
 end
 
 -- ── Module-level singleton shortcuts ─────────────────────────────────────────
--- Lets callers use Notify.push(...) without creating an instance manually.
+-- Returned as a proxy table so the class-method PurgatoryNotify:push is never
+-- overwritten (that would cause infinite recursion via the metatable).
 local _default = nil
 local function getDefault()
     if not _default or _default._destroyed then
@@ -333,8 +334,18 @@ local function getDefault()
     return _default
 end
 
-PurgatoryNotify.push = function(title, body, opts) return getDefault():push(title, body, opts) end
-PurgatoryNotify.clear   = function() return getDefault():clear() end
-PurgatoryNotify.destroy = function() if _default then _default:destroy() end _default = nil end
+local Module = {}
 
-return PurgatoryNotify
+-- static shortcuts
+function Module.push(title, body, opts)  return getDefault():push(title, body, opts) end
+function Module.clear()                  return getDefault():clear() end
+function Module.destroy()
+    if _default then _default:destroy() end
+    _default = nil
+end
+
+-- pass-through so callers can still do Notify.new(cfg)
+Module.new     = function(cfg) return PurgatoryNotify.new(cfg) end
+Module.Version = PurgatoryNotify.Version
+
+return Module
