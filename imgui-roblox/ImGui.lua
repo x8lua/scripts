@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "2.4.1"
+xGui.Version = "2.5.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -1340,6 +1340,65 @@ function setupContainerMethods(container, parentFrame)
         function methods:Update(props)
             if props.Text  ~= nil then label.Text       = props.Text  end
             if props.Color ~= nil then label.TextColor3 = props.Color end
+        end
+        return methods
+    end
+
+    -- 2b. Create a lightweight 3D preview surface
+    function container:CreateViewportFrame(name, height)
+        local holder = Instance.new("Frame")
+        holder.Name = name .. "_ViewportHolder"
+        holder.Size = UDim2.new(1, 0, 0, height or 160)
+        holder.BackgroundTransparency = 1
+        holder.Parent = parentFrame
+
+        local title = Instance.new("TextLabel")
+        title.Size = UDim2.new(1, 0, 0, 18)
+        title.BackgroundTransparency = 1
+        applyFont(title)
+        title.TextSize = Theme.TextSize - 1
+        title.TextColor3 = Theme.TextDisabled
+        title.Text = name
+        title.TextXAlignment = Enum.TextXAlignment.Left
+        title.Parent = holder
+
+        local viewport = Instance.new("ViewportFrame")
+        viewport.Name = name .. "_Viewport"
+        viewport.Size = UDim2.new(1, 0, 1, -20)
+        viewport.Position = UDim2.new(0, 0, 0, 20)
+        viewport.BackgroundColor3 = Theme.FrameBg
+        viewport.BorderSizePixel = 1
+        viewport.BorderColor3 = Theme.TitleBg
+        viewport.Ambient = Color3.fromRGB(180, 180, 180)
+        viewport.LightColor = Color3.fromRGB(255, 255, 255)
+        viewport.LightDirection = Vector3.new(-1, -1, -1)
+        viewport.Parent = holder
+
+        local camera = Instance.new("Camera")
+        camera.Name = "PreviewCamera"
+        camera.Parent = viewport
+        viewport.CurrentCamera = camera
+
+        local worldModel = Instance.new("WorldModel")
+        worldModel.Name = "PreviewWorld"
+        worldModel.Parent = viewport
+
+        local methods = {
+            Frame = viewport,
+            Camera = camera,
+            WorldModel = worldModel,
+        }
+        function methods:SetTitle(newTitle)
+            title.Text = newTitle
+        end
+        function methods:Clear()
+            for _, child in ipairs(worldModel:GetChildren()) do
+                child:Destroy()
+            end
+        end
+        function methods:Update(props)
+            if props.Title ~= nil then title.Text = props.Title end
+            if props.BackgroundColor3 ~= nil then viewport.BackgroundColor3 = props.BackgroundColor3 end
         end
         return methods
     end
