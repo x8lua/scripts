@@ -7,6 +7,7 @@ A high-performance, feature-rich, and visually polished Roblox UI library design
 - **8-Handle Resizability:** Drag-to-resize from any window edge or corner with automatic opposite-edge locking and size constraints.
 - **Virtual ScreenGui Sandbox:** Exposes a custom `Script` widget that transparently redirects standard Roblox ScreenGui scripts and renders them inside the xGui panel boundaries.
 - **Selectable Console Tab:** A built-in diagnostic console tab that captures print statements and execution errors with selectable TextBoxes so you can easily copy logs to your clipboard.
+- **Fast Search Overlay:** Open with the larger Search button or `Ctrl+F`, then close with the large close control, `Escape`, an outside click, or by choosing a result.
 - **Oops! Error Popup Modals:** Automated popup overlays for script compilation/execution failures with instant "Check" links that jump directly to the console.
 - **Zero-Cache Loader:** Uses dynamic tick cache-busting to ensure your users always get the latest patches instantly.
 

@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "2.3.1"
+xGui.Version = "2.4.0"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -446,36 +446,75 @@ function xGui.new(title, toggleKey)
     -- Search Button (bottom-right, left of Console)
     local searchBtn = Instance.new("TextButton")
     searchBtn.Name             = "SearchButton"
-    searchBtn.Size             = UDim2.new(0, 55, 0, 16)
-    searchBtn.Position         = UDim2.new(1, -120, 1, -21)
+    searchBtn.Size             = UDim2.new(0, 82, 0, 20)
+    searchBtn.Position         = UDim2.new(1, -150, 1, -23)
     searchBtn.BackgroundColor3 = Theme.TabBg
     searchBtn.BorderSizePixel  = 1
     searchBtn.BorderColor3     = Theme.WindowBorder
     applyFont(searchBtn)
-    searchBtn.TextSize   = Theme.TextSize - 2
-    searchBtn.TextColor3 = Color3.fromRGB(150, 150, 150)
+    searchBtn.TextSize   = Theme.TextSize - 1
+    searchBtn.TextColor3 = Theme.TextColor
     searchBtn.Text       = "ð Search"
     searchBtn.Parent     = mainFrame
+    searchBtn.Text       = "Search  Ctrl F"
     searchBtn.MouseEnter:Connect(function() searchBtn.BackgroundColor3 = Theme.TabHovered end)
     searchBtn.MouseLeave:Connect(function() searchBtn.BackgroundColor3 = Theme.TabBg      end)
 
-    -- Floating Search Panel
+    -- Search Overlay
+    local searchOverlay = Instance.new("TextButton")
+    searchOverlay.Name                   = "SearchOverlay"
+    searchOverlay.Size                   = UDim2.new(1, 0, 1, -22)
+    searchOverlay.Position               = UDim2.new(0, 0, 0, 22)
+    searchOverlay.BackgroundColor3       = Color3.new(0, 0, 0)
+    searchOverlay.BackgroundTransparency = 0.3
+    searchOverlay.BorderSizePixel        = 0
+    searchOverlay.Text                   = ""
+    searchOverlay.AutoButtonColor        = false
+    searchOverlay.ZIndex                 = 300
+    searchOverlay.Visible                = false
+    searchOverlay.Parent                 = mainFrame
+
     local searchPanel = Instance.new("Frame")
     searchPanel.Name             = "SearchPanel"
-    searchPanel.Size             = UDim2.new(1, -10, 1, -60)
-    searchPanel.Position         = UDim2.new(0, 5, 0, 50)
+    searchPanel.Size             = UDim2.new(1, -30, 1, -30)
+    searchPanel.Position         = UDim2.new(0, 15, 0, 15)
     searchPanel.BackgroundColor3 = Theme.WindowBg
     searchPanel.BorderSizePixel  = 1
     searchPanel.BorderColor3     = Theme.TitleBg
-    searchPanel.ZIndex           = 300
-    searchPanel.Visible          = false
-    searchPanel.Parent           = mainFrame
+    searchPanel.ZIndex           = 301
+    searchPanel.Parent           = searchOverlay
     local _ss = Instance.new("UIStroke")
-    _ss.Color = Theme.TitleBg; _ss.Thickness = 1; _ss.Parent = searchPanel
+    _ss.Color = Theme.TitleBg; _ss.Thickness = 2; _ss.Parent = searchPanel
+
+    local searchTitle = Instance.new("TextLabel")
+    searchTitle.Size                   = UDim2.new(1, -105, 0, 26)
+    searchTitle.Position               = UDim2.new(0, 8, 0, 3)
+    searchTitle.BackgroundTransparency = 1
+    applyFont(searchTitle)
+    searchTitle.TextSize               = Theme.TextSize + 1
+    searchTitle.TextColor3             = Theme.TextColor
+    searchTitle.Text                   = "Search elements"
+    searchTitle.TextXAlignment         = Enum.TextXAlignment.Left
+    searchTitle.ZIndex                 = 302
+    searchTitle.Parent                 = searchPanel
+
+    local searchClose = Instance.new("TextButton")
+    searchClose.Name             = "SearchCloseButton"
+    searchClose.Size             = UDim2.new(0, 88, 0, 24)
+    searchClose.Position         = UDim2.new(1, -94, 0, 4)
+    searchClose.BackgroundColor3 = Theme.ButtonBg
+    searchClose.BorderSizePixel  = 1
+    searchClose.BorderColor3     = Theme.WindowBorder
+    applyFont(searchClose)
+    searchClose.TextSize         = Theme.TextSize - 1
+    searchClose.TextColor3       = Theme.TextColor
+    searchClose.Text             = "Close  Esc"
+    searchClose.ZIndex           = 303
+    searchClose.Parent           = searchPanel
 
     local searchBox = Instance.new("TextBox")
-    searchBox.Size              = UDim2.new(1, -10, 0, 22)
-    searchBox.Position          = UDim2.new(0, 5, 0, 5)
+    searchBox.Size              = UDim2.new(1, -12, 0, 26)
+    searchBox.Position          = UDim2.new(0, 6, 0, 34)
     searchBox.BackgroundColor3  = Theme.FrameBg
     searchBox.BorderSizePixel   = 1
     searchBox.BorderColor3      = Theme.TitleBg
@@ -486,18 +525,18 @@ function xGui.new(title, toggleKey)
     searchBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
     searchBox.ClearTextOnFocus  = false
     searchBox.Text              = ""
-    searchBox.ZIndex            = 301
+    searchBox.ZIndex            = 302
     searchBox.Parent            = searchPanel
 
     local resultsList = Instance.new("ScrollingFrame")
-    resultsList.Size                 = UDim2.new(1, -10, 1, -35)
-    resultsList.Position             = UDim2.new(0, 5, 0, 32)
+    resultsList.Size                 = UDim2.new(1, -12, 1, -70)
+    resultsList.Position             = UDim2.new(0, 6, 0, 65)
     resultsList.BackgroundTransparency = 1
     resultsList.ScrollBarThickness   = 3
     resultsList.ScrollBarImageColor3 = Theme.TitleBg
     resultsList.CanvasSize           = UDim2.new(0, 0, 0, 0)
     resultsList.AutomaticCanvasSize  = Enum.AutomaticSize.Y
-    resultsList.ZIndex               = 301
+    resultsList.ZIndex               = 302
     resultsList.Parent               = searchPanel
     local _rl = Instance.new("UIListLayout")
     _rl.SortOrder = Enum.SortOrder.LayoutOrder
@@ -514,12 +553,28 @@ function xGui.new(title, toggleKey)
     noResultsLbl.ZIndex     = 302
     noResultsLbl.Parent     = resultsList
 
+    local doSearch
+
+    local function closeSearch()
+        searchBox:ReleaseFocus()
+        searchOverlay.Visible = false
+    end
+
+    local function openSearch()
+        searchOverlay.Visible = true
+        searchBox.Text = ""
+        if doSearch then doSearch("") end
+        task.defer(function()
+            if searchOverlay.Visible then searchBox:CaptureFocus() end
+        end)
+    end
+
     local SEARCH_SKIP = {
         TitleLabel=true, Arrow=true, CollapseButton=true,
-        CloseButton=true, SearchButton=true
+        CloseButton=true, SearchButton=true, SearchCloseButton=true
     }
 
-    local function doSearch(query)
+    doSearch = function(query)
         for _, child in ipairs(resultsList:GetChildren()) do
             if not child:IsA("UIListLayout") then child:Destroy() end
         end
@@ -572,6 +627,7 @@ function xGui.new(title, toggleKey)
                     local capturedTab  = tab
                     local capturedDesc = desc
                     row.MouseButton1Click:Connect(function()
+                        closeSearch()
                         capturedTab.Select()
                         task.defer(function()
                             local absY  = capturedDesc.AbsolutePosition.Y
@@ -602,14 +658,36 @@ function xGui.new(title, toggleKey)
     searchBox:GetPropertyChangedSignal("Text"):Connect(function()
         doSearch(searchBox.Text)
     end)
-    searchBtn.MouseButton1Click:Connect(function()
-        searchPanel.Visible = not searchPanel.Visible
-        if searchPanel.Visible then
-            searchBox.Text = ""
-            doSearch("")
-            task.defer(function() searchBox:CaptureFocus() end)
+    searchBtn.MouseButton1Click:Connect(openSearch)
+    searchClose.MouseButton1Click:Connect(closeSearch)
+    searchClose.MouseEnter:Connect(function() searchClose.BackgroundColor3 = Theme.ButtonBgHovered end)
+    searchClose.MouseLeave:Connect(function() searchClose.BackgroundColor3 = Theme.ButtonBg end)
+
+    searchOverlay.MouseButton1Click:Connect(function()
+        local mouse = UserInputService:GetMouseLocation()
+        local panelPosition = searchPanel.AbsolutePosition
+        local panelSize = searchPanel.AbsoluteSize
+        local outside = mouse.X < panelPosition.X
+            or mouse.X > panelPosition.X + panelSize.X
+            or mouse.Y < panelPosition.Y
+            or mouse.Y > panelPosition.Y + panelSize.Y
+        if outside then closeSearch() end
+    end)
+
+    self.SearchInputConnection = UserInputService.InputBegan:Connect(function(input, processed)
+        if input.KeyCode == Enum.KeyCode.Escape and searchOverlay.Visible then
+            closeSearch()
+            return
+        end
+        local controlDown = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
+            or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
+        if not processed and controlDown and input.KeyCode == Enum.KeyCode.F then
+            openSearch()
         end
     end)
+
+    self.OpenSearch = openSearch
+    self.CloseSearch = closeSearch
 
     return self
 end
