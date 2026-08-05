@@ -3,12 +3,13 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "2.3.0"
+xGui.Version = "2.3.1"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 
 -- Theme Configuration (Classic Dear ImGui Theme)
 local Theme = {
@@ -161,7 +162,11 @@ function xGui.new(title, toggleKey)
     ParentGui(screenGui)
     
     self.ScreenGui = screenGui
+    self.Title = title
     self.Tabs = {}
+    self.ConfigWidgets = {}
+    self.ConfigKeyCounts = {}
+    self.ConfigPath = (tostring(title):gsub("[^%w_%-]", "_")) .. "_config.json"
     self.ActiveTab = nil
     self.Collapsed = false
     self.Visible = true
@@ -609,6 +614,87 @@ function xGui.new(title, toggleKey)
     return self
 end
 
+local function normalizeConfigPath(path)
+    path = tostring(path or "xGui_config.json")
+    if path:sub(-5):lower() ~= ".json" then
+        path = path .. ".json"
+    end
+    return path
+end
+
+function xGui:SetConfigPath(path)
+    self.ConfigPath = normalizeConfigPath(path)
+    return self.ConfigPath
+end
+
+function xGui:_RegisterConfigWidget(key, widget)
+    key = tostring(key)
+    local count = (self.ConfigKeyCounts[key] or 0) + 1
+    self.ConfigKeyCounts[key] = count
+    if count > 1 then
+        key = key .. "#" .. count
+    end
+    self.ConfigWidgets[key] = widget
+    return key
+end
+
+function xGui:SaveConfig(path)
+    if typeof(writefile) ~= "function" then
+        return false, "writefile is unavailable"
+    end
+
+    local values = {}
+    for key, widget in pairs(self.ConfigWidgets) do
+        local ok, value = pcall(widget.Get)
+        if ok and type(value) == "boolean" then
+            values[key] = value
+        end
+    end
+
+    local target = normalizeConfigPath(path or self.ConfigPath)
+    local ok, err = pcall(writefile, target, HttpService:JSONEncode({
+        version = 1,
+        toggles = values,
+    }))
+    if not ok then
+        return false, tostring(err)
+    end
+    self.ConfigPath = target
+    return true, target
+end
+
+function xGui:LoadConfig(path)
+    if typeof(readfile) ~= "function" then
+        return false, "readfile is unavailable"
+    end
+
+    local target = normalizeConfigPath(path or self.ConfigPath)
+    if typeof(isfile) == "function" and not isfile(target) then
+        return false, "config file not found"
+    end
+
+    local readOk, raw = pcall(readfile, target)
+    if not readOk then
+        return false, tostring(raw)
+    end
+
+    local decodeOk, data = pcall(HttpService.JSONDecode, HttpService, raw)
+    if not decodeOk or type(data) ~= "table" then
+        return false, "invalid config json"
+    end
+
+    local values = type(data.toggles) == "table" and data.toggles or data
+    for key, value in pairs(values) do
+        local widget = self.ConfigWidgets[key]
+        if widget and type(value) == "boolean" then
+            pcall(widget.Set, value)
+        end
+    end
+
+    self.ConfigPath = target
+    return true, target
+end
+
 -- Programmatic Window Visibility Toggle (with transitions)
 function xGui:Toggle(visible)
     if visible == nil then
@@ -653,6 +739,7 @@ function xGui:CreateTab(name)
     local tab = {}
     tab.Name = name
     tab.Window = self
+    tab.ConfigPath = name
     
     -- Tab Header Button
     local tabButton = Instance.new("TextButton")
@@ -1083,6 +1170,8 @@ function setupContainerMethods(container, parentFrame)
     function container:CreateSection(name)
         local section = {}
         section.Expanded = true
+        section.Window = container.Window
+        section.ConfigPath = ((container.ConfigPath and container.ConfigPath .. "/") or "") .. name
         
         -- Header Bar
         local headerFrame = Instance.new("TextButton")
@@ -1250,7 +1339,7 @@ function setupContainerMethods(container, parentFrame)
     end
     
     -- 4. Create Toggle (Checkbox)
-    function container:CreateToggle(text, default, callback)
+    function container:CreateToggle(text, default, callback, configKey)
         local toggleFrame = Instance.new("TextButton")
         toggleFrame.Size = UDim2.new(1, 0, 0, 20)
         toggleFrame.BackgroundTransparency = 1
@@ -1330,6 +1419,17 @@ function setupContainerMethods(container, parentFrame)
             if props.Callback then
                 callback = props.Callback
             end
+        end
+        if container.Window then
+            local key = configKey or (((container.ConfigPath and container.ConfigPath .. "/") or "") .. text)
+            methods.ConfigKey = container.Window:_RegisterConfigWidget(key, {
+                Get = function()
+                    return state
+                end,
+                Set = function(savedState)
+                    methods:SetState(savedState)
+                end,
+            })
         end
         return methods
     end

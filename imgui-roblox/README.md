@@ -42,6 +42,15 @@ tab:CreateButton("Run Action", function()
     print("Action executed!")
 end)
 
+-- Toggle states are registered automatically by tab, section, and label
+window:SaveConfig("my_script_config")
+window:LoadConfig("my_script_config")
+
+-- An explicit fourth argument gives a toggle a stable custom config key
+tab:CreateToggle("Persistent Feature", false, function(state)
+    print("Persistent state:", state)
+end, "persistent_feature")
+
 -- Script Callback Container (Renders a standard Roblox UI inside the xGui window!)
 tab:Script("My Sub-GUI", false, function(state)
     if state then
