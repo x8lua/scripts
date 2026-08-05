@@ -3,7 +3,7 @@
 
 local xGui = {}
 xGui.__index = xGui
-xGui.Version = "2.4.0"
+xGui.Version = "2.4.1"
 
 -- Services
 local UserInputService = game:GetService("UserInputService")
@@ -456,7 +456,7 @@ function xGui.new(title, toggleKey)
     searchBtn.TextColor3 = Theme.TextColor
     searchBtn.Text       = "ð Search"
     searchBtn.Parent     = mainFrame
-    searchBtn.Text       = "Search  Ctrl F"
+    searchBtn.Text       = "Search"
     searchBtn.MouseEnter:Connect(function() searchBtn.BackgroundColor3 = Theme.TabHovered end)
     searchBtn.MouseLeave:Connect(function() searchBtn.BackgroundColor3 = Theme.TabBg      end)
 
@@ -508,7 +508,7 @@ function xGui.new(title, toggleKey)
     applyFont(searchClose)
     searchClose.TextSize         = Theme.TextSize - 1
     searchClose.TextColor3       = Theme.TextColor
-    searchClose.Text             = "Close  Esc"
+    searchClose.Text             = "Close"
     searchClose.ZIndex           = 303
     searchClose.Parent           = searchPanel
 
@@ -672,18 +672,6 @@ function xGui.new(title, toggleKey)
             or mouse.Y < panelPosition.Y
             or mouse.Y > panelPosition.Y + panelSize.Y
         if outside then closeSearch() end
-    end)
-
-    self.SearchInputConnection = UserInputService.InputBegan:Connect(function(input, processed)
-        if input.KeyCode == Enum.KeyCode.Escape and searchOverlay.Visible then
-            closeSearch()
-            return
-        end
-        local controlDown = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
-            or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
-        if not processed and controlDown and input.KeyCode == Enum.KeyCode.F then
-            openSearch()
-        end
     end)
 
     self.OpenSearch = openSearch
