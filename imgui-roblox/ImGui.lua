@@ -1471,7 +1471,8 @@ function setupContainerMethods(container, parentFrame)
         toggleFrame.Text = ""
         toggleFrame.Parent = parentFrame
         
-        local state = default or false
+        local state = default == true
+        local checkMark = utf8.char(0x2713)
         
         -- Checkbox frame
         local box = Instance.new("Frame")
@@ -1489,7 +1490,7 @@ function setupContainerMethods(container, parentFrame)
         applyFont(check)
         check.TextSize = Theme.TextSize + 2
         check.TextColor3 = Theme.TextColor
-        check.Text = state and "✓" or ""
+        check.Text = state and checkMark or ""
         check.Parent = box
         
         -- Toggle Text Label
@@ -1506,7 +1507,7 @@ function setupContainerMethods(container, parentFrame)
         
         local function toggle()
             state = not state
-            check.Text = state and "✓" or ""
+            check.Text = state and checkMark or ""
             box.BackgroundColor3 = state and Theme.SliderBg or Theme.FrameBg
             pcall(callback, state)
         end
@@ -1524,7 +1525,7 @@ function setupContainerMethods(container, parentFrame)
         local methods = {}
         function methods:SetState(newState)
             state = newState
-            check.Text = state and "✓" or ""
+            check.Text = state and checkMark or ""
             box.BackgroundColor3 = state and Theme.SliderBg or Theme.FrameBg
             pcall(callback, state)
         end
@@ -1538,7 +1539,7 @@ function setupContainerMethods(container, parentFrame)
             end
             if props.State ~= nil then
                 state = props.State
-                check.Text = state and "✓" or ""
+                check.Text = state and checkMark or ""
                 box.BackgroundColor3 = state and Theme.SliderBg or Theme.FrameBg
             end
             if props.Callback then
