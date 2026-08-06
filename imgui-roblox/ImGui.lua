@@ -1678,29 +1678,54 @@ function setupContainerMethods(container, parentFrame)
             sliderFill.BackgroundColor3 = Theme.SliderBg
         end)
         
+        local function redrawSlider()
+            value = math.clamp(value, min, max)
+            local range = max - min
+            local pct = range > 0 and (value - min) / range or 0
+            sliderFill.Size = UDim2.new(pct, 0, 1, 0)
+            valueLabel.Text = fmtVal(value)
+        end
+
         local methods = {}
         function methods:SetValue(newVal)
             value = math.clamp(newVal, min, max)
-            local pct = (value - min) / (max - min)
-            sliderFill.Size = UDim2.new(pct, 0, 1, 0)
-            valueLabel.Text = fmtVal(value)
+            redrawSlider()
             pcall(callback, value)
         end
         function methods:GetValue()
             return value
         end
+        function methods:SetRange(newMin, newMax)
+            assert(type(newMin) == "number" and type(newMax) == "number", "Slider range must use numbers")
+            assert(newMin < newMax, "Slider minimum must be less than maximum")
+            min = newMin
+            max = newMax
+            redrawSlider()
+            pcall(callback, value)
+        end
+        function methods:SetMin(newMin)
+            self:SetRange(newMin, max)
+        end
+        function methods:SetMax(newMax)
+            self:SetRange(min, newMax)
+        end
+        function methods:GetRange()
+            return min, max
+        end
         function methods:Update(props)
             if props.Text      ~= nil then label.Text = props.Text end
-            if props.Min       ~= nil then min = props.Min end
-            if props.Max       ~= nil then max = props.Max end
             if props.Increment ~= nil then increment = props.Increment end
-            if props.Value     ~= nil then
-                value = math.clamp(props.Value, min, max)
-                local pct = (value - min) / (max - min)
-                sliderFill.Size = UDim2.new(pct, 0, 1, 0)
-                valueLabel.Text = fmtVal(value)
-            end
             if props.Callback  ~= nil then callback = props.Callback end
+
+            local newMin = props.Min ~= nil and props.Min or min
+            local newMax = props.Max ~= nil and props.Max or max
+            if newMin ~= min or newMax ~= max then
+                self:SetRange(newMin, newMax)
+            elseif props.Value ~= nil then
+                self:SetValue(props.Value)
+            elseif props.Increment ~= nil then
+                redrawSlider()
+            end
         end
         return methods
     end
