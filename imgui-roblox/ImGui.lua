@@ -1733,17 +1733,24 @@ function setupContainerMethods(container, parentFrame)
     
     -- 6. Create Dropdown
     function container:CreateDropdown(text, options, default, callback)
+        options = options or {}
+        callback = callback or function() end
+
         local dropdownContainer = Instance.new("Frame")
+        dropdownContainer.Name = "Dropdown"
         dropdownContainer.Size = UDim2.new(1, 0, 0, 20)
         dropdownContainer.BackgroundTransparency = 1
+        dropdownContainer.ClipsDescendants = false
         dropdownContainer.Parent = parentFrame
-        
+
         local currentSelection = default or options[1] or "None"
-        
-        -- Dropdown Box Button
+        local isOpen = false
+        local optionButtons = {}
+
+        -- Dropdown box button keeps a fixed height while the container expands
         local dropdownBtn = Instance.new("TextButton")
         dropdownBtn.Name = "DropdownButton"
-        dropdownBtn.Size = UDim2.new(0, 150, 1, -4)
+        dropdownBtn.Size = UDim2.new(0, 150, 0, 16)
         dropdownBtn.Position = UDim2.new(0, 0, 0, 2)
         dropdownBtn.BackgroundColor3 = Theme.FrameBg
         dropdownBtn.BorderSizePixel = 1
@@ -1751,12 +1758,11 @@ function setupContainerMethods(container, parentFrame)
         applyFont(dropdownBtn)
         dropdownBtn.TextSize = Theme.TextSize
         dropdownBtn.TextColor3 = Theme.TextColor
-        dropdownBtn.Text = " " .. currentSelection
+        dropdownBtn.Text = " " .. tostring(currentSelection)
         dropdownBtn.TextXAlignment = Enum.TextXAlignment.Left
         dropdownBtn.AutoButtonColor = false
         dropdownBtn.Parent = dropdownContainer
-        
-        -- Down Arrow indicator on far right of button
+
         local arrowLabel = Instance.new("TextLabel")
         arrowLabel.Size = UDim2.new(0, 20, 1, 0)
         arrowLabel.Position = UDim2.new(1, -20, 0, 0)
@@ -1764,12 +1770,12 @@ function setupContainerMethods(container, parentFrame)
         applyFont(arrowLabel)
         arrowLabel.TextSize = Theme.TextSize - 2
         arrowLabel.TextColor3 = Theme.TextDisabled
-        arrowLabel.Text = "▼"
+        arrowLabel.Text = ">"
+        arrowLabel.Rotation = 90
         arrowLabel.Parent = dropdownBtn
-        
-        -- Dropdown label text to the right
+
         local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, -165, 1, 0)
+        label.Size = UDim2.new(1, -165, 0, 20)
         label.Position = UDim2.new(0, 160, 0, 0)
         label.BackgroundTransparency = 1
         applyFont(label)
@@ -1778,66 +1784,67 @@ function setupContainerMethods(container, parentFrame)
         label.Text = text
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = dropdownContainer
-        
-        -- Dropdown List Popup Frame (drawn directly on ScreenGui to avoid clipping)
+
+        -- The list stays in normal layout flow so opening it pushes later elements down
         local popupFrame = Instance.new("Frame")
         popupFrame.Name = "DropdownPopup"
+        popupFrame.Position = UDim2.new(0, 0, 0, 20)
         popupFrame.Size = UDim2.new(0, 150, 0, 0)
         popupFrame.BackgroundColor3 = Theme.FrameBg
         popupFrame.BorderSizePixel = 1
         popupFrame.BorderColor3 = Theme.WindowBorder
         popupFrame.Visible = false
-        popupFrame.ZIndex = 100 -- Ensure it renders above other elements
-        
-        -- Access root Window ScreenGui
-        local rootScreenGui = parentFrame:FindFirstAncestorOfClass("ScreenGui")
-        if rootScreenGui then
-            popupFrame.Parent = rootScreenGui
-        else
-            popupFrame.Parent = parentFrame
-        end
-        
+        popupFrame.Parent = dropdownContainer
+
         local popupLayout = Instance.new("UIListLayout")
         popupLayout.SortOrder = Enum.SortOrder.LayoutOrder
         popupLayout.Parent = popupFrame
-        
-        local isOpen = false
-        
-        -- Populates dropdown options
+
+        local function updateOptionStyles()
+            for option, button in pairs(optionButtons) do
+                button.TextColor3 = option == currentSelection and Theme.TitleBg or Theme.TextColor
+            end
+        end
+
+        local function setOpen(open)
+            isOpen = open
+            local listHeight = isOpen and (#options * 20) or 0
+            popupFrame.Size = UDim2.new(0, 150, 0, listHeight)
+            popupFrame.Visible = isOpen and listHeight > 0
+            dropdownContainer.Size = UDim2.new(1, 0, 0, 20 + listHeight)
+            arrowLabel.Rotation = isOpen and -90 or 90
+        end
+
         local function populateOptions()
             for _, child in ipairs(popupFrame:GetChildren()) do
                 if child:IsA("TextButton") then
                     child:Destroy()
                 end
             end
-            
-            local totalHeight = 0
+            table.clear(optionButtons)
+
             for i, option in ipairs(options) do
                 local optBtn = Instance.new("TextButton")
+                optBtn.LayoutOrder = i
                 optBtn.Size = UDim2.new(1, 0, 0, 20)
                 optBtn.BackgroundColor3 = Theme.FrameBg
                 optBtn.BorderSizePixel = 0
                 applyFont(optBtn)
                 optBtn.TextSize = Theme.TextSize
-                optBtn.TextColor3 = option == currentSelection and Theme.TitleBg or Theme.TextColor
-                optBtn.Text = " " .. option
+                optBtn.Text = " " .. tostring(option)
                 optBtn.TextXAlignment = Enum.TextXAlignment.Left
-                optBtn.ZIndex = 101
+                optBtn.AutoButtonColor = false
                 optBtn.Parent = popupFrame
-                
-                totalHeight = totalHeight + 20
-                
+                optionButtons[option] = optBtn
+
                 optBtn.MouseButton1Click:Connect(function()
                     currentSelection = option
-                    dropdownBtn.Text = " " .. option
+                    dropdownBtn.Text = " " .. tostring(option)
+                    updateOptionStyles()
+                    setOpen(false)
                     pcall(callback, option)
-                    
-                    -- Close popup
-                    isOpen = false
-                    popupFrame.Visible = false
                 end)
-                
-                -- Hover states inside dropdown
+
                 optBtn.MouseEnter:Connect(function()
                     optBtn.BackgroundColor3 = Theme.TabHovered
                 end)
@@ -1845,95 +1852,61 @@ function setupContainerMethods(container, parentFrame)
                     optBtn.BackgroundColor3 = Theme.FrameBg
                 end)
             end
-            
-            popupFrame.Size = UDim2.new(0, 150, 0, math.min(totalHeight, 200))
+
+            updateOptionStyles()
+            if isOpen then
+                setOpen(true)
+            end
         end
-        
-        -- Toggle open/close popup
+
         dropdownBtn.MouseButton1Click:Connect(function()
-            isOpen = not isOpen
-            if isOpen then
+            if not isOpen then
                 populateOptions()
-                -- Dynamic positioning below the dropdown button
-                popupFrame.Position = UDim2.new(0, dropdownBtn.AbsolutePosition.X, 0, dropdownBtn.AbsolutePosition.Y + dropdownBtn.AbsoluteSize.Y + 36) -- Add topbar inset adjustment
-                popupFrame.Visible = true
-            else
-                popupFrame.Visible = false
             end
+            setOpen(not isOpen)
         end)
-        
-        -- Adjust positioning during frame updates to align with moving window
-        local positionConnection
-        positionConnection = RunService.RenderStepped:Connect(function()
-            if not dropdownContainer.Parent then
-                positionConnection:Disconnect()
-                popupFrame:Destroy()
-                return
-            end
-            if isOpen then
-                popupFrame.Position = UDim2.new(0, dropdownBtn.AbsolutePosition.X, 0, dropdownBtn.AbsolutePosition.Y + dropdownBtn.AbsoluteSize.Y + 36)
-            end
-        end)
-        
-        -- Close dropdown on clicking elsewhere
-        UserInputService.InputBegan:Connect(function(input)
-            if isOpen and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-                local mousePos = input.Position
-                local popupPos = popupFrame.AbsolutePosition
-                local popupSize = popupFrame.AbsoluteSize
-                
-                local insidePopup = mousePos.X >= popupPos.X and mousePos.X <= (popupPos.X + popupSize.X) and
-                                    mousePos.Y >= (popupPos.Y + 36) and mousePos.Y <= (popupPos.Y + popupSize.Y + 36)
-                                    
-                local btnPos = dropdownBtn.AbsolutePosition
-                local btnSize = dropdownBtn.AbsoluteSize
-                local insideBtn = mousePos.X >= btnPos.X and mousePos.X <= (btnPos.X + btnSize.X) and
-                                  mousePos.Y >= (btnPos.Y + 36) and mousePos.Y <= (btnPos.Y + btnSize.Y + 36)
-                                  
-                if not insidePopup and not insideBtn then
-                    isOpen = false
-                    popupFrame.Visible = false
-                end
-            end
-        end)
-        
-        -- Hover effects
+
         dropdownBtn.MouseEnter:Connect(function()
             dropdownBtn.BackgroundColor3 = Theme.FrameBgHovered
         end)
         dropdownBtn.MouseLeave:Connect(function()
             dropdownBtn.BackgroundColor3 = Theme.FrameBg
         end)
-        
+
         local methods = {}
         function methods:SetSelection(newSelection)
             currentSelection = newSelection
-            dropdownBtn.Text = " " .. newSelection
+            dropdownBtn.Text = " " .. tostring(newSelection)
+            updateOptionStyles()
             pcall(callback, newSelection)
         end
+        function methods:GetSelection()
+            return currentSelection
+        end
         function methods:Refresh(newOptions, selectDefault)
-            options = newOptions
-            if selectDefault then
+            options = newOptions or {}
+            if selectDefault ~= nil then
                 currentSelection = selectDefault
-                dropdownBtn.Text = " " .. selectDefault
+                dropdownBtn.Text = " " .. tostring(selectDefault)
                 pcall(callback, selectDefault)
             end
-            if isOpen then
-                populateOptions()
-            end
+            populateOptions()
         end
         function methods:Update(props)
-            if props.Text      ~= nil then label.Text = props.Text end
-            if props.Options   ~= nil then options = props.Options end
+            if props.Text ~= nil then label.Text = props.Text end
+            if props.Callback ~= nil then callback = props.Callback end
+            if props.Options ~= nil then
+                options = props.Options
+                populateOptions()
+            end
             if props.Selection ~= nil then
                 currentSelection = props.Selection
-                dropdownBtn.Text = " " .. props.Selection
+                dropdownBtn.Text = " " .. tostring(props.Selection)
+                updateOptionStyles()
             end
-            if props.Callback  ~= nil then callback = props.Callback end
         end
         return methods
     end
-
     -- 7. Create Text Input
     function container:CreateTextInput(text, defaultText, callback)
         local inputContainer = Instance.new("Frame")
