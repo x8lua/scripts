@@ -4,9 +4,10 @@ local ContextActionService = game:GetService("ContextActionService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.4.3"
+StacyUI.Version = "1.4.4"
 
 local UPDATE_LOG = {
+    { Version = "v1.4.4", Text = "Improved description typography and fixed browser search focus" },
     { Version = "v1.4.3", Text = "Locked browser search editing until the field is clicked" },
     { Version = "v1.4.2", Text = "Made browser search click activated during gameplay" },
     { Version = "v1.4.1", Text = "Stopped browser search from capturing gameplay input" },
@@ -657,7 +658,7 @@ function StacyUI:_refreshUpdateLog()
             BackgroundColor3 = self.Style.suggestionHighlight,
             BackgroundTransparency = 0.72,
             BorderSizePixel = 0,
-            Size = UDim2.new(1, -4, 0, 42),
+            Size = UDim2.new(1, -4, 0, 54),
             ZIndex = 22,
         }, self.UpdateLogList)
         create("UICorner", { CornerRadius = UDim.new(0, 4) }, row)
@@ -669,20 +670,21 @@ function StacyUI:_refreshUpdateLog()
             TextColor3 = Color3.fromRGB(80, 255, 125),
             TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
-            Position = UDim2.fromOffset(10, 4),
-            Size = UDim2.new(0, 70, 0, 17),
+            Position = UDim2.fromOffset(10, 7),
+            Size = UDim2.new(0, 70, 0, 40),
             ZIndex = 23,
         }, row)
         create("TextLabel", {
             Name = "Text",
             BackgroundTransparency = 1,
-            Font = self.Style.fontSans,
+            Font = Enum.Font.Gotham,
             Text = update.Text,
             TextColor3 = self.Style.text,
-            TextSize = 12,
+            TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
-            Position = UDim2.fromOffset(84, 4),
-            Size = UDim2.new(1, -94, 0, 32),
+            TextYAlignment = Enum.TextYAlignment.Center,
+            Position = UDim2.fromOffset(84, 5),
+            Size = UDim2.new(1, -94, 0, 44),
             TextWrapped = true,
             ZIndex = 23,
         }, row)
@@ -740,7 +742,7 @@ function StacyUI:_refreshCommandBrowser()
             BackgroundTransparency = 0.72,
             BorderSizePixel = 0,
             Text = "",
-            Size = UDim2.new(1, -4, 0, 42),
+            Size = UDim2.new(1, -4, 0, 48),
             ZIndex = 22,
         }, self.CommandBrowserList)
         create("UICorner", { CornerRadius = UDim.new(0, 4) }, row)
@@ -759,13 +761,13 @@ function StacyUI:_refreshCommandBrowser()
         create("TextLabel", {
             Name = "Description",
             BackgroundTransparency = 1,
-            Font = self.Style.fontSans,
+            Font = Enum.Font.Gotham,
             Text = command.Description,
             TextColor3 = self.Style.muted,
-            TextSize = 11,
+            TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
-            Position = UDim2.fromOffset(10, 21),
-            Size = UDim2.new(1, -20, 0, 15),
+            Position = UDim2.fromOffset(10, 22),
+            Size = UDim2.new(1, -20, 0, 20),
             ZIndex = 23,
         }, row)
         row.MouseButton1Click:Connect(function()
@@ -1023,7 +1025,7 @@ function StacyUI:_onFocusLost(enterPressed)
         if not self.Destroyed and self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible then
             task.defer(self.Prompt.CaptureFocus, self.Prompt)
         end
-    elseif self.Open then
+    elseif self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible then
         self:Toggle(false)
     end
 end
