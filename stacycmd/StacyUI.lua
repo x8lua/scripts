@@ -4,9 +4,11 @@ local ContextActionService = game:GetService("ContextActionService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.4.1"
+StacyUI.Version = "1.4.3"
 
 local UPDATE_LOG = {
+    { Version = "v1.4.3", Text = "Locked browser search editing until the field is clicked" },
+    { Version = "v1.4.2", Text = "Made browser search click activated during gameplay" },
     { Version = "v1.4.1", Text = "Stopped browser search from capturing gameplay input" },
     { Version = "v1.4.0", Text = "Fixed cmds results and added the searchable update log" },
     { Version = "v1.3.0", Text = "Added searchable cmds command browser" },
@@ -393,6 +395,7 @@ function StacyUI:_buildCommandBrowser()
         BackgroundTransparency = 0.05,
         BorderSizePixel = 0,
         ClearTextOnFocus = false,
+        TextEditable = false,
         Font = style.fontMono,
         PlaceholderText = "SEARCH COMMANDS",
         PlaceholderColor3 = style.muted,
@@ -451,9 +454,15 @@ function StacyUI:_buildCommandBrowser()
         self:_refreshCommandBrowser()
     end)
     self:_connect(self.CommandBrowserSearch.InputBegan, function(input)
-        if input.KeyCode == Enum.KeyCode.Escape then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            self.CommandBrowserSearch.TextEditable = true
+            self.CommandBrowserSearch:CaptureFocus()
+        elseif input.KeyCode == Enum.KeyCode.Escape then
             self:HideCommands()
         end
+    end)
+    self:_connect(self.CommandBrowserSearch.FocusLost, function()
+        self.CommandBrowserSearch.TextEditable = false
     end)
     self:_connect(self.CommandBrowserLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
         self.CommandBrowserList.CanvasSize = UDim2.new(0, 0, 0, self.CommandBrowserLayout.AbsoluteContentSize.Y + 6)
@@ -553,6 +562,7 @@ function StacyUI:_buildUpdateLog()
         BackgroundTransparency = 0.05,
         BorderSizePixel = 0,
         ClearTextOnFocus = false,
+        TextEditable = false,
         Font = style.fontMono,
         PlaceholderText = "SEARCH UPDATES",
         PlaceholderColor3 = style.muted,
@@ -610,9 +620,15 @@ function StacyUI:_buildUpdateLog()
         self:_refreshUpdateLog()
     end)
     self:_connect(self.UpdateLogSearch.InputBegan, function(input)
-        if input.KeyCode == Enum.KeyCode.Escape then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            self.UpdateLogSearch.TextEditable = true
+            self.UpdateLogSearch:CaptureFocus()
+        elseif input.KeyCode == Enum.KeyCode.Escape then
             self:HideUpdateLog()
         end
+    end)
+    self:_connect(self.UpdateLogSearch.FocusLost, function()
+        self.UpdateLogSearch.TextEditable = false
     end)
 end
 
@@ -677,6 +693,8 @@ function StacyUI:ShowUpdateLog()
     assert(not self.Destroyed, "StacyUI has been destroyed")
     self:HideCommands(false)
     self.UpdateLogSearch.Text = ""
+    self.UpdateLogSearch.TextEditable = false
+    self.UpdateLogSearch:ReleaseFocus()
     self:_refreshUpdateLog()
     self.UpdateLog.Visible = true
     return self
@@ -763,6 +781,8 @@ function StacyUI:ShowCommands()
     assert(not self.Destroyed, "StacyUI has been destroyed")
     self:HideUpdateLog(false)
     self.CommandBrowserSearch.Text = ""
+    self.CommandBrowserSearch.TextEditable = false
+    self.CommandBrowserSearch:ReleaseFocus()
     self:_refreshCommandBrowser()
     self.CommandBrowser.Visible = true
     return self
