@@ -33,7 +33,9 @@ console:Register({
 
 The public API includes `new` `Register` `Unregister` `Execute` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`
 
-The protected built ins are `help` `clear` `version` and `ctrlc`
+The protected built ins are `help` `clear` `cmds` `version` and `ctrlc`
+
+`cmds` opens a separate searchable command browser with descriptions and clickable command rows
 
 `ctrlc` calls `Destroy` which unbinds input disconnects every UI connection destroys the ScreenGui clears library state and runs the optional `OnDestroy` callback
 
