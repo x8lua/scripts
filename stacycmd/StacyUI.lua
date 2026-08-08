@@ -4,7 +4,7 @@ local ContextActionService = game:GetService("ContextActionService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.2.0"
+StacyUI.Version = "1.2.1"
 
 local DEFAULT_STYLE = {
     fontMono = Enum.Font.Code,
@@ -301,33 +301,39 @@ function StacyUI:_buildSuggestions()
 
     self.Suggestions = create("Frame", {
         Name = "Suggestions",
-        BackgroundTransparency = 0.1,
+        BackgroundTransparency = 0.04,
         BackgroundColor3 = style.suggestionBackground,
         BorderSizePixel = 0,
         Position = UDim2.new(0, 10, 1, 6),
-        Size = UDim2.new(0, 300, 0, 0),
+        Size = UDim2.new(0, 288, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
+        ClipsDescendants = true,
         Visible = false,
     }, self.Main)
 
-    create("UICorner", { CornerRadius = UDim.new(0, 6) }, self.Suggestions)
+    create("UICorner", { CornerRadius = UDim.new(0, 5) }, self.Suggestions)
+    create("UIStroke", {
+        Color = style.divider,
+        Transparency = 0.15,
+        Thickness = 1,
+    }, self.Suggestions)
     create("UIPadding", {
-        PaddingTop = UDim.new(0, 8),
-        PaddingBottom = UDim.new(0, 8),
-        PaddingLeft = UDim.new(0, 8),
-        PaddingRight = UDim.new(0, 8),
+        PaddingTop = UDim.new(0, 6),
+        PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 6),
+        PaddingRight = UDim.new(0, 6),
     }, self.Suggestions)
     create("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 8),
+        Padding = UDim.new(0, 6),
     }, self.Suggestions)
 
     self.Description = create("TextLabel", {
         Name = "Description",
         BackgroundTransparency = 1,
-        Font = style.fontSans,
-        TextSize = 14,
-        TextColor3 = style.text,
+        Font = style.fontMono,
+        TextSize = 12,
+        TextColor3 = style.muted,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         Size = UDim2.new(1, 0, 0, 0),
@@ -353,7 +359,7 @@ function StacyUI:_buildSuggestions()
 
     create("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 2),
+        Padding = UDim.new(0, 3),
     }, self.SuggestionList)
 end
 
@@ -391,10 +397,24 @@ function StacyUI:_makeSuggestion(name)
         Font = self.Style.fontMono,
         Text = name,
         TextColor3 = self.Style.text,
-        TextSize = 15,
+        TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Size = UDim2.new(1, 0, 0, 22),
+        Size = UDim2.new(1, 0, 0, 26),
     }, self.SuggestionList)
+
+    create("UICorner", { CornerRadius = UDim.new(0, 4) }, button)
+    create("UIPadding", {
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 8),
+    }, button)
+    create("Frame", {
+        Name = "SelectionBar",
+        BackgroundColor3 = self.Style.accent,
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(-10, 4),
+        Size = UDim2.new(0, 2, 1, -8),
+        Visible = false,
+    }, button)
 
     self:_connect(button.MouseButton1Click, function()
         self.Prompt.Text = name .. " "
@@ -415,12 +435,14 @@ function StacyUI:_changeSelection(delta)
     if old then
         old.BackgroundTransparency = 1
         old.TextColor3 = self.Style.text
+        old.SelectionBar.Visible = false
     end
 
     self.SelectedSuggestionIndex = ((self.SelectedSuggestionIndex - 1 + delta) % count) + 1
     local current = self.SuggestionButtons[self.SelectedSuggestionIndex]
-    current.BackgroundTransparency = 0.7
+    current.BackgroundTransparency = 0.35
     current.TextColor3 = self.Style.accent
+    current.SelectionBar.Visible = true
 
     local command = self.Commands[current.Text]
     self.Description.Text = command and command.Description or ""
