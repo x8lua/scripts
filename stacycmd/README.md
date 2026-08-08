@@ -16,7 +16,7 @@ local StacyUI = loadstring(game:HttpGet(
 local console = StacyUI.new({
     Name = "MyConsole",
     Prefix = "demo@StacyUI$ ",
-    ToggleKey = Enum.KeyCode.Period,
+    ToggleKey = Enum.KeyCode.F1,
     OnDestroy = function()
         print("Script resources destroyed")
     end,

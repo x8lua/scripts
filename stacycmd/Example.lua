@@ -5,7 +5,7 @@ local StacyUI = loadstring(game:HttpGet(
 local console = StacyUI.new({
     Name = "MyConsole",
     Prefix = "demo@StacyUI$ ",
-    ToggleKey = Enum.KeyCode.Period,
+    ToggleKey = Enum.KeyCode.F1,
     OnDestroy = function()
         print("StacyUI and script resources destroyed")
     end,
@@ -35,5 +35,5 @@ console:Register({
     end,
 })
 
-console:Log("StacyUI loaded  press Period to toggle", console.Style.info)
+console:Log("StacyUI loaded  press F1 to toggle", console.Style.info)
 console:Log("Run ctrlc to destroy the entire script", console.Style.warn)

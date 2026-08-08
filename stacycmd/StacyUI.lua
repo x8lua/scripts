@@ -4,7 +4,7 @@ local ContextActionService = game:GetService("ContextActionService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.1.0"
+StacyUI.Version = "1.1.1"
 
 local DEFAULT_STYLE = {
     fontMono = Enum.Font.Code,
@@ -73,7 +73,7 @@ function StacyUI.new(options)
     self.Open = false
     self.Destroyed = false
     self.OnDestroy = options.OnDestroy
-    self.ToggleKey = options.ToggleKey or Enum.KeyCode.Period
+    self.ToggleKey = options.ToggleKey or Enum.KeyCode.F1
     self.ActionName = "StacyUIToggle_" .. tostring(self):gsub("[^%w]", "")
     self.Prefix = options.Prefix or (self.Player.Name .. "@StacyUI$ ")
 
