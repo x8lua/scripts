@@ -43,6 +43,6 @@ Each StacyCMD release adds its newest entry at the top of the update log
 
 `ctrlc` calls `Destroy` which unbinds input disconnects every UI connection destroys the ScreenGui clears library state and runs the optional `OnDestroy` callback
 
-The console displays a compact StacyCMD version header F1 state ready banner and accent matched command suggestions by default
+The console displays a compact Bodoni StacyCMD header with bright green CMD branding F1 state ready banner and accent matched command suggestions by default
 
 See `Example.lua` for a complete loader and command setup

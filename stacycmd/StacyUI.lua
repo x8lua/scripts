@@ -5,9 +5,10 @@ local UserInputService = game:GetService("UserInputService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.4.7"
+StacyUI.Version = "1.4.8"
 
 local UPDATE_LOG = {
+    { Version = "v1.4.8", Text = "Matched the command console header to the Bodoni StacyCMD brand" },
     { Version = "v1.4.7", Text = "Added modal focus grace against stray F1 toggle events" },
     { Version = "v1.4.6", Text = "Blocked F1 toggles while StacyUI search or prompt owns focus" },
     { Version = "v1.4.5", Text = "Kept StacyUI open when command search receives focus" },
@@ -216,15 +217,27 @@ function StacyUI:_build(options)
     }, self.Header)
 
     create("TextLabel", {
-        Name = "Title",
+        Name = "BrandStacy",
         BackgroundTransparency = 1,
-        Font = style.fontSans,
-        TextSize = 18,
+        Font = Enum.Font.Bodoni,
+        TextSize = 21,
         TextColor3 = style.text,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromOffset(16, 5),
-        Size = UDim2.new(0, 130, 0, 26),
-        Text = "StacyCMD",
+        Position = UDim2.fromOffset(16, 3),
+        Size = UDim2.new(0, 62, 0, 30),
+        Text = "Stacy",
+    }, self.Header)
+
+    create("TextLabel", {
+        Name = "BrandCMD",
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Bodoni,
+        TextSize = 21,
+        TextColor3 = Color3.fromRGB(80, 255, 125),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(70, 3),
+        Size = UDim2.new(0, 54, 0, 30),
+        Text = "CMD",
     }, self.Header)
 
     create("TextLabel", {
@@ -234,7 +247,7 @@ function StacyUI:_build(options)
         TextSize = 12,
         TextColor3 = style.accent,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromOffset(104, 8),
+        Position = UDim2.fromOffset(128, 9),
         Size = UDim2.new(0, 80, 0, 20),
         Text = "v" .. StacyUI.Version,
     }, self.Header)
