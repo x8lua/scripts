@@ -1,12 +1,14 @@
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local ContextActionService = game:GetService("ContextActionService")
+local UserInputService = game:GetService("UserInputService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.4.5"
+StacyUI.Version = "1.4.6"
 
 local UPDATE_LOG = {
+    { Version = "v1.4.6", Text = "Blocked F1 toggles while StacyUI search or prompt owns focus" },
     { Version = "v1.4.5", Text = "Kept StacyUI open when command search receives focus" },
     { Version = "v1.4.4", Text = "Improved description typography and fixed browser search focus" },
     { Version = "v1.4.3", Text = "Locked browser search editing until the field is clicked" },
@@ -1139,6 +1141,10 @@ function StacyUI:SetToggleKey(keyCode)
     end
     ContextActionService:BindAction(self.ActionName, function(_, inputState)
         if inputState == Enum.UserInputState.Begin then
+            local focused = UserInputService:GetFocusedTextBox()
+            if focused and focused:IsDescendantOf(self.Gui) then
+                return Enum.ContextActionResult.Sink
+            end
             self:Toggle()
             return Enum.ContextActionResult.Sink
         end
