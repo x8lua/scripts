@@ -4,9 +4,10 @@ local ContextActionService = game:GetService("ContextActionService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.4.0"
+StacyUI.Version = "1.4.1"
 
 local UPDATE_LOG = {
+    { Version = "v1.4.1", Text = "Stopped browser search from capturing gameplay input" },
     { Version = "v1.4.0", Text = "Fixed cmds results and added the searchable update log" },
     { Version = "v1.3.0", Text = "Added searchable cmds command browser" },
     { Version = "v1.2.1", Text = "Polished command suggestions to match StacyCMD styling" },
@@ -674,11 +675,10 @@ end
 
 function StacyUI:ShowUpdateLog()
     assert(not self.Destroyed, "StacyUI has been destroyed")
-    self:HideCommands(true)
+    self:HideCommands(false)
     self.UpdateLogSearch.Text = ""
     self:_refreshUpdateLog()
     self.UpdateLog.Visible = true
-    self.UpdateLogSearch:CaptureFocus()
     return self
 end
 
@@ -761,11 +761,10 @@ end
 
 function StacyUI:ShowCommands()
     assert(not self.Destroyed, "StacyUI has been destroyed")
-    self:HideUpdateLog(true)
+    self:HideUpdateLog(false)
     self.CommandBrowserSearch.Text = ""
     self:_refreshCommandBrowser()
     self.CommandBrowser.Visible = true
-    self.CommandBrowserSearch:CaptureFocus()
     return self
 end
 
@@ -1147,8 +1146,8 @@ function StacyUI:Toggle(forceState)
         task.defer(self.Prompt.CaptureFocus, self.Prompt)
     else
         self:_clearSuggestions()
-        self:HideCommands(true)
-        self:HideUpdateLog(true)
+        self:HideCommands(false)
+        self:HideUpdateLog(false)
         self.Prompt:ReleaseFocus()
         TweenService:Create(self.Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
             Position = UDim2.new(0.5, 0, 0, 20),
