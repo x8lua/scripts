@@ -17,6 +17,9 @@ local console = StacyUI.new({
     Name = "MyConsole",
     Prefix = "demo@StacyUI$ ",
     ToggleKey = Enum.KeyCode.Period,
+    OnDestroy = function()
+        print("Script resources destroyed")
+    end,
 })
 
 console:Register({
@@ -29,5 +32,7 @@ console:Register({
 ```
 
 The public API includes `new` `Register` `Unregister` `Execute` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`
+
+The protected built in `ctrlc` command calls `Destroy` which unbinds input disconnects every UI connection destroys the ScreenGui clears library state and runs the optional `OnDestroy` callback
 
 See `Example.lua` for a complete loader and command setup

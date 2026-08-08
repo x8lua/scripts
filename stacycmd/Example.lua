@@ -6,6 +6,9 @@ local console = StacyUI.new({
     Name = "MyConsole",
     Prefix = "demo@StacyUI$ ",
     ToggleKey = Enum.KeyCode.Period,
+    OnDestroy = function()
+        print("StacyUI and script resources destroyed")
+    end,
 })
 
 console:Register({
@@ -33,3 +36,4 @@ console:Register({
 })
 
 console:Log("StacyUI loaded  press Period to toggle", console.Style.info)
+console:Log("Run ctrlc to destroy the entire script", console.Style.warn)

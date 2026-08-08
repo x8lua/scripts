@@ -4,7 +4,7 @@ local ContextActionService = game:GetService("ContextActionService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.0.0"
+StacyUI.Version = "1.1.0"
 
 local DEFAULT_STYLE = {
     fontMono = Enum.Font.Code,
@@ -72,18 +72,30 @@ function StacyUI.new(options)
     self.Connections = {}
     self.Open = false
     self.Destroyed = false
+    self.OnDestroy = options.OnDestroy
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.Period
     self.ActionName = "StacyUIToggle_" .. tostring(self):gsub("[^%w]", "")
     self.Prefix = options.Prefix or (self.Player.Name .. "@StacyUI$ ")
 
     self:_build(options)
     self:SetToggleKey(self.ToggleKey)
+    self:_registerBuiltIns()
 
     if options.Visible == true then
         self:Toggle(true)
     end
 
     return self
+end
+
+function StacyUI:_registerBuiltIns()
+    self.Commands.ctrlc = {
+        Description = "Destroy the entire script and UI",
+        Protected = true,
+        Callback = function(_, _, ui)
+            ui:Destroy()
+        end,
+    }
 end
 
 function StacyUI:_connect(signal, callback)
@@ -385,7 +397,7 @@ function StacyUI:_onFocusLost(enterPressed)
             self.HistoryIndex = 0
             self:Execute(line)
         end
-        if self.Open then
+        if not self.Destroyed and self.Open then
             task.defer(self.Prompt.CaptureFocus, self.Prompt)
         end
     elseif self.Open then
@@ -397,6 +409,7 @@ function StacyUI:Register(definition)
     assert(type(definition) == "table", "Register expects a command definition")
     assert(type(definition.Name) == "string" and definition.Name ~= "", "command Name is required")
     assert(type(definition.Callback) == "function", "command Callback is required")
+    assert(not (self.Commands[definition.Name] and self.Commands[definition.Name].Protected), "cannot replace a built in command")
 
     self.Commands[definition.Name] = {
         Description = definition.Description or "No description available",
@@ -406,6 +419,7 @@ function StacyUI:Register(definition)
 end
 
 function StacyUI:Unregister(name)
+    assert(not (self.Commands[name] and self.Commands[name].Protected), "cannot unregister a built in command")
     self.Commands[name] = nil
     return self
 end
@@ -541,12 +555,23 @@ function StacyUI:Destroy()
         return
     end
     self.Destroyed = true
+    self.Open = false
     ContextActionService:UnbindAction(self.ActionName)
     for _, connection in ipairs(self.Connections) do
         connection:Disconnect()
     end
     table.clear(self.Connections)
     self.Gui:Destroy()
+    table.clear(self.Commands)
+    table.clear(self.History)
+    table.clear(self.SuggestionButtons)
+
+    if self.OnDestroy then
+        local ok, err = pcall(self.OnDestroy, self)
+        if not ok then
+            warn("[StacyUI] OnDestroy callback failed  " .. tostring(err))
+        end
+    end
 end
 
 return StacyUI
