@@ -4,7 +4,7 @@ local ContextActionService = game:GetService("ContextActionService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.1.1"
+StacyUI.Version = "1.2.0"
 
 local DEFAULT_STYLE = {
     fontMono = Enum.Font.Code,
@@ -19,6 +19,7 @@ local DEFAULT_STYLE = {
     suggestionBackground = Color3.fromRGB(30, 30, 30),
     suggestionHighlight = Color3.fromRGB(55, 55, 55),
     divider = Color3.fromRGB(60, 60, 60),
+    headerBackground = Color3.fromRGB(26, 26, 26),
     transparency = 0.4,
     width = 1000,
     height = 320,
@@ -81,6 +82,11 @@ function StacyUI.new(options)
     self:SetToggleKey(self.ToggleKey)
     self:_registerBuiltIns()
 
+    if options.Welcome ~= false then
+        self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
+        self:Log("BUILTINS  help  clear  version  ctrlc", self.Style.muted)
+    end
+
     if options.Visible == true then
         self:Toggle(true)
     end
@@ -89,6 +95,32 @@ function StacyUI.new(options)
 end
 
 function StacyUI:_registerBuiltIns()
+    self.Commands.help = {
+        Description = "List every available command",
+        Protected = true,
+        Callback = function(_, _, ui)
+            local names = {}
+            for name in pairs(ui.Commands) do
+                table.insert(names, name)
+            end
+            table.sort(names)
+            ui:Log("COMMANDS  " .. table.concat(names, "  "), ui.Style.info)
+        end,
+    }
+    self.Commands.clear = {
+        Description = "Clear all console output",
+        Protected = true,
+        Callback = function(_, _, ui)
+            ui:Clear()
+        end,
+    }
+    self.Commands.version = {
+        Description = "Show the StacyCMD version",
+        Protected = true,
+        Callback = function(_, _, ui)
+            ui:Log("StacyCMD v" .. StacyUI.Version, ui.Style.accent)
+        end,
+    }
     self.Commands.ctrlc = {
         Description = "Destroy the entire script and UI",
         Protected = true,
@@ -134,11 +166,65 @@ function StacyUI:_build(options)
         Visible = false,
     }, self.Gui)
 
+    create("UICorner", { CornerRadius = UDim.new(0, 6) }, self.Main)
+
+    self.Header = create("Frame", {
+        Name = "Header",
+        BackgroundColor3 = style.headerBackground,
+        BackgroundTransparency = 0.1,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 38),
+    }, self.Main)
+
+    create("Frame", {
+        Name = "AccentLine",
+        BackgroundColor3 = style.accent,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 3, 1, 0),
+    }, self.Header)
+
+    create("TextLabel", {
+        Name = "Title",
+        BackgroundTransparency = 1,
+        Font = style.fontSans,
+        TextSize = 18,
+        TextColor3 = style.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(16, 5),
+        Size = UDim2.new(0, 130, 0, 26),
+        Text = "StacyCMD",
+    }, self.Header)
+
+    create("TextLabel", {
+        Name = "Version",
+        BackgroundTransparency = 1,
+        Font = style.fontMono,
+        TextSize = 12,
+        TextColor3 = style.accent,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(104, 8),
+        Size = UDim2.new(0, 80, 0, 20),
+        Text = "v" .. StacyUI.Version,
+    }, self.Header)
+
+    self.KeyHint = create("TextLabel", {
+        Name = "KeyHint",
+        BackgroundTransparency = 1,
+        Font = style.fontMono,
+        TextSize = 12,
+        TextColor3 = style.muted,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -14, 0, 10),
+        Size = UDim2.new(0, 180, 0, 18),
+        Text = self.ToggleKey.Name .. "  TOGGLE",
+    }, self.Header)
+
     self.Scroll = create("ScrollingFrame", {
         Name = "Log",
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, -20, 1, -40),
-        Position = UDim2.fromOffset(10, 10),
+        Size = UDim2.new(1, -20, 1, -86),
+        Position = UDim2.fromOffset(10, 46),
         CanvasSize = UDim2.new(),
         BorderSizePixel = 0,
         ScrollBarThickness = 6,
@@ -148,6 +234,19 @@ function StacyUI:_build(options)
     self.LogLayout = create("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
         Padding = UDim.new(0, 2),
+    }, self.Scroll)
+
+    self.EmptyState = create("TextLabel", {
+        Name = "EmptyState",
+        BackgroundTransparency = 1,
+        Font = style.fontMono,
+        TextSize = 14,
+        TextColor3 = style.muted,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        TextYAlignment = Enum.TextYAlignment.Center,
+        Size = UDim2.new(1, -20, 0, 58),
+        LayoutOrder = -1,
+        Text = "NO OUTPUT  |  READY",
     }, self.Scroll)
 
     self.PrefixLabel = create("TextLabel", {
@@ -449,6 +548,8 @@ end
 function StacyUI:Log(text, color)
     assert(not self.Destroyed, "StacyUI has been destroyed")
 
+    self.EmptyState.Visible = false
+
     local holder = create("Frame", {
         Name = "Entry",
         BackgroundTransparency = 1,
@@ -488,10 +589,11 @@ end
 
 function StacyUI:Clear()
     for _, child in ipairs(self.Scroll:GetChildren()) do
-        if child ~= self.LogLayout then
+        if child ~= self.LogLayout and child ~= self.EmptyState then
             child:Destroy()
         end
     end
+    self.EmptyState.Visible = true
     self:_updateCanvas()
     return self
 end
@@ -507,6 +609,9 @@ function StacyUI:SetToggleKey(keyCode)
     assert(typeof(keyCode) == "EnumItem" and keyCode.EnumType == Enum.KeyCode, "SetToggleKey expects an Enum KeyCode")
     ContextActionService:UnbindAction(self.ActionName)
     self.ToggleKey = keyCode
+    if self.KeyHint then
+        self.KeyHint.Text = keyCode.Name .. "  TOGGLE"
+    end
     ContextActionService:BindAction(self.ActionName, function(_, inputState)
         if inputState == Enum.UserInputState.Begin then
             self:Toggle()

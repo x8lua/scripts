@@ -33,6 +33,10 @@ console:Register({
 
 The public API includes `new` `Register` `Unregister` `Execute` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`
 
-The protected built in `ctrlc` command calls `Destroy` which unbinds input disconnects every UI connection destroys the ScreenGui clears library state and runs the optional `OnDestroy` callback
+The protected built ins are `help` `clear` `version` and `ctrlc`
+
+`ctrlc` calls `Destroy` which unbinds input disconnects every UI connection destroys the ScreenGui clears library state and runs the optional `OnDestroy` callback
+
+The console displays a compact StacyCMD version header F1 state and ready banner by default
 
 See `Example.lua` for a complete loader and command setup
