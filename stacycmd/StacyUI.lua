@@ -5,9 +5,10 @@ local UserInputService = game:GetService("UserInputService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.4.6"
+StacyUI.Version = "1.4.7"
 
 local UPDATE_LOG = {
+    { Version = "v1.4.7", Text = "Added modal focus grace against stray F1 toggle events" },
     { Version = "v1.4.6", Text = "Blocked F1 toggles while StacyUI search or prompt owns focus" },
     { Version = "v1.4.5", Text = "Kept StacyUI open when command search receives focus" },
     { Version = "v1.4.4", Text = "Improved description typography and fixed browser search focus" },
@@ -89,6 +90,7 @@ function StacyUI.new(options)
     self.Connections = {}
     self.Open = false
     self.Destroyed = false
+    self.IgnoreToggleUntil = 0
     self.OnDestroy = options.OnDestroy
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.F1
     self.ActionName = "StacyUIToggle_" .. tostring(self):gsub("[^%w]", "")
@@ -459,6 +461,7 @@ function StacyUI:_buildCommandBrowser()
     end)
     self:_connect(self.CommandBrowserSearch.InputBegan, function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            self.IgnoreToggleUntil = os.clock() + 0.35
             self.CommandBrowserSearch.TextEditable = true
             self.CommandBrowserSearch:CaptureFocus()
         elseif input.KeyCode == Enum.KeyCode.Escape then
@@ -625,6 +628,7 @@ function StacyUI:_buildUpdateLog()
     end)
     self:_connect(self.UpdateLogSearch.InputBegan, function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            self.IgnoreToggleUntil = os.clock() + 0.35
             self.UpdateLogSearch.TextEditable = true
             self.UpdateLogSearch:CaptureFocus()
         elseif input.KeyCode == Enum.KeyCode.Escape then
@@ -696,6 +700,7 @@ end
 
 function StacyUI:ShowUpdateLog()
     assert(not self.Destroyed, "StacyUI has been destroyed")
+    self.IgnoreToggleUntil = os.clock() + 0.35
     self:HideCommands(false)
     self.UpdateLog.Visible = true
     self.UpdateLogSearch.Text = ""
@@ -783,6 +788,7 @@ end
 
 function StacyUI:ShowCommands()
     assert(not self.Destroyed, "StacyUI has been destroyed")
+    self.IgnoreToggleUntil = os.clock() + 0.35
     self:HideUpdateLog(false)
     self.CommandBrowser.Visible = true
     self.CommandBrowserSearch.Text = ""
@@ -1141,6 +1147,9 @@ function StacyUI:SetToggleKey(keyCode)
     end
     ContextActionService:BindAction(self.ActionName, function(_, inputState)
         if inputState == Enum.UserInputState.Begin then
+            if os.clock() < self.IgnoreToggleUntil then
+                return Enum.ContextActionResult.Sink
+            end
             local focused = UserInputService:GetFocusedTextBox()
             if focused and focused:IsDescendantOf(self.Gui) then
                 return Enum.ContextActionResult.Sink
