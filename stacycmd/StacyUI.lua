@@ -4,9 +4,10 @@ local ContextActionService = game:GetService("ContextActionService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.4.4"
+StacyUI.Version = "1.4.5"
 
 local UPDATE_LOG = {
+    { Version = "v1.4.5", Text = "Kept StacyUI open when command search receives focus" },
     { Version = "v1.4.4", Text = "Improved description typography and fixed browser search focus" },
     { Version = "v1.4.3", Text = "Locked browser search editing until the field is clicked" },
     { Version = "v1.4.2", Text = "Made browser search click activated during gameplay" },
@@ -694,11 +695,10 @@ end
 function StacyUI:ShowUpdateLog()
     assert(not self.Destroyed, "StacyUI has been destroyed")
     self:HideCommands(false)
+    self.UpdateLog.Visible = true
     self.UpdateLogSearch.Text = ""
     self.UpdateLogSearch.TextEditable = false
-    self.UpdateLogSearch:ReleaseFocus()
     self:_refreshUpdateLog()
-    self.UpdateLog.Visible = true
     return self
 end
 
@@ -782,11 +782,10 @@ end
 function StacyUI:ShowCommands()
     assert(not self.Destroyed, "StacyUI has been destroyed")
     self:HideUpdateLog(false)
+    self.CommandBrowser.Visible = true
     self.CommandBrowserSearch.Text = ""
     self.CommandBrowserSearch.TextEditable = false
-    self.CommandBrowserSearch:ReleaseFocus()
     self:_refreshCommandBrowser()
-    self.CommandBrowser.Visible = true
     return self
 end
 
