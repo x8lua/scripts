@@ -1,7 +1,18 @@
+# StacyCMD UI Library
+
+Standalone console UI extracted from StacyCMD with the moderation gameplay persistence and autoplay systems removed
+
+## Load
+
+```lua
 local StacyUI = loadstring(game:HttpGet(
     "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/StacyUI.lua"
 ))()
+```
 
+## Create a console
+
+```lua
 local console = StacyUI.new({
     Name = "MyConsole",
     Prefix = "demo@StacyUI$ ",
@@ -15,21 +26,8 @@ console:Register({
         ui:Log(table.concat(arguments, " "))
     end,
 })
+```
 
-console:Register({
-    Name = "clear",
-    Description = "Clear the console log",
-    Callback = function(_, _, ui)
-        ui:Clear()
-    end,
-})
+The public API includes `new` `Register` `Unregister` `Execute` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`
 
-console:Register({
-    Name = "close",
-    Description = "Close the console",
-    Callback = function(_, _, ui)
-        ui:Toggle(false)
-    end,
-})
-
-console:Log("StacyUI loaded  press Period to toggle", console.Style.info)
+See `Example.lua` for a complete loader and command setup

@@ -18,31 +18,6 @@ Run the following loadstring in your executor:
 loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/Example.lua?nocache=" .. tostring(tick())))()
 ```
 
-## StacyUI Console Library
-
-`StacyUI.lua` is the reusable UI-only extraction of the StacyCMD console
-
-```lua
-local StacyUI = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/StacyUI.lua"
-))()
-
-local console = StacyUI.new({
-    Prefix = "demo@StacyUI$ ",
-    ToggleKey = Enum.KeyCode.Period,
-})
-
-console:Register({
-    Name = "echo",
-    Description = "Print text in the console",
-    Callback = function(arguments, _, ui)
-        ui:Log(table.concat(arguments, " "))
-    end,
-})
-```
-
-The library keeps the console window log prompt history command suggestions toggle animation styling and lifecycle cleanup without the original moderation gameplay persistence or autoplay systems
-
 ## Quick Start Example
 ```lua
 local xGui = loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?nocache=" .. tostring(tick())))()
