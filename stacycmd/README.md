@@ -33,9 +33,13 @@ console:Register({
 
 The public API includes `new` `Register` `Unregister` `Execute` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`
 
-The protected built ins are `help` `clear` `cmds` `version` and `ctrlc`
+The protected built ins are `help` `clear` `cmds` `updatelog` `version` and `ctrlc`
 
 `cmds` opens a separate searchable command browser with descriptions and clickable command rows
+
+`updatelog` opens the searchable release history with the Bodoni StacyCMD title and bright green CMD mark
+
+Each StacyCMD release adds its newest entry at the top of the update log
 
 `ctrlc` calls `Destroy` which unbinds input disconnects every UI connection destroys the ScreenGui clears library state and runs the optional `OnDestroy` callback
 

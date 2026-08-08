@@ -4,7 +4,16 @@ local ContextActionService = game:GetService("ContextActionService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.3.0"
+StacyUI.Version = "1.4.0"
+
+local UPDATE_LOG = {
+    { Version = "v1.4.0", Text = "Fixed cmds results and added the searchable update log" },
+    { Version = "v1.3.0", Text = "Added searchable cmds command browser" },
+    { Version = "v1.2.1", Text = "Polished command suggestions to match StacyCMD styling" },
+    { Version = "v1.2.0", Text = "Added the version header and built in console state" },
+    { Version = "v1.1.1", Text = "Changed the default toggle key to F1" },
+    { Version = "v1.1.0", Text = "Added protected ctrlc teardown command" },
+}
 
 local DEFAULT_STYLE = {
     fontMono = Enum.Font.Code,
@@ -84,7 +93,7 @@ function StacyUI.new(options)
 
     if options.Welcome ~= false then
         self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
-        self:Log("BUILTINS  help  clear  cmds  version  ctrlc", self.Style.muted)
+        self:Log("BUILTINS  help  clear  cmds  updatelog  version  ctrlc", self.Style.muted)
     end
 
     if options.Visible == true then
@@ -126,6 +135,13 @@ function StacyUI:_registerBuiltIns()
         Protected = true,
         Callback = function(_, _, ui)
             ui:ShowCommands()
+        end,
+    }
+    self.Commands.updatelog = {
+        Description = "Open the StacyCMD update log",
+        Protected = true,
+        Callback = function(_, _, ui)
+            ui:ShowUpdateLog()
         end,
     }
     self.Commands.ctrlc = {
@@ -282,6 +298,7 @@ function StacyUI:_build(options)
     self:_updatePromptBounds()
     self:_buildSuggestions()
     self:_buildCommandBrowser()
+    self:_buildUpdateLog()
 
     self:_connect(self.PrefixLabel:GetPropertyChangedSignal("TextBounds"), function()
         self:_updatePromptBounds()
@@ -387,6 +404,11 @@ function StacyUI:_buildCommandBrowser()
         ZIndex = 21,
     }, self.CommandBrowser)
     create("UICorner", { CornerRadius = UDim.new(0, 4) }, self.CommandBrowserSearch)
+    create("UIStroke", {
+        Color = style.divider,
+        Transparency = 0.05,
+        Thickness = 1,
+    }, self.CommandBrowserSearch)
     create("UIPadding", {
         PaddingLeft = UDim.new(0, 10),
         PaddingRight = UDim.new(0, 10),
@@ -399,6 +421,7 @@ function StacyUI:_buildCommandBrowser()
         Position = UDim2.fromOffset(12, 90),
         Size = UDim2.new(1, -24, 1, -102),
         CanvasSize = UDim2.new(),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
         ScrollBarThickness = 4,
         ZIndex = 21,
     }, self.CommandBrowser)
@@ -434,6 +457,239 @@ function StacyUI:_buildCommandBrowser()
     self:_connect(self.CommandBrowserLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
         self.CommandBrowserList.CanvasSize = UDim2.new(0, 0, 0, self.CommandBrowserLayout.AbsoluteContentSize.Y + 6)
     end)
+end
+
+function StacyUI:_buildUpdateLog()
+    local style = self.Style
+
+    self.UpdateLog = create("Frame", {
+        Name = "UpdateLog",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.fromOffset(440, 360),
+        BackgroundColor3 = style.background,
+        BackgroundTransparency = 0.04,
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 20,
+    }, self.Gui)
+
+    create("UICorner", { CornerRadius = UDim.new(0, 6) }, self.UpdateLog)
+    create("UIStroke", {
+        Color = style.divider,
+        Transparency = 0.1,
+        Thickness = 1,
+    }, self.UpdateLog)
+
+    local header = create("Frame", {
+        Name = "Header",
+        BackgroundColor3 = style.headerBackground,
+        BackgroundTransparency = 0.1,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 52),
+        ZIndex = 21,
+    }, self.UpdateLog)
+    create("Frame", {
+        Name = "AccentLine",
+        BackgroundColor3 = style.accent,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 3, 1, 0),
+        ZIndex = 22,
+    }, header)
+    create("TextLabel", {
+        Name = "BrandStacy",
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Bodoni,
+        Text = "Stacy",
+        TextColor3 = style.text,
+        TextSize = 23,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(16, 3),
+        Size = UDim2.new(0, 70, 0, 30),
+        ZIndex = 22,
+    }, header)
+    create("TextLabel", {
+        Name = "BrandCMD",
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Bodoni,
+        Text = "CMD",
+        TextColor3 = Color3.fromRGB(80, 255, 125),
+        TextSize = 23,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(76, 3),
+        Size = UDim2.new(0, 70, 0, 30),
+        ZIndex = 22,
+    }, header)
+    create("TextLabel", {
+        Name = "Subtitle",
+        BackgroundTransparency = 1,
+        Font = style.fontMono,
+        Text = "UPDATE LOG  v" .. StacyUI.Version,
+        TextColor3 = style.muted,
+        TextSize = 10,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(17, 32),
+        Size = UDim2.new(0, 180, 0, 14),
+        ZIndex = 22,
+    }, header)
+
+    self.UpdateLogClose = create("TextButton", {
+        Name = "Close",
+        AutoButtonColor = false,
+        BackgroundTransparency = 1,
+        Font = style.fontMono,
+        Text = "X",
+        TextColor3 = style.muted,
+        TextSize = 15,
+        Size = UDim2.fromOffset(34, 30),
+        Position = UDim2.new(1, -40, 0, 5),
+        ZIndex = 22,
+    }, header)
+
+    self.UpdateLogSearch = create("TextBox", {
+        Name = "Search",
+        BackgroundColor3 = style.headerBackground,
+        BackgroundTransparency = 0.05,
+        BorderSizePixel = 0,
+        ClearTextOnFocus = false,
+        Font = style.fontMono,
+        PlaceholderText = "SEARCH UPDATES",
+        PlaceholderColor3 = style.muted,
+        Text = "",
+        TextColor3 = style.text,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(12, 64),
+        Size = UDim2.new(1, -24, 0, 30),
+        ZIndex = 21,
+    }, self.UpdateLog)
+    create("UICorner", { CornerRadius = UDim.new(0, 4) }, self.UpdateLogSearch)
+    create("UIStroke", {
+        Color = style.divider,
+        Transparency = 0.05,
+        Thickness = 1,
+    }, self.UpdateLogSearch)
+    create("UIPadding", {
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
+    }, self.UpdateLogSearch)
+
+    self.UpdateLogList = create("ScrollingFrame", {
+        Name = "List",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(12, 104),
+        Size = UDim2.new(1, -24, 1, -116),
+        CanvasSize = UDim2.new(),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ScrollBarThickness = 4,
+        ZIndex = 21,
+    }, self.UpdateLog)
+    self.UpdateLogLayout = create("UIListLayout", {
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 4),
+    }, self.UpdateLogList)
+    self.UpdateLogEmpty = create("TextLabel", {
+        Name = "Empty",
+        BackgroundTransparency = 1,
+        Font = style.fontMono,
+        Text = "NO MATCHES",
+        TextColor3 = style.muted,
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        Size = UDim2.new(1, 0, 0, 32),
+        Visible = false,
+        ZIndex = 22,
+    }, self.UpdateLogList)
+
+    self:_connect(self.UpdateLogClose.MouseButton1Click, function()
+        self:HideUpdateLog()
+    end)
+    self:_connect(self.UpdateLogSearch:GetPropertyChangedSignal("Text"), function()
+        self:_refreshUpdateLog()
+    end)
+    self:_connect(self.UpdateLogSearch.InputBegan, function(input)
+        if input.KeyCode == Enum.KeyCode.Escape then
+            self:HideUpdateLog()
+        end
+    end)
+end
+
+function StacyUI:_refreshUpdateLog()
+    if self.Destroyed or not self.UpdateLogList then
+        return
+    end
+    local query = self.UpdateLogSearch.Text:lower()
+    for _, child in ipairs(self.UpdateLogList:GetChildren()) do
+        if child ~= self.UpdateLogLayout and child ~= self.UpdateLogEmpty then
+            child:Destroy()
+        end
+    end
+
+    local matches = {}
+    for _, update in ipairs(UPDATE_LOG) do
+        if query == "" or update.Version:lower():find(query, 1, true) or update.Text:lower():find(query, 1, true) then
+            table.insert(matches, update)
+        end
+    end
+    self.UpdateLogEmpty.Visible = #matches == 0
+
+    for _, update in ipairs(matches) do
+        local row = create("Frame", {
+            Name = update.Version,
+            BackgroundColor3 = self.Style.suggestionHighlight,
+            BackgroundTransparency = 0.72,
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, -4, 0, 42),
+            ZIndex = 22,
+        }, self.UpdateLogList)
+        create("UICorner", { CornerRadius = UDim.new(0, 4) }, row)
+        create("TextLabel", {
+            Name = "Version",
+            BackgroundTransparency = 1,
+            Font = self.Style.fontMono,
+            Text = update.Version,
+            TextColor3 = Color3.fromRGB(80, 255, 125),
+            TextSize = 13,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Position = UDim2.fromOffset(10, 4),
+            Size = UDim2.new(0, 70, 0, 17),
+            ZIndex = 23,
+        }, row)
+        create("TextLabel", {
+            Name = "Text",
+            BackgroundTransparency = 1,
+            Font = self.Style.fontSans,
+            Text = update.Text,
+            TextColor3 = self.Style.text,
+            TextSize = 12,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Position = UDim2.fromOffset(84, 4),
+            Size = UDim2.new(1, -94, 0, 32),
+            TextWrapped = true,
+            ZIndex = 23,
+        }, row)
+    end
+end
+
+function StacyUI:ShowUpdateLog()
+    assert(not self.Destroyed, "StacyUI has been destroyed")
+    self:HideCommands(true)
+    self.UpdateLogSearch.Text = ""
+    self:_refreshUpdateLog()
+    self.UpdateLog.Visible = true
+    self.UpdateLogSearch:CaptureFocus()
+    return self
+end
+
+function StacyUI:HideUpdateLog(restoreFocus)
+    if self.UpdateLog then
+        self.UpdateLog.Visible = false
+    end
+    if restoreFocus ~= false and not self.Destroyed and self.Open and not self.CommandBrowser.Visible then
+        task.defer(self.Prompt.CaptureFocus, self.Prompt)
+    end
+    return self
 end
 
 function StacyUI:_refreshCommandBrowser()
@@ -505,6 +761,7 @@ end
 
 function StacyUI:ShowCommands()
     assert(not self.Destroyed, "StacyUI has been destroyed")
+    self:HideUpdateLog(true)
     self.CommandBrowserSearch.Text = ""
     self:_refreshCommandBrowser()
     self.CommandBrowser.Visible = true
@@ -512,11 +769,11 @@ function StacyUI:ShowCommands()
     return self
 end
 
-function StacyUI:HideCommands()
+function StacyUI:HideCommands(restoreFocus)
     if self.CommandBrowser then
         self.CommandBrowser.Visible = false
     end
-    if not self.Destroyed and self.Open then
+    if restoreFocus ~= false and not self.Destroyed and self.Open and not self.UpdateLog.Visible then
         task.defer(self.Prompt.CaptureFocus, self.Prompt)
     end
     return self
@@ -744,7 +1001,7 @@ function StacyUI:_onFocusLost(enterPressed)
             self.HistoryIndex = 0
             self:Execute(line)
         end
-        if not self.Destroyed and self.Open and not self.CommandBrowser.Visible then
+        if not self.Destroyed and self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible then
             task.defer(self.Prompt.CaptureFocus, self.Prompt)
         end
     elseif self.Open then
@@ -890,7 +1147,8 @@ function StacyUI:Toggle(forceState)
         task.defer(self.Prompt.CaptureFocus, self.Prompt)
     else
         self:_clearSuggestions()
-        self:HideCommands()
+        self:HideCommands(true)
+        self:HideUpdateLog(true)
         self.Prompt:ReleaseFocus()
         TweenService:Create(self.Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
             Position = UDim2.new(0.5, 0, 0, 20),
