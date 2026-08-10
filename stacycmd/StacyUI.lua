@@ -14,9 +14,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.2.4"
+StacyUI.Version = "2.2.5"
 
 local UPDATE_LOG = {
+    { Version = "v2.2.5", Text = "Changed lag detection to monitor local network ping" },
     { Version = "v2.2.4", Text = "Added a configurable lag detection percentage" },
     { Version = "v2.2.3", Text = "Raised the lag detection threshold to 90 percent" },
     { Version = "v2.2.2", Text = "Changed lag detection to trigger when half the server is still" },
@@ -180,7 +181,7 @@ function StacyUI.new(options)
     self.LagConnections = {}
     self.LagDetectionEnabled = false
     self.LagDetected = false
-    self.LagDetectionThreshold = 0.9
+    self.LagDetectionThreshold = 300
     self.IntroEnabled = options.Intro ~= false
     self.IntroSize = typeof(options.IntroSize) == "Vector2" and options.IntroSize or Vector2.new(600, 150)
     self.IntroTargetSize = typeof(options.IntroTargetSize) == "Vector2" and options.IntroTargetSize or Vector2.new(92, 26)
@@ -442,20 +443,20 @@ function StacyUI:_registerBuiltIns()
         end,
     }
     self.Commands.lagdetection = {
-        Description = "Toggle server movement lag detection",
-        Usage = "lagdetection [percentage]",
+        Description = "Toggle local network ping lag detection",
+        Usage = "lagdetection [ms]",
         Protected = true,
         Callback = function(args, _, ui)
-            local percentage = args[1] and tonumber(args[1]) or 90
-            if not percentage or percentage <= 0 or percentage > 100 then
-                ui:Log("Usage  lagdetection [percentage 1-100]", ui.Style.warn)
-                return false, "lag detection percentage must be between 1 and 100"
+            local threshold = args[1] and tonumber(args[1]) or 300
+            if not threshold or threshold <= 0 then
+                ui:Log("Usage  lagdetection [ms]", ui.Style.warn)
+                return false, "lag detection threshold must be positive"
             end
-            local enabled, reason = ui:SetLagDetectionEnabled(not ui.LagDetectionEnabled, percentage)
+            local enabled, reason = ui:SetLagDetectionEnabled(not ui.LagDetectionEnabled, threshold)
             if not enabled then
                 return false, reason
             end
-            ui:Log("Lag detection " .. (ui.LagDetectionEnabled and "enabled at " .. tostring(percentage) .. "%" or "disabled"), ui.Style.info)
+            ui:Log("Lag detection " .. (ui.LagDetectionEnabled and "enabled at " .. tostring(threshold) .. "ms" or "disabled"), ui.Style.info)
             return true
         end,
     }
@@ -658,7 +659,7 @@ function StacyUI:StopLagDetection()
     end
 end
 
-function StacyUI:SetLagDetectionEnabled(enabled, percentage)
+function StacyUI:SetLagDetectionEnabled(enabled, threshold)
     self:StopLagDetection()
     if not enabled then
         return true
@@ -674,7 +675,7 @@ function StacyUI:SetLagDetectionEnabled(enabled, percentage)
 
     self.LagNotify = notifyOrError
     self.LagDetectionEnabled = true
-    self.LagDetectionThreshold = percentage / 100
+    self.LagDetectionThreshold = threshold
     local elapsed = 0
     table.insert(self.LagConnections, RunService.Heartbeat:Connect(function(deltaTime)
         if not self.LagDetectionEnabled then
@@ -686,28 +687,18 @@ function StacyUI:SetLagDetectionEnabled(enabled, percentage)
         end
         elapsed = 0
 
-        local checked = 0
-        local still = 0
-        for _, player in ipairs(Players:GetPlayers()) do
-            local character = player.Character
-            local root = character and (
-                character:FindFirstChild("HumanoidRootPart")
-                or character.PrimaryPart
-                or character:FindFirstChild("Torso")
-                or character:FindFirstChild("UpperTorso")
-            )
-            if root then
-                checked = checked + 1
-                if root.AssemblyLinearVelocity.Magnitude <= 1 then
-                    still = still + 1
-                end
-            end
+        local ping = 0
+        local readPing = pcall(function()
+            ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+        end)
+        if not readPing then
+            return
         end
-        local lagging = checked > 0 and still / checked >= self.LagDetectionThreshold
+        local lagging = ping >= self.LagDetectionThreshold
 
         if lagging and not self.LagDetected then
             self.LagDetected = true
-            self.LagNotify:push("LAG DETECTED", "At least " .. tostring(percentage) .. "% of this server is standing still.", { duration = 3600 })
+            self.LagNotify:push("LAG DETECTED", "Your ping is " .. math.floor(ping) .. "ms.", { duration = 3600 })
         elseif self.LagDetected and not lagging then
             self.LagDetected = false
             self.LagNotify:clear()
