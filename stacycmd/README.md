@@ -32,19 +32,23 @@ console:Register({
 })
 ```
 
-The console opens by default after a centered full-screen StacyCMD brand intro that shrinks directly into the aligned header title. Pass `Intro = false` to skip the intro or `Visible = false` to start hidden.
+The console opens by default after a centered full-screen StacyCMD brand intro that shrinks directly into the aligned header title, then fades in the command UI. Pass `Intro = false` to skip the intro or `Visible = false` to start hidden.
 
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 
-The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ShowGameCommands` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
+The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ShowGameCommands` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
-The protected built ins are `help` `clear` `cmds` `gamecmds` `updatelog` `version` `to` `maxzoom` `fly` `prediction` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
+The protected built ins are `help` `clear` `cmds` `gamecmds` `updatelog` `version` `to` `view` `maxzoom` `jpower` `fly` `prediction` `rejoin` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
 
 `maxzoom [num]` sets the speaker's maximum camera zoom distance
 
-`fly [speed]` toggles camera-relative flight and closes the console while enabled so W A S D and Q E control movement. The fly movement implementation is adapted from Infinite Yield.
+`fly [speed]` toggles camera-relative flight and closes the console while enabled so W A S D and Q E control movement. Disabling flight restores the humanoid from PlatformStand. The fly movement implementation is adapted from Infinite Yield.
 
-`prediction` toggles cyan Drawing API markers at predicted nearby-player positions. Press P to remove the markers.
+`prediction` toggles cyan Drawing API markers at predicted nearby-player positions. Press P to remove the markers. It appears in `gamecmds` with the game-command color.
+
+`view [player|self]` changes the camera subject and appears in `gamecmds`. Use `view self` to restore the local character camera.
+
+`jpower [num]` sets the local character's jump power. `rejoin` reconnects to the current server instance.
 
 `to [player]` normally matches usernames and display names. In place `128736949265057`, it matches `PlayerInfoBillboard.Info.Text` instead and is highlighted as a game-specific command.
 

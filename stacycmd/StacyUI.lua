@@ -4,6 +4,7 @@ local TweenService = game:GetService("TweenService")
 local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
+local TeleportService = game:GetService("TeleportService")
 
 local STACY_GREEN = Color3.fromRGB(80, 255, 125)
 local GAME_COMMAND_GREEN = Color3.fromRGB(0, 255, 0)
@@ -12,9 +13,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.0.2"
+StacyUI.Version = "2.1.0"
 
 local UPDATE_LOG = {
+    { Version = "v2.1.0", Text = "Added view, jpower, and rejoin; fixed fly recovery; and added the intro UI fade" },
     { Version = "v2.0.2", Text = "Aligned the startup intro and header branding" },
     { Version = "v2.0.1", Text = "Removed the startup intro background" },
     { Version = "v2.0.0", Text = "Added the full-screen StacyCMD startup intro" },
@@ -193,7 +195,7 @@ function StacyUI.new(options)
 
     if options.Welcome ~= false then
         self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
-        self:Log("BUILTINS  help  clear  cmds  gamecmds  updatelog  version  to  maxzoom  fly  prediction  sudoaptupdate  ctrlc", self.Style.muted)
+        self:Log("BUILTINS  help  clear  cmds  gamecmds  updatelog  version  to  view  maxzoom  jpower  fly  prediction  rejoin  sudoaptupdate  ctrlc", self.Style.muted)
     end
 
     if options.Visible ~= false then
@@ -311,6 +313,43 @@ function StacyUI:_registerBuiltIns()
             ui:Log("Camera max zoom  " .. tostring(args[1]), ui.Style.info)
         end,
     }
+    self.Commands.view = {
+        Description = "View another player's character or return to your own",
+        Usage = "view [player|self]",
+        GameSpecific = true,
+        HighlightLime = true,
+        Protected = true,
+        Callback = function(args, _, ui)
+            local viewed, reason = ui:ViewPlayer(args[1])
+            if not viewed then
+                ui:Log("View error  " .. tostring(reason), ui.Style.error)
+                return false, reason
+            end
+            return true
+        end,
+    }
+    self.Commands.jpower = {
+        Description = "Set the character jump power",
+        Usage = "jpower [num]",
+        Protected = true,
+        Callback = function(args, _, ui)
+            local jumpPower = tonumber(args[1])
+            local character = ui.Speaker.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            if not jumpPower or jumpPower < 0 then
+                ui:Log("Usage  jpower [num]", ui.Style.warn)
+                return false, "jpower requires a non-negative number"
+            end
+            if not humanoid then
+                ui:Log("Jump power error  character humanoid not found", ui.Style.error)
+                return false, "character humanoid not found"
+            end
+            humanoid.UseJumpPower = true
+            humanoid.JumpPower = jumpPower
+            ui:Log("Jump power  " .. tostring(jumpPower), ui.Style.info)
+            return true
+        end,
+    }
     self.Commands.fly = {
         Description = "Toggle camera-relative character flight",
         Usage = "fly [speed]",
@@ -341,6 +380,8 @@ function StacyUI:_registerBuiltIns()
     self.Commands.prediction = {
         Description = "Toggle cyan predicted-position markers for nearby players",
         Usage = "prediction",
+        GameSpecific = true,
+        HighlightLime = true,
         Protected = true,
         Callback = function(_, _, ui)
             local enabled, reason = ui:SetPredictionEnabled(not ui.PredictionEnabled)
@@ -350,6 +391,26 @@ function StacyUI:_registerBuiltIns()
             end
             ui:Log("Prediction " .. (ui.PredictionEnabled and "enabled" or "disabled"), ui.Style.info)
             return ui.PredictionEnabled
+        end,
+    }
+    self.Commands.rejoin = {
+        Description = "Rejoin the current server",
+        Usage = "rejoin",
+        Protected = true,
+        Callback = function(_, _, ui)
+            ui:Log("Rejoining current server...", ui.Style.info)
+            local teleported, teleportError = pcall(function()
+                if game.JobId ~= "" then
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, ui.Speaker)
+                else
+                    TeleportService:Teleport(game.PlaceId, ui.Speaker)
+                end
+            end)
+            if not teleported then
+                ui:Log("Rejoin error  " .. tostring(teleportError), ui.Style.error)
+                return false, teleportError
+            end
+            return true
         end,
     }
     self.Commands.sudoaptupdate = {
@@ -444,6 +505,32 @@ function StacyUI:TeleportTo(input)
         return false, teleportError
     end
     self:Log("Teleported to " .. target.Name, self.Style.info)
+    return true, target
+end
+
+function StacyUI:ViewPlayer(input)
+    local camera = workspace.CurrentCamera
+    if not camera then
+        return false, "current camera not found"
+    end
+
+    local target = self.Speaker
+    if type(input) == "string" and trim(input) ~= "" and trim(input):lower() ~= "self" then
+        target = findPlayerByUsername(input)
+    end
+    if not target then
+        return false, "player not found"
+    end
+
+    local character = target.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then
+        return false, "target character humanoid not found"
+    end
+
+    camera.CameraType = Enum.CameraType.Custom
+    camera.CameraSubject = humanoid
+    self:Log(target == self.Speaker and "Viewing your own character" or "Viewing " .. target.Name, self.Style.info)
     return true, target
 end
 
@@ -659,8 +746,24 @@ function StacyUI:_stopFly()
         self.FlyVelocity:Destroy()
         self.FlyVelocity = nil
     end
-    if self.FlyHumanoid and self.FlyHumanoid.Parent then
-        self.FlyHumanoid.PlatformStand = false
+    local character = self.Speaker and self.Speaker.Character
+    local currentHumanoid = character and character:FindFirstChildOfClass("Humanoid")
+    local currentRoot = character and (
+        character:FindFirstChild("HumanoidRootPart")
+        or character.PrimaryPart
+        or character:FindFirstChild("Torso")
+        or character:FindFirstChild("UpperTorso")
+    )
+    local humanoid = currentHumanoid or self.FlyHumanoid
+    if humanoid and humanoid.Parent then
+        humanoid.PlatformStand = false
+        humanoid.Sit = false
+        humanoid.AutoRotate = true
+        pcall(humanoid.ChangeState, humanoid, Enum.HumanoidStateType.GettingUp)
+    end
+    if currentRoot then
+        currentRoot.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        currentRoot.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
     end
     self.FlyHumanoid = nil
     pcall(function()
@@ -941,11 +1044,17 @@ function StacyUI:PlayIntro()
         if self.Destroyed or self.IntroSession ~= session then
             return
         end
-        overlay:Destroy()
-        self.IntroOverlay = nil
         self.IntroPlaying = false
         self.OpenFromIntro = true
         self:Toggle(true)
+        task.wait(0.3)
+        if self.Destroyed or self.IntroSession ~= session then
+            return
+        end
+        if overlay.Parent then
+            overlay:Destroy()
+        end
+        self.IntroOverlay = nil
     end)
     return self
 end
@@ -969,13 +1078,14 @@ function StacyUI:_build(options)
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
     }, playerGui)
 
-    self.Main = create("Frame", {
+    self.Main = create("CanvasGroup", {
         Name = "Console",
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.new(0.5, 0, 0, 40),
         Size = UDim2.fromOffset(style.width, style.height),
         BackgroundColor3 = style.background,
         BackgroundTransparency = style.transparency,
+        GroupTransparency = 0,
         BorderSizePixel = 0,
         Visible = false,
     }, self.Gui)
@@ -2057,7 +2167,12 @@ function StacyUI:Toggle(forceState)
         if self.OpenFromIntro then
             self.OpenFromIntro = false
             self.Main.Position = UDim2.new(0.5, 0, 0, 40)
+            self.Main.GroupTransparency = 1
+            TweenService:Create(self.Main, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                GroupTransparency = 0,
+            }):Play()
         else
+            self.Main.GroupTransparency = 0
             self.Main.Position = UDim2.new(0.5, 0, 0, 20)
             TweenService:Create(self.Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                 Position = UDim2.new(0.5, 0, 0, 40),
