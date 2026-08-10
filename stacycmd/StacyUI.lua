@@ -5,9 +5,10 @@ local UserInputService = game:GetService("UserInputService")
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.4.8"
+StacyUI.Version = "1.4.9"
 
 local UPDATE_LOG = {
+    { Version = "v1.4.9", Text = "Added the built in maxzoom command for camera distance control" },
     { Version = "v1.4.8", Text = "Matched the command console header to the Bodoni StacyCMD brand" },
     { Version = "v1.4.7", Text = "Added modal focus grace against stray F1 toggle events" },
     { Version = "v1.4.6", Text = "Blocked F1 toggles while StacyUI search or prompt owns focus" },
@@ -93,6 +94,7 @@ function StacyUI.new(options)
     self.Destroyed = false
     self.IgnoreToggleUntil = 0
     self.OnDestroy = options.OnDestroy
+    self.Speaker = options.Speaker or self.Player
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.F1
     self.ActionName = "StacyUIToggle_" .. tostring(self):gsub("[^%w]", "")
     self.Prefix = options.Prefix or (self.Player.Name .. "@StacyUI$ ")
@@ -103,7 +105,7 @@ function StacyUI.new(options)
 
     if options.Welcome ~= false then
         self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
-        self:Log("BUILTINS  help  clear  cmds  updatelog  version  ctrlc", self.Style.muted)
+        self:Log("BUILTINS  help  clear  cmds  updatelog  version  maxzoom  ctrlc", self.Style.muted)
     end
 
     if options.Visible == true then
@@ -152,6 +154,20 @@ function StacyUI:_registerBuiltIns()
         Protected = true,
         Callback = function(_, _, ui)
             ui:ShowUpdateLog()
+        end,
+    }
+    self.Commands.maxzoom = {
+        Description = "Set the maximum camera zoom distance",
+        Protected = true,
+        Callback = function(args, _, ui)
+            args[1] = tonumber(args[1])
+            if not args[1] or args[1] <= 0 then
+                ui:Log("Usage  maxzoom [num]", ui.Style.warn)
+                return false, "maxzoom requires a positive number"
+            end
+            local speaker = ui.Speaker
+            speaker.CameraMaxZoomDistance = args[1]
+            ui:Log("Camera max zoom  " .. tostring(args[1]), ui.Style.info)
         end,
     }
     self.Commands.ctrlc = {

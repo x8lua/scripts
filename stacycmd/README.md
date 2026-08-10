@@ -33,7 +33,9 @@ console:Register({
 
 The public API includes `new` `Register` `Unregister` `Execute` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`
 
-The protected built ins are `help` `clear` `cmds` `updatelog` `version` and `ctrlc`
+The protected built ins are `help` `clear` `cmds` `updatelog` `version` `maxzoom` and `ctrlc`
+
+`maxzoom [num]` sets the speaker's maximum camera zoom distance
 
 `cmds` opens a separate searchable command browser with descriptions and clickable command rows
 
