@@ -43,7 +43,9 @@ Set `Usage` on a command to show its syntax in autocomplete suggestions, for exa
 
 The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ShowGameCommands` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
-The protected built ins are `help` `clear` `cmds` `gamecmds` `settings` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `prediction` `lagdetection` `rejoin` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
+The protected built ins are `help` `clear` `cmds` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `prediction` `lagdetection` `rejoin` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
+
+`keysystem` opens an optional StacyCMD-styled key page. It does not enforce or validate keys until a server-side validator is configured.
 
 `maxzoom [num]` sets the speaker's maximum camera zoom distance
 

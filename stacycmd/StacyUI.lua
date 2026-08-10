@@ -14,9 +14,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.2.9"
+StacyUI.Version = "2.3.0"
 
 local UPDATE_LOG = {
+    { Version = "v2.3.0", Text = "Added the optional in-console keysystem page" },
     { Version = "v2.2.9", Text = "Made semicolon command mode close after 2.5 seconds of inactivity" },
     { Version = "v2.2.8", Text = "Removed the startup built-in command list" },
     { Version = "v2.2.7", Text = "Changed lag detection to sample player positions" },
@@ -302,6 +303,14 @@ function StacyUI:_registerBuiltIns()
         Protected = true,
         Callback = function(_, _, ui)
             ui:ShowSettings()
+        end,
+    }
+    self.Commands.keysystem = {
+        Description = "Open the optional StacyCMD key page",
+        Usage = "keysystem",
+        Protected = true,
+        Callback = function(_, _, ui)
+            ui:ShowKeySystem()
         end,
     }
     local gakuranToActive = self.IsGakuranGame and not self.UseLegacyTo
@@ -1462,6 +1471,7 @@ function StacyUI:_build(options)
     self:_buildCommandBrowser()
     self:_buildUpdateLog()
     self:_buildSettings()
+    self:_buildKeySystem()
     self:_updatePromptBounds()
 
     self:_connect(self.PrefixLabel:GetPropertyChangedSignal("TextBounds"), function()
@@ -2010,6 +2020,103 @@ function StacyUI:HideSettings(restoreFocus)
     self.SettingsCapturingKey = false
     if self.SettingsKeyButton then
         self.SettingsKeyButton.Text = "[ " .. self:_commandKeyText(self.CommandKey) .. " ]"
+    end
+    if restoreFocus ~= false and not self.Destroyed and self.Open then
+        task.defer(self.Prompt.CaptureFocus, self.Prompt)
+    end
+    return self
+end
+
+function StacyUI:_buildKeySystem()
+    local style = self.Style
+    self.KeySystem = create("Frame", {
+        Name = "KeySystem",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(430, 230),
+        BackgroundColor3 = style.background,
+        BackgroundTransparency = 0.04,
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 30,
+    }, self.Gui)
+    create("UICorner", { CornerRadius = UDim.new(0, 6) }, self.KeySystem)
+    create("UIStroke", { Color = STACY_GREEN, Transparency = 0.35, Thickness = 1 }, self.KeySystem)
+    create("TextLabel", {
+        Name = "Brand",
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Bodoni,
+        RichText = true,
+        Text = 'Stacy <font color="#50FF7D">CMD</font>',
+        TextColor3 = style.text,
+        TextSize = 25,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        Position = UDim2.fromOffset(15, 12),
+        Size = UDim2.new(1, -30, 0, 36),
+        ZIndex = 31,
+    }, self.KeySystem)
+    create("TextLabel", {
+        Name = "Info",
+        BackgroundTransparency = 1,
+        Font = style.fontMono,
+        Text = "OPTIONAL KEY SYSTEM\nGet a key from the StacyCMD Discord server.\nNo key? You can continue anyway.",
+        TextColor3 = style.muted,
+        TextSize = 13,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        Position = UDim2.fromOffset(20, 62),
+        Size = UDim2.new(1, -40, 0, 58),
+        ZIndex = 31,
+    }, self.KeySystem)
+    local keyBox = create("TextBox", {
+        Name = "Key",
+        BackgroundColor3 = style.headerBackground,
+        BackgroundTransparency = 0.05,
+        BorderSizePixel = 0,
+        ClearTextOnFocus = false,
+        Font = style.fontMono,
+        PlaceholderText = "PASTE KEY (OPTIONAL)",
+        Text = "",
+        TextColor3 = style.text,
+        TextSize = 13,
+        Position = UDim2.fromOffset(24, 130),
+        Size = UDim2.new(1, -48, 0, 32),
+        ZIndex = 31,
+    }, self.KeySystem)
+    create("UICorner", { CornerRadius = UDim.new(0, 4) }, keyBox)
+    local close = create("TextButton", {
+        Name = "Continue",
+        AutoButtonColor = false,
+        BackgroundColor3 = STACY_GREEN,
+        BackgroundTransparency = 0.15,
+        BorderSizePixel = 0,
+        Font = style.fontMono,
+        Text = "CONTINUE",
+        TextColor3 = Color3.fromRGB(10, 20, 10),
+        TextSize = 13,
+        Position = UDim2.fromOffset(24, 180),
+        Size = UDim2.new(1, -48, 0, 32),
+        ZIndex = 31,
+    }, self.KeySystem)
+    create("UICorner", { CornerRadius = UDim.new(0, 4) }, close)
+    self:_connect(close.MouseButton1Click, function()
+        self:HideKeySystem()
+    end)
+end
+
+function StacyUI:ShowKeySystem()
+    self:HideCommands(false)
+    self:HideUpdateLog(false)
+    self:HideSettings(false)
+    self:_clearSuggestions()
+    self.Prompt:ReleaseFocus()
+    self.KeySystem.Visible = true
+    return self
+end
+
+function StacyUI:HideKeySystem(restoreFocus)
+    if self.KeySystem then
+        self.KeySystem.Visible = false
     end
     if restoreFocus ~= false and not self.Destroyed and self.Open then
         task.defer(self.Prompt.CaptureFocus, self.Prompt)
