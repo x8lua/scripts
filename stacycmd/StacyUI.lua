@@ -5,6 +5,7 @@ local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
 local TeleportService = game:GetService("TeleportService")
+local SoundService = game:GetService("SoundService")
 
 local STACY_GREEN = Color3.fromRGB(80, 255, 125)
 local GAME_COMMAND_GREEN = Color3.fromRGB(0, 255, 0)
@@ -13,9 +14,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.1.6"
+StacyUI.Version = "2.2.0"
 
 local UPDATE_LOG = {
+    { Version = "v2.2.0", Text = "Added command focus, settings, error feedback, random view, and restored suggestions" },
     { Version = "v2.1.6", Text = "Fixed the intro title endpoint and added a position offset" },
     { Version = "v2.1.5", Text = "Matched the intro endpoint to a smaller header title and removed the doubled overlay" },
     { Version = "v2.1.4", Text = "Added manual intro size and tween settings and restored suggestion visibility" },
@@ -192,11 +194,17 @@ function StacyUI.new(options)
     self.IsGakuranGame = game.PlaceId == GAKURAN_PLACE_ID
     self.UseLegacyTo = options.LegacyTo == true
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.F1
+    self.CommandKey = options.CommandKey or Enum.KeyCode.Semicolon
     self.ActionName = "StacyUIToggle_" .. tostring(self):gsub("[^%w]", "")
+    self.CommandActionName = "StacyUICommandFocus_" .. tostring(self):gsub("[^%w]", "")
+    self.CommandFocusSession = 0
+    self.CommandFocusActive = false
+    self.SettingsCapturingKey = false
     self.Prefix = options.Prefix or (self.Player.Name .. "@StacyUI$ ")
 
     self:_build(options)
     self:SetToggleKey(self.ToggleKey)
+    self:SetCommandKey(self.CommandKey)
     self:_registerBuiltIns()
 
     if self.IsGakuranGame and not self.UseLegacyTo then
@@ -205,7 +213,7 @@ function StacyUI.new(options)
 
     if options.Welcome ~= false then
         self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
-        self:Log("BUILTINS  help  clear  cmds  gamecmds  updatelog  version  to  view  maxzoom  jpower  fly  prediction  rejoin  sudoaptupdate  ctrlc", self.Style.muted)
+        self:Log("BUILTINS  help  clear  cmds  gamecmds  settings  updatelog  version  to  view  maxzoom  jpower  fly  prediction  rejoin  sudoaptupdate  ctrlc", self.Style.muted)
     end
 
     if options.Visible ~= false then
@@ -274,6 +282,14 @@ function StacyUI:_registerBuiltIns()
             ui:ShowGameCommands()
         end,
     }
+    self.Commands.settings = {
+        Description = "Open StacyCMD settings",
+        Usage = "settings",
+        Protected = true,
+        Callback = function(_, _, ui)
+            ui:ShowSettings()
+        end,
+    }
     local gakuranToActive = self.IsGakuranGame and not self.UseLegacyTo
     self.Commands.to = {
         Description = gakuranToActive and "Teleport to a player by Gakuran name" or "Teleport to a player by username or display name",
@@ -326,7 +342,7 @@ function StacyUI:_registerBuiltIns()
     local gakuranViewActive = self.IsGakuranGame
     self.Commands.view = {
         Description = gakuranViewActive and "View by Gakuran name; omit the name to view yourself" or "View another player; omit the name to view yourself",
-        Usage = "view [player|self]",
+        Usage = "view [player|self|random]",
         GameSpecific = gakuranViewActive,
         HighlightLime = gakuranViewActive,
         Protected = true,
@@ -526,7 +542,20 @@ function StacyUI:ViewPlayer(input)
     end
 
     local target = self.Speaker
-    if type(input) == "string" and trim(input) ~= "" and trim(input):lower() ~= "self" then
+    local query = type(input) == "string" and trim(input):lower() or "self"
+    if query == "random" then
+        local candidates = {}
+        for _, player in ipairs(Players:GetPlayers()) do
+            local character = player ~= self.Speaker and player.Character
+            if character and character:FindFirstChildOfClass("Humanoid") then
+                table.insert(candidates, player)
+            end
+        end
+        if #candidates == 0 then
+            return false, "no random view targets are available"
+        end
+        target = candidates[math.random(1, #candidates)]
+    elseif query ~= "" and query ~= "self" then
         target = self.IsGakuranGame and findPlayerByGameName(input) or findPlayerByUsername(input)
     end
     if not target then
@@ -549,6 +578,7 @@ function StacyUI:ShowGameCommands()
     assert(not self.Destroyed, "StacyUI has been destroyed")
     self.IgnoreToggleUntil = os.clock() + 0.35
     self:HideUpdateLog(false)
+    self:HideSettings(false)
     self.CommandBrowserGameOnly = true
     self.CommandBrowserTitle.Text = "GAME COMMANDS"
     self.CommandBrowserSearch.PlaceholderText = "SEARCH GAME COMMANDS"
@@ -1000,6 +1030,7 @@ function StacyUI:PlayIntro()
     self:_clearSuggestions()
     self:HideCommands(false)
     self:HideUpdateLog(false)
+    self:HideSettings(false)
     self.Prompt:ReleaseFocus()
     self.Main.Visible = false
 
@@ -1094,6 +1125,16 @@ function StacyUI:_build(options)
         ResetOnSpawn = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
     }, playerGui)
+
+    local existingErrorSound = SoundService:FindFirstChild("StacyCMDError")
+    if existingErrorSound then
+        existingErrorSound:Destroy()
+    end
+    self.ErrorSound = create("Sound", {
+        Name = "StacyCMDError",
+        SoundId = "rbxassetid://140650754692075",
+        Volume = 0.7,
+    }, SoundService)
 
     self.Main = create("CanvasGroup", {
         Name = "Console",
@@ -1218,8 +1259,13 @@ function StacyUI:_build(options)
     self:_buildSuggestions()
     self:_buildCommandBrowser()
     self:_buildUpdateLog()
+    self:_buildSettings()
+    self:_updatePromptBounds()
 
     self:_connect(self.PrefixLabel:GetPropertyChangedSignal("TextBounds"), function()
+        self:_updatePromptBounds()
+    end)
+    self:_connect(self.Main:GetPropertyChangedSignal("AbsolutePosition"), function()
         self:_updatePromptBounds()
     end)
 
@@ -1612,6 +1658,7 @@ function StacyUI:ShowUpdateLog()
     assert(not self.Destroyed, "StacyUI has been destroyed")
     self.IgnoreToggleUntil = os.clock() + 0.35
     self:HideCommands(false)
+    self:HideSettings(false)
     self.UpdateLog.Visible = true
     self.UpdateLogSearch.Text = ""
     self.UpdateLogSearch.TextEditable = false
@@ -1624,6 +1671,142 @@ function StacyUI:HideUpdateLog(restoreFocus)
         self.UpdateLog.Visible = false
     end
     if restoreFocus ~= false and not self.Destroyed and self.Open and not self.CommandBrowser.Visible then
+        task.defer(self.Prompt.CaptureFocus, self.Prompt)
+    end
+    return self
+end
+
+function StacyUI:_commandKeyText(keyCode)
+    return keyCode == Enum.KeyCode.Semicolon and ";" or keyCode.Name
+end
+
+function StacyUI:_buildSettings()
+    local style = self.Style
+    self.Settings = create("Frame", {
+        Name = "Settings",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(400, 150),
+        BackgroundColor3 = style.background,
+        BackgroundTransparency = 0.04,
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 30,
+    }, self.Gui)
+    create("UICorner", { CornerRadius = UDim.new(0, 6) }, self.Settings)
+    create("UIStroke", { Color = style.divider, Transparency = 0.1, Thickness = 1 }, self.Settings)
+
+    local header = create("Frame", {
+        Name = "Header",
+        BackgroundColor3 = style.headerBackground,
+        BackgroundTransparency = 0.08,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 50),
+        ZIndex = 31,
+    }, self.Settings)
+    create("TextLabel", {
+        Name = "Brand",
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Bodoni,
+        RichText = true,
+        Text = 'Stacy <font color="#50FF7D">CMD</font>',
+        TextColor3 = style.text,
+        TextSize = 21,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(16, 3),
+        Size = UDim2.fromOffset(140, 28),
+        ZIndex = 32,
+    }, header)
+    create("TextLabel", {
+        Name = "Title",
+        BackgroundTransparency = 1,
+        Font = style.fontMono,
+        Text = "SETTINGS",
+        TextColor3 = style.muted,
+        TextSize = 10,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(17, 30),
+        Size = UDim2.fromOffset(90, 14),
+        ZIndex = 32,
+    }, header)
+    local close = create("TextButton", {
+        Name = "Close",
+        AutoButtonColor = false,
+        BackgroundTransparency = 1,
+        Font = style.fontMono,
+        Text = "X",
+        TextColor3 = style.muted,
+        TextSize = 15,
+        Position = UDim2.new(1, -40, 0, 8),
+        Size = UDim2.fromOffset(32, 32),
+        ZIndex = 32,
+    }, header)
+    create("TextLabel", {
+        Name = "KeyLabel",
+        BackgroundTransparency = 1,
+        Font = style.fontMono,
+        Text = "COMMAND BAR KEY",
+        TextColor3 = style.text,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(18, 82),
+        Size = UDim2.fromOffset(190, 30),
+        ZIndex = 31,
+    }, self.Settings)
+    self.SettingsKeyButton = create("TextButton", {
+        Name = "CommandKey",
+        AutoButtonColor = false,
+        BackgroundColor3 = style.suggestionHighlight,
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        Font = style.fontMono,
+        Text = "[ " .. self:_commandKeyText(self.CommandKey) .. " ]",
+        TextColor3 = STACY_GREEN,
+        TextSize = 14,
+        Position = UDim2.new(1, -140, 0, 78),
+        Size = UDim2.fromOffset(122, 34),
+        ZIndex = 31,
+    }, self.Settings)
+    create("UICorner", { CornerRadius = UDim.new(0, 4) }, self.SettingsKeyButton)
+
+    self:_connect(close.MouseButton1Click, function()
+        self:HideSettings()
+    end)
+    self:_connect(self.SettingsKeyButton.MouseButton1Click, function()
+        self.SettingsCapturingKey = true
+        self.SettingsKeyButton.Text = "[ PRESS KEY ]"
+    end)
+    self:_connect(UserInputService.InputBegan, function(input)
+        if not self.SettingsCapturingKey or input.UserInputType ~= Enum.UserInputType.Keyboard then
+            return
+        end
+        self.SettingsCapturingKey = false
+        if input.KeyCode ~= Enum.KeyCode.Escape and input.KeyCode ~= self.ToggleKey then
+            self:SetCommandKey(input.KeyCode)
+        else
+            self.SettingsKeyButton.Text = "[ " .. self:_commandKeyText(self.CommandKey) .. " ]"
+        end
+    end)
+end
+
+function StacyUI:ShowSettings()
+    self:HideCommands(false)
+    self:HideUpdateLog(false)
+    self:_clearSuggestions()
+    self.Settings.Visible = true
+    self.Prompt:ReleaseFocus()
+    return self
+end
+
+function StacyUI:HideSettings(restoreFocus)
+    if self.Settings then
+        self.Settings.Visible = false
+    end
+    self.SettingsCapturingKey = false
+    if self.SettingsKeyButton then
+        self.SettingsKeyButton.Text = "[ " .. self:_commandKeyText(self.CommandKey) .. " ]"
+    end
+    if restoreFocus ~= false and not self.Destroyed and self.Open then
         task.defer(self.Prompt.CaptureFocus, self.Prompt)
     end
     return self
@@ -1702,6 +1885,7 @@ function StacyUI:ShowCommands()
     assert(not self.Destroyed, "StacyUI has been destroyed")
     self.IgnoreToggleUntil = os.clock() + 0.35
     self:HideUpdateLog(false)
+    self:HideSettings(false)
     self.CommandBrowserGameOnly = false
     self.CommandBrowserTitle.Text = "COMMANDS"
     self.CommandBrowserSearch.PlaceholderText = "SEARCH COMMANDS"
@@ -1737,7 +1921,7 @@ function StacyUI:_buildSuggestions()
         ClipsDescendants = true,
         Visible = false,
         ZIndex = 40,
-    }, self.Main)
+    }, self.Gui)
 
     create("UICorner", { CornerRadius = UDim.new(0, 4) }, self.Suggestions)
     create("UIStroke", {
@@ -1863,7 +2047,9 @@ function StacyUI:_updatePromptBounds()
     self.Prompt.Position = UDim2.new(0, offset, 1, -28)
     self.Prompt.Size = UDim2.new(1, -(offset + 10), 0, 24)
     if self.Suggestions then
-        self.Suggestions.Position = UDim2.new(0, offset, 1, 6)
+        local mainPosition = self.Main.AbsolutePosition
+        local mainSize = self.Main.AbsoluteSize
+        self.Suggestions.Position = UDim2.fromOffset(mainPosition.X + offset, mainPosition.Y + mainSize.Y + 6)
     end
 end
 
@@ -2029,21 +2215,26 @@ function StacyUI:_onFocusLost(enterPressed)
     if enterPressed then
         local line = trim(self.Prompt.Text)
         local shouldRefocus = false
+        local recognized = false
         self.Prompt.Text = ""
         if line ~= "" then
             local commandName = splitWords(line)[1]
             local command = commandName and self.Commands[commandName]
             shouldRefocus = command == nil
+            recognized = command ~= nil
             local commandColor = command and command.HighlightLime and GAME_COMMAND_GREEN or self.Style.accent
             self:Log(self.Prefix .. line, commandColor)
             table.insert(self.History, 1, line)
             self.HistoryIndex = 0
             self:Execute(line)
         end
-        if shouldRefocus and not self.Destroyed and self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible then
+        if recognized then
+            self:_scheduleCommandAutoHide()
+        end
+        if shouldRefocus and not self.Destroyed and self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible and not self.Settings.Visible then
             task.defer(self.Prompt.CaptureFocus, self.Prompt)
         end
-    elseif self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible then
+    elseif self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible and not self.Settings.Visible then
         self:Toggle(false)
     end
 end
@@ -2096,6 +2287,7 @@ function StacyUI:Log(text, color)
     assert(not self.Destroyed, "StacyUI has been destroyed")
 
     self.EmptyState.Visible = false
+    local isError = color == self.Style.error
 
     local holder = create("Frame", {
         Name = "Entry",
@@ -2103,6 +2295,21 @@ function StacyUI:Log(text, color)
         Size = UDim2.new(1, -6, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
     }, self.Scroll)
+
+    if isError then
+        create("ImageLabel", {
+            Name = "ErrorIcon",
+            BackgroundTransparency = 1,
+            Image = "rbxassetid://1847653031",
+            Size = UDim2.fromOffset(16, 16),
+        }, holder)
+        if self.ErrorSound then
+            pcall(function()
+                self.ErrorSound.TimePosition = 0
+                self.ErrorSound:Play()
+            end)
+        end
+    end
 
     create("TextLabel", {
         Name = "Message",
@@ -2112,7 +2319,8 @@ function StacyUI:Log(text, color)
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextColor3 = color or self.Style.text,
-        Size = UDim2.new(1, -60, 0, 0),
+        Position = UDim2.fromOffset(isError and 21 or 0, 0),
+        Size = UDim2.new(1, isError and -81 or -60, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         Text = tostring(text),
     }, holder)
@@ -2155,6 +2363,7 @@ end
 function StacyUI:SetToggleKey(keyCode)
     assert(typeof(keyCode) == "EnumItem" and keyCode.EnumType == Enum.KeyCode, "SetToggleKey expects an Enum KeyCode")
     ContextActionService:UnbindAction(self.ActionName)
+    ContextActionService:UnbindAction(self.CommandActionName)
     self.ToggleKey = keyCode
     if self.KeyHint then
         self.KeyHint.Text = keyCode.Name .. "  TOGGLE"
@@ -2174,6 +2383,55 @@ function StacyUI:SetToggleKey(keyCode)
         return Enum.ContextActionResult.Pass
     end, false, keyCode)
     return self
+end
+
+function StacyUI:SetCommandKey(keyCode)
+    assert(typeof(keyCode) == "EnumItem" and keyCode.EnumType == Enum.KeyCode, "SetCommandKey expects an Enum KeyCode")
+    assert(keyCode ~= self.ToggleKey, "command key must differ from the toggle key")
+    ContextActionService:UnbindAction(self.CommandActionName)
+    self.CommandKey = keyCode
+    self.ReloadOptions.CommandKey = keyCode
+    if self.SettingsKeyButton then
+        self.SettingsKeyButton.Text = "[ " .. self:_commandKeyText(keyCode) .. " ]"
+    end
+    ContextActionService:BindActionAtPriority(self.CommandActionName, function(_, state)
+        if state == Enum.UserInputState.Begin and not self.SettingsCapturingKey and not self.IntroPlaying then
+            self:FocusCommandBar()
+        end
+        return Enum.ContextActionResult.Sink
+    end, false, 3000, keyCode)
+    return self
+end
+
+function StacyUI:FocusCommandBar()
+    self.CommandFocusSession = self.CommandFocusSession + 1
+    self.CommandFocusActive = true
+    self:HideCommands(false)
+    self:HideUpdateLog(false)
+    self:HideSettings(false)
+    if self.Open then
+        self.Prompt:CaptureFocus()
+    else
+        self:Toggle(true)
+    end
+    return self
+end
+
+function StacyUI:_scheduleCommandAutoHide()
+    if not self.CommandFocusActive then
+        return
+    end
+    local session = self.CommandFocusSession
+    task.delay(2.5, function()
+        if self.Destroyed or session ~= self.CommandFocusSession or not self.CommandFocusActive then
+            return
+        end
+        if self.Settings.Visible or self.CommandBrowser.Visible or self.UpdateLog.Visible then
+            return
+        end
+        self.CommandFocusActive = false
+        self:Toggle(false)
+    end)
 end
 
 function StacyUI:Toggle(forceState)
@@ -2208,9 +2466,12 @@ function StacyUI:Toggle(forceState)
         end
         task.defer(self.Prompt.CaptureFocus, self.Prompt)
     else
+        self.CommandFocusActive = false
+        self.CommandFocusSession = self.CommandFocusSession + 1
         self:_clearSuggestions()
         self:HideCommands(false)
         self:HideUpdateLog(false)
+        self:HideSettings(false)
         self.Prompt:ReleaseFocus()
         TweenService:Create(self.Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
             Position = UDim2.new(0.5, 0, 0, 20),
@@ -2239,10 +2500,15 @@ function StacyUI:Destroy()
     self.Destroyed = true
     self.Open = false
     ContextActionService:UnbindAction(self.ActionName)
+    ContextActionService:UnbindAction(self.CommandActionName)
     for _, connection in ipairs(self.Connections) do
         connection:Disconnect()
     end
     table.clear(self.Connections)
+    if self.ErrorSound then
+        self.ErrorSound:Destroy()
+        self.ErrorSound = nil
+    end
     self.Gui:Destroy()
     table.clear(self.Commands)
     table.clear(self.History)

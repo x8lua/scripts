@@ -17,6 +17,7 @@ local console = StacyUI.new({
     Name = "MyConsole",
     Prefix = "demo@StacyUI$ ",
     ToggleKey = Enum.KeyCode.F1,
+    CommandKey = Enum.KeyCode.Semicolon,
     IntroSize = Vector2.new(480, 120),
     IntroTargetSize = Vector2.new(92, 26),
     IntroTargetOffset = Vector2.new(0, 0),
@@ -40,9 +41,9 @@ The console opens by default after a centered full-screen StacyCMD brand intro t
 
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 
-The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ShowGameCommands` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
+The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ShowGameCommands` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
-The protected built ins are `help` `clear` `cmds` `gamecmds` `updatelog` `version` `to` `view` `maxzoom` `jpower` `fly` `prediction` `rejoin` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
+The protected built ins are `help` `clear` `cmds` `gamecmds` `settings` `updatelog` `version` `to` `view` `maxzoom` `jpower` `fly` `prediction` `rejoin` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
 
 `maxzoom [num]` sets the speaker's maximum camera zoom distance
 
@@ -50,7 +51,9 @@ The protected built ins are `help` `clear` `cmds` `gamecmds` `updatelog` `versio
 
 `prediction` toggles cyan Drawing API markers at predicted nearby-player positions. Press P to remove the markers. It appears in `gamecmds` with the game-command color.
 
-`view [player|self]` is a regular command that changes the camera subject. In the Gakuran place it also appears in `gamecmds` and matches Gakuran names. Use plain `view` or `view self` to restore the local character camera.
+`view [player|self|random]` is a regular command that changes the camera subject. In the Gakuran place it also appears in `gamecmds` and matches Gakuran names. Use plain `view` or `view self` to restore the local character camera.
+
+Press `;` to open or refocus the command bar without closing it. A recognized command opened this way closes the console after 2.5 seconds unless `;` is pressed again. F1 remains the console toggle. `settings` opens the command-key configuration page.
 
 `jpower [num]` sets the local character's jump power. `rejoin` reconnects to the current server instance.
 
