@@ -11,12 +11,15 @@ local STACY_GREEN = Color3.fromRGB(80, 255, 125)
 local GAME_COMMAND_GREEN = Color3.fromRGB(0, 255, 0)
 local DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/StacyUI.lua"
 local GAKURAN_PLACE_ID = 128736949265057
+local KEY_FILE = "StacyCMD.key"
+local REQUIRED_KEY = "x8xxy"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.3.0"
+StacyUI.Version = "2.3.1"
 
 local UPDATE_LOG = {
+    { Version = "v2.3.1", Text = "Made the local StacyCMD key gate required" },
     { Version = "v2.3.0", Text = "Added the optional in-console keysystem page" },
     { Version = "v2.2.9", Text = "Made semicolon command mode close after 2.5 seconds of inactivity" },
     { Version = "v2.2.8", Text = "Removed the startup built-in command list" },
@@ -162,6 +165,15 @@ local function create(className, properties, parent)
     return object
 end
 
+-- why dont you join my discord and grabbing a key in the source instead >:(
+local function readSavedKey()
+    if type(readfile) ~= "function" then
+        return nil
+    end
+    local read, key = pcall(readfile, KEY_FILE)
+    return read and trim(tostring(key)) or nil
+end
+
 function StacyUI.new(options)
     options = options or {}
 
@@ -174,6 +186,9 @@ function StacyUI.new(options)
     assert(self.Player, "StacyUI requires a LocalPlayer or options Player")
 
     self.Style = mergeStyle(options.Style)
+    self.KeyVerified = readSavedKey() == REQUIRED_KEY
+    self.WelcomeEnabled = options.Welcome ~= false
+    self.StartVisible = options.Visible ~= false
     self.Commands = {}
     self.History = {}
     self.HistoryIndex = 0
@@ -223,23 +238,30 @@ function StacyUI.new(options)
     self:SetCommandKey(self.CommandKey)
     self:_registerBuiltIns()
 
-    if self.IsGakuranGame and not self.UseLegacyTo then
+    if self.KeyVerified and self.IsGakuranGame and not self.UseLegacyTo then
         self:_notifyGakuranToOverride()
     end
 
-    if options.Welcome ~= false then
-        self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
+    if self.KeyVerified then
+        self:_startVerifiedConsole()
+    else
+        self:ShowKeySystem()
     end
 
-    if options.Visible ~= false then
+    return self
+end
+
+function StacyUI:_startVerifiedConsole()
+    if self.WelcomeEnabled then
+        self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
+    end
+    if self.StartVisible then
         if self.IntroEnabled then
             self:PlayIntro()
         else
             self:Toggle(true)
         end
     end
-
-    return self
 end
 
 function StacyUI:_registerBuiltIns()
@@ -2059,7 +2081,7 @@ function StacyUI:_buildKeySystem()
         Name = "Info",
         BackgroundTransparency = 1,
         Font = style.fontMono,
-        Text = "OPTIONAL KEY SYSTEM\nGet a key from the StacyCMD Discord server.\nNo key? You can continue anyway.",
+        Text = "KEY REQUIRED\nGet your StacyCMD key from the Discord server.",
         TextColor3 = style.muted,
         TextSize = 13,
         TextWrapped = true,
@@ -2068,14 +2090,14 @@ function StacyUI:_buildKeySystem()
         Size = UDim2.new(1, -40, 0, 58),
         ZIndex = 31,
     }, self.KeySystem)
-    local keyBox = create("TextBox", {
+    self.KeySystemKeyBox = create("TextBox", {
         Name = "Key",
         BackgroundColor3 = style.headerBackground,
         BackgroundTransparency = 0.05,
         BorderSizePixel = 0,
         ClearTextOnFocus = false,
         Font = style.fontMono,
-        PlaceholderText = "PASTE KEY (OPTIONAL)",
+        PlaceholderText = "PASTE KEY",
         Text = "",
         TextColor3 = style.text,
         TextSize = 13,
@@ -2083,24 +2105,28 @@ function StacyUI:_buildKeySystem()
         Size = UDim2.new(1, -48, 0, 32),
         ZIndex = 31,
     }, self.KeySystem)
-    create("UICorner", { CornerRadius = UDim.new(0, 4) }, keyBox)
-    local close = create("TextButton", {
-        Name = "Continue",
+    create("UICorner", { CornerRadius = UDim.new(0, 4) }, self.KeySystemKeyBox)
+    local verify = create("TextButton", {
+        Name = "Verify",
         AutoButtonColor = false,
         BackgroundColor3 = STACY_GREEN,
         BackgroundTransparency = 0.15,
         BorderSizePixel = 0,
         Font = style.fontMono,
-        Text = "CONTINUE",
+        Text = "VERIFY KEY",
         TextColor3 = Color3.fromRGB(10, 20, 10),
         TextSize = 13,
         Position = UDim2.fromOffset(24, 180),
         Size = UDim2.new(1, -48, 0, 32),
         ZIndex = 31,
     }, self.KeySystem)
-    create("UICorner", { CornerRadius = UDim.new(0, 4) }, close)
-    self:_connect(close.MouseButton1Click, function()
-        self:HideKeySystem()
+    create("UICorner", { CornerRadius = UDim.new(0, 4) }, verify)
+    self:_connect(verify.MouseButton1Click, function()
+        local verified = self:VerifyKey(self.KeySystemKeyBox.Text)
+        if not verified then
+            self.KeySystemKeyBox.Text = ""
+            self.KeySystemKeyBox.PlaceholderText = "INVALID KEY"
+        end
     end)
 end
 
@@ -2111,10 +2137,14 @@ function StacyUI:ShowKeySystem()
     self:_clearSuggestions()
     self.Prompt:ReleaseFocus()
     self.KeySystem.Visible = true
+    task.defer(self.KeySystemKeyBox.CaptureFocus, self.KeySystemKeyBox)
     return self
 end
 
 function StacyUI:HideKeySystem(restoreFocus)
+    if not self.KeyVerified then
+        return self
+    end
     if self.KeySystem then
         self.KeySystem.Visible = false
     end
@@ -2122,6 +2152,23 @@ function StacyUI:HideKeySystem(restoreFocus)
         task.defer(self.Prompt.CaptureFocus, self.Prompt)
     end
     return self
+end
+
+function StacyUI:VerifyKey(key)
+    if trim(tostring(key)) ~= REQUIRED_KEY then
+        return false
+    end
+    self.KeyVerified = true
+    if type(writefile) == "function" then
+        pcall(writefile, KEY_FILE, REQUIRED_KEY)
+    end
+    self.KeySystemKeyBox:ReleaseFocus()
+    self.KeySystem.Visible = false
+    if self.IsGakuranGame and not self.UseLegacyTo then
+        self:_notifyGakuranToOverride()
+    end
+    self:_startVerifiedConsole()
+    return true
 end
 
 function StacyUI:_refreshCommandBrowser()
@@ -2714,6 +2761,10 @@ function StacyUI:SetCommandKey(keyCode)
 end
 
 function StacyUI:FocusCommandBar()
+    if not self.KeyVerified then
+        self:ShowKeySystem()
+        return self
+    end
     self.CommandFocusSession = self.CommandFocusSession + 1
     self.CommandFocusActive = true
     self:HideCommands(false)
@@ -2758,6 +2809,10 @@ end
 
 function StacyUI:Toggle(forceState)
     assert(not self.Destroyed, "StacyUI has been destroyed")
+    if not self.KeyVerified and forceState ~= false then
+        self:ShowKeySystem()
+        return false
+    end
     if self.IntroPlaying then
         return self.Open
     end

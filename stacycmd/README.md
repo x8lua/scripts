@@ -45,7 +45,7 @@ The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate`
 
 The protected built ins are `help` `clear` `cmds` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `prediction` `lagdetection` `rejoin` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
 
-`keysystem` opens an optional StacyCMD-styled key page. It does not enforce or validate keys until a server-side validator is configured.
+StacyCMD requires the local key `x8xxy` before loading. It reads `StacyCMD.key` through `readfile`; entering the correct key in `keysystem` writes that file through `writefile` when available.
 
 `maxzoom [num]` sets the speaker's maximum camera zoom distance
 
