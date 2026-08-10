@@ -14,9 +14,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.2.8"
+StacyUI.Version = "2.2.9"
 
 local UPDATE_LOG = {
+    { Version = "v2.2.9", Text = "Made semicolon command mode close after 2.5 seconds of inactivity" },
     { Version = "v2.2.8", Text = "Removed the startup built-in command list" },
     { Version = "v2.2.7", Text = "Changed lag detection to sample player positions" },
     { Version = "v2.2.6", Text = "Added reverse intro animation during self-updates" },
@@ -1484,6 +1485,9 @@ function StacyUI:_build(options)
 
     self:_connect(self.Prompt:GetPropertyChangedSignal("Text"), function()
         self:_updateSuggestions()
+        if self.CommandFocusActive then
+            self:_scheduleCommandAutoHide()
+        end
     end)
 end
 
@@ -2373,6 +2377,9 @@ function StacyUI:_onPromptInput(input)
     if UserInputService:GetFocusedTextBox() ~= self.Prompt then
         return
     end
+    if self.CommandFocusActive then
+        self:_scheduleCommandAutoHide()
+    end
 
     if input.KeyCode == Enum.KeyCode.Return and self.Suggestions.Visible then
         local selected = self.SuggestionButtons[self.SelectedSuggestionIndex]
@@ -2416,21 +2423,16 @@ function StacyUI:_onFocusLost(enterPressed)
     if enterPressed then
         local line = trim(self.Prompt.Text)
         local shouldRefocus = false
-        local recognized = false
         self.Prompt.Text = ""
         if line ~= "" then
             local commandName = splitWords(line)[1]
             local command = commandName and self.Commands[commandName]
             shouldRefocus = command == nil
-            recognized = command ~= nil
             local commandColor = command and command.HighlightLime and GAME_COMMAND_GREEN or self.Style.accent
             self:Log(self.Prefix .. line, commandColor)
             table.insert(self.History, 1, line)
             self.HistoryIndex = 0
             self:Execute(line)
-        end
-        if recognized then
-            self:_scheduleCommandAutoHide()
         end
         if shouldRefocus and not self.Destroyed and self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible and not self.Settings.Visible then
             task.defer(self.Prompt.CaptureFocus, self.Prompt)
@@ -2615,6 +2617,7 @@ function StacyUI:FocusCommandBar()
     else
         self:Toggle(true)
     end
+    self:_scheduleCommandAutoHide()
     task.delay(0.05, function()
         if self.Destroyed or self.CommandKey ~= Enum.KeyCode.Semicolon then
             return
@@ -2632,6 +2635,7 @@ function StacyUI:_scheduleCommandAutoHide()
     if not self.CommandFocusActive then
         return
     end
+    self.CommandFocusSession = self.CommandFocusSession + 1
     local session = self.CommandFocusSession
     task.delay(2.5, function()
         if self.Destroyed or session ~= self.CommandFocusSession or not self.CommandFocusActive then

@@ -53,7 +53,7 @@ The protected built ins are `help` `clear` `cmds` `gamecmds` `settings` `updatel
 
 `view [player|self|random]` is a regular command that changes the camera subject. In the Gakuran place it also appears in `gamecmds` and matches Gakuran names. Use plain `view` or `view self` to restore the local character camera.
 
-Press `;` to open or refocus the command bar without closing it. A recognized command opened this way closes the console after 2.5 seconds unless `;` is pressed again. F1 remains the console toggle. `settings` opens the command-key configuration page.
+Press `;` to open or refocus the command bar without closing it. It closes after 2.5 seconds of inactivity, with input and text changes resetting the timer. F1 remains the console toggle. `settings` opens the command-key configuration page.
 
 `jpower [num]` sets the local character's jump power. `rejoin` reconnects to the current server instance.
 
