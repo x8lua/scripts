@@ -46,7 +46,7 @@ The protected built ins are `help` `clear` `cmds` `gamecmds` `updatelog` `versio
 
 `prediction` toggles cyan Drawing API markers at predicted nearby-player positions. Press P to remove the markers. It appears in `gamecmds` with the game-command color.
 
-`view [player|self]` is a regular command that changes the camera subject. In the Gakuran place it also appears in `gamecmds` and matches Gakuran names. Use `view self` to restore the local character camera.
+`view [player|self]` is a regular command that changes the camera subject. In the Gakuran place it also appears in `gamecmds` and matches Gakuran names. Use plain `view` or `view self` to restore the local character camera.
 
 `jpower [num]` sets the local character's jump power. `rejoin` reconnects to the current server instance.
 

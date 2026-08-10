@@ -13,9 +13,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.1.2"
+StacyUI.Version = "2.1.3"
 
 local UPDATE_LOG = {
+    { Version = "v2.1.3", Text = "Made view without a player restore the local camera" },
     { Version = "v2.1.2", Text = "Added Gakuran-name view support and reduced the intro title size" },
     { Version = "v2.1.1", Text = "Moved view to the regular command category" },
     { Version = "v2.1.0", Text = "Added view, jpower, and rejoin; fixed fly recovery; and added the intro UI fade" },
@@ -317,13 +318,13 @@ function StacyUI:_registerBuiltIns()
     }
     local gakuranViewActive = self.IsGakuranGame
     self.Commands.view = {
-        Description = gakuranViewActive and "View by Gakuran name or return to your own character" or "View another player's character or return to your own",
+        Description = gakuranViewActive and "View by Gakuran name; omit the name to view yourself" or "View another player; omit the name to view yourself",
         Usage = "view [player|self]",
         GameSpecific = gakuranViewActive,
         HighlightLime = gakuranViewActive,
         Protected = true,
         Callback = function(args, _, ui)
-            local viewed, reason = ui:ViewPlayer(args[1])
+            local viewed, reason = ui:ViewPlayer(args[1] or "self")
             if not viewed then
                 ui:Log("View error  " .. tostring(reason), ui.Style.error)
                 return false, reason
