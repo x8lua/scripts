@@ -4,13 +4,16 @@ local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
 
 local STACY_GREEN = Color3.fromRGB(80, 255, 125)
+local GAME_COMMAND_GREEN = Color3.fromRGB(0, 255, 0)
 local DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/StacyUI.lua"
+local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.7.0"
+StacyUI.Version = "1.8.0"
 
 local UPDATE_LOG = {
+    { Version = "v1.8.0", Text = "Added gamecmds and Gakuran name teleportation with legacyto rollback" },
     { Version = "v1.7.0", Text = "Added the built in fly toggle command" },
     { Version = "v1.6.0", Text = "Added sudoaptupdate self updates and made the console visible by default" },
     { Version = "v1.5.2", Text = "Added command usage text to autocomplete suggestions" },
@@ -75,6 +78,33 @@ local function splitWords(value)
     return words
 end
 
+local function findPlayerByGameName(input)
+    input = input:lower()
+    for _, player in Players:GetPlayers() do
+        local billboard = player.Character and player.Character:FindFirstChild("PlayerInfoBillboard")
+        local info = billboard and billboard:FindFirstChild("Info")
+        if info and info.Text:lower():find(input, 1, true) then
+            return player
+        end
+    end
+end
+
+local function findPlayerByUsername(input)
+    input = input:lower()
+    local partialMatch
+    for _, player in Players:GetPlayers() do
+        local username = player.Name:lower()
+        local displayName = player.DisplayName:lower()
+        if username == input or displayName == input then
+            return player
+        end
+        if not partialMatch and (username:find(input, 1, true) or displayName:find(input, 1, true)) then
+            partialMatch = player
+        end
+    end
+    return partialMatch
+end
+
 local function isNewerVersion(candidate, current)
     local candidateParts = {}
     local currentParts = {}
@@ -133,6 +163,8 @@ function StacyUI.new(options)
     self.OnDestroy = options.OnDestroy
     self.Speaker = options.Speaker or self.Player
     self.SourceUrl = options.SourceUrl or DEFAULT_SOURCE_URL
+    self.IsGakuranGame = game.PlaceId == GAKURAN_PLACE_ID
+    self.UseLegacyTo = options.LegacyTo == true
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.F1
     self.ActionName = "StacyUIToggle_" .. tostring(self):gsub("[^%w]", "")
     self.Prefix = options.Prefix or (self.Player.Name .. "@StacyUI$ ")
@@ -141,9 +173,13 @@ function StacyUI.new(options)
     self:SetToggleKey(self.ToggleKey)
     self:_registerBuiltIns()
 
+    if self.IsGakuranGame and not self.UseLegacyTo then
+        self:_notifyGakuranToOverride()
+    end
+
     if options.Welcome ~= false then
         self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
-        self:Log("BUILTINS  help  clear  cmds  updatelog  version  maxzoom  fly  sudoaptupdate  ctrlc", self.Style.muted)
+        self:Log("BUILTINS  help  clear  cmds  gamecmds  updatelog  version  to  maxzoom  fly  sudoaptupdate  ctrlc", self.Style.muted)
     end
 
     if options.Visible ~= false then
@@ -199,6 +235,49 @@ function StacyUI:_registerBuiltIns()
             ui:ShowUpdateLog()
         end,
     }
+    self.Commands.gamecmds = {
+        Description = "List commands provided for the current game",
+        Usage = "gamecmds",
+        HighlightLime = true,
+        Protected = true,
+        Callback = function(_, _, ui)
+            ui:ShowGameCommands()
+        end,
+    }
+    local gakuranToActive = self.IsGakuranGame and not self.UseLegacyTo
+    self.Commands.to = {
+        Description = gakuranToActive and "Teleport to a player by Gakuran name" or "Teleport to a player by username or display name",
+        Usage = "to [player]",
+        GameSpecific = gakuranToActive,
+        HighlightLime = gakuranToActive,
+        Protected = true,
+        Callback = function(args, _, ui)
+            local teleported, reason = ui:TeleportTo(args[1])
+            if not teleported then
+                ui:Log("Teleport error  " .. tostring(reason), ui.Style.error)
+                return false, reason
+            end
+            return true
+        end,
+    }
+    if self.IsGakuranGame then
+        self.Commands.legacyto = {
+            Description = "Restore username and display-name teleporting for this session",
+            Usage = "legacyto",
+            GameSpecific = true,
+            HighlightLime = true,
+            Protected = true,
+            Callback = function(_, _, ui)
+                ui.UseLegacyTo = true
+                ui.ReloadOptions.LegacyTo = true
+                ui.Commands.to.Description = "Teleport to a player by username or display name"
+                ui.Commands.to.GameSpecific = false
+                ui.Commands.to.HighlightLime = false
+                ui:Log("to now uses username and display-name matching for this session", ui.Style.info)
+                return true
+            end,
+        }
+    end
     self.Commands.maxzoom = {
         Description = "Set the maximum camera zoom distance",
         Usage = "maxzoom [num]",
@@ -257,6 +336,79 @@ function StacyUI:_registerBuiltIns()
             ui:Destroy()
         end,
     }
+end
+
+function StacyUI:_notifyGakuranToOverride()
+    task.defer(function()
+        local loaded, notifyOrError = pcall(function()
+            local Notify = loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/ImGUI/Notify.lua?nocache=" .. tostring(tick()), true))()
+            Notify.push(
+                "'to' command got updated",
+                "It now uses Gakuran names for TPing! If you want the old system, use 'legacyto' instead, It will switch 'to' back to display/username. Note: this change is only for the current session.",
+                { duration = 8 }
+            )
+            return Notify
+        end)
+
+        if loaded then
+            self.GameNotify = notifyOrError
+        elseif not self.Destroyed then
+            self:Log("Gakuran update notification failed  " .. tostring(notifyOrError), self.Style.warn)
+        end
+    end)
+end
+
+function StacyUI:TeleportTo(input)
+    if type(input) ~= "string" or trim(input) == "" then
+        return false, "usage: to [player]"
+    end
+
+    local useGakuranName = self.IsGakuranGame and not self.UseLegacyTo
+    local target = useGakuranName and findPlayerByGameName(input) or findPlayerByUsername(input)
+    if not target then
+        return false, useGakuranName and "Gakuran name not found" or "player not found"
+    end
+
+    local character = self.Speaker.Character
+    local targetCharacter = target.Character
+    local targetRoot = targetCharacter and (
+        targetCharacter:FindFirstChild("HumanoidRootPart")
+        or targetCharacter.PrimaryPart
+        or targetCharacter:FindFirstChild("Torso")
+        or targetCharacter:FindFirstChild("UpperTorso")
+    )
+    if not character or not targetRoot then
+        return false, "character root part not found"
+    end
+
+    local teleported, teleportError = pcall(character.PivotTo, character, targetRoot.CFrame)
+    if not teleported then
+        return false, teleportError
+    end
+    self:Log("Teleported to " .. target.Name, self.Style.info)
+    return true, target
+end
+
+function StacyUI:ShowGameCommands()
+    local names = {}
+    for name, command in pairs(self.Commands) do
+        if command.GameSpecific then
+            table.insert(names, name)
+        end
+    end
+    table.sort(names)
+
+    if #names == 0 then
+        self:Log("No game-specific commands are available", self.Style.muted)
+        return names
+    end
+
+    self:Log("GAME COMMANDS", self.Style.info)
+    for _, name in ipairs(names) do
+        local command = self.Commands[name]
+        self:Log(command.Usage .. "  " .. command.Description, GAME_COMMAND_GREEN)
+    end
+    return names
 end
 
 function StacyUI:_stopFly()
@@ -454,6 +606,8 @@ function StacyUI:CheckForUpdate()
                 Name = name,
                 Description = command.Description,
                 Usage = command.Usage,
+                GameSpecific = command.GameSpecific,
+                HighlightLime = command.HighlightLime,
                 Callback = command.Callback,
             })
         end
@@ -1090,7 +1244,7 @@ function StacyUI:_refreshCommandBrowser()
             BackgroundTransparency = 1,
             Font = self.Style.fontMono,
             Text = name,
-            TextColor3 = self.Style.accent,
+            TextColor3 = command.HighlightLime and GAME_COMMAND_GREEN or self.Style.accent,
             TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
             Position = UDim2.fromOffset(10, 4),
@@ -1304,7 +1458,7 @@ function StacyUI:_makeSuggestion(name)
         BorderSizePixel = 0,
         Font = self.Style.fontMono,
         Text = usage,
-        TextColor3 = self.Style.text,
+        TextColor3 = command and command.HighlightLime and GAME_COMMAND_GREEN or self.Style.text,
         TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Left,
         Size = UDim2.new(1, 0, 0, 27),
@@ -1340,18 +1494,19 @@ function StacyUI:_changeSelection(delta)
 
     local old = self.SuggestionButtons[self.SelectedSuggestionIndex]
     if old then
+        local oldCommand = self.Commands[old.Name]
         old.BackgroundTransparency = 1
-        old.TextColor3 = self.Style.text
+        old.TextColor3 = oldCommand and oldCommand.HighlightLime and GAME_COMMAND_GREEN or self.Style.text
         old.SelectionBar.Visible = false
     end
 
     self.SelectedSuggestionIndex = ((self.SelectedSuggestionIndex - 1 + delta) % count) + 1
     local current = self.SuggestionButtons[self.SelectedSuggestionIndex]
+    local command = self.Commands[current.Name]
     current.BackgroundTransparency = 0.12
-    current.TextColor3 = STACY_GREEN
+    current.TextColor3 = command and command.HighlightLime and GAME_COMMAND_GREEN or STACY_GREEN
     current.SelectionBar.Visible = true
 
-    local command = self.Commands[current.Name]
     self.Description.Text = command and command.Description or ""
 end
 
@@ -1434,7 +1589,10 @@ function StacyUI:_onFocusLost(enterPressed)
         local line = trim(self.Prompt.Text)
         self.Prompt.Text = ""
         if line ~= "" then
-            self:Log(self.Prefix .. line, self.Style.accent)
+            local commandName = splitWords(line)[1]
+            local command = commandName and self.Commands[commandName]
+            local commandColor = command and command.HighlightLime and GAME_COMMAND_GREEN or self.Style.accent
+            self:Log(self.Prefix .. line, commandColor)
             table.insert(self.History, 1, line)
             self.HistoryIndex = 0
             self:Execute(line)
@@ -1456,6 +1614,8 @@ function StacyUI:Register(definition)
     self.Commands[definition.Name] = {
         Description = definition.Description or "No description available",
         Usage = definition.Usage or definition.Name,
+        GameSpecific = definition.GameSpecific == true,
+        HighlightLime = definition.HighlightLime == true or definition.GameSpecific == true,
         Callback = definition.Callback,
     }
     return self
