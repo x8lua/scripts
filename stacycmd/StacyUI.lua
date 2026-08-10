@@ -13,9 +13,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.1.5"
+StacyUI.Version = "2.1.6"
 
 local UPDATE_LOG = {
+    { Version = "v2.1.6", Text = "Fixed the intro title endpoint and added a position offset" },
     { Version = "v2.1.5", Text = "Matched the intro endpoint to a smaller header title and removed the doubled overlay" },
     { Version = "v2.1.4", Text = "Added manual intro size and tween settings and restored suggestion visibility" },
     { Version = "v2.1.3", Text = "Made view without a player restore the local camera" },
@@ -173,6 +174,7 @@ function StacyUI.new(options)
     self.IntroEnabled = options.Intro ~= false
     self.IntroSize = typeof(options.IntroSize) == "Vector2" and options.IntroSize or Vector2.new(600, 150)
     self.IntroTargetSize = typeof(options.IntroTargetSize) == "Vector2" and options.IntroTargetSize or Vector2.new(92, 26)
+    self.IntroTargetOffset = typeof(options.IntroTargetOffset) == "Vector2" and options.IntroTargetOffset or Vector2.new(0, 0)
     self.IntroTweenDuration = math.max(0.05, tonumber(options.IntroTweenDuration) or 0.7)
     self.IntroPlaying = false
     self.IntroSession = 0
@@ -1038,8 +1040,13 @@ function StacyUI:PlayIntro()
             return
         end
 
-        local targetPosition = self.HeaderBrand.AbsolutePosition
-        local targetSize = self.HeaderBrand.AbsoluteSize
+        local camera = workspace.CurrentCamera
+        local viewport = camera and camera.ViewportSize or Vector2.new(self.Style.width, self.Style.height)
+        local targetSize = self.IntroTargetSize
+        local targetPosition = Vector2.new(
+            (viewport.X - self.Style.width) * 0.5 + 16,
+            40 + math.floor((38 - targetSize.Y) * 0.5)
+        ) + self.IntroTargetOffset
         local tweenInfo = TweenInfo.new(self.IntroTweenDuration, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
         local brandTween = TweenService:Create(brand, tweenInfo, {
             Position = UDim2.fromOffset(targetPosition.X + targetSize.X * 0.5, targetPosition.Y + targetSize.Y * 0.5),
