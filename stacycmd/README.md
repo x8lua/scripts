@@ -32,7 +32,7 @@ console:Register({
 })
 ```
 
-The console opens by default after a full-screen StacyCMD brand intro. Pass `Intro = false` to skip the intro or `Visible = false` to start hidden.
+The console opens by default after a centered full-screen StacyCMD brand intro that shrinks directly into the aligned header title. Pass `Intro = false` to skip the intro or `Visible = false` to start hidden.
 
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 

@@ -12,9 +12,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.0.1"
+StacyUI.Version = "2.0.2"
 
 local UPDATE_LOG = {
+    { Version = "v2.0.2", Text = "Aligned the startup intro and header branding" },
     { Version = "v2.0.1", Text = "Removed the startup intro background" },
     { Version = "v2.0.0", Text = "Added the full-screen StacyCMD startup intro" },
     { Version = "v1.9.0", Text = "Added random teleporting, command focus cleanup, and the prediction toggle" },
@@ -907,28 +908,15 @@ function StacyUI:PlayIntro()
     }, overlay)
 
     create("TextLabel", {
-        Name = "Stacy",
+        Name = "Title",
         BackgroundTransparency = 1,
         Font = Enum.Font.Bodoni,
-        Text = "Stacy",
+        RichText = true,
+        Text = 'Stacy <font color="#50FF7D">CMD</font>',
         TextColor3 = self.Style.text,
         TextScaled = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromScale(0, 0),
-        Size = UDim2.fromScale(0.58, 1),
-        ZIndex = 102,
-    }, brand)
-
-    create("TextLabel", {
-        Name = "CMD",
-        BackgroundTransparency = 1,
-        Font = Enum.Font.Bodoni,
-        Text = "CMD",
-        TextColor3 = STACY_GREEN,
-        TextScaled = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromScale(0.53, 0),
-        Size = UDim2.fromScale(0.47, 1),
+        TextXAlignment = Enum.TextXAlignment.Center,
+        Size = UDim2.fromScale(1, 1),
         ZIndex = 102,
     }, brand)
 
@@ -1010,27 +998,16 @@ function StacyUI:_build(options)
     }, self.Header)
 
     create("TextLabel", {
-        Name = "BrandStacy",
+        Name = "Brand",
         BackgroundTransparency = 1,
         Font = Enum.Font.Bodoni,
+        RichText = true,
         TextSize = 21,
         TextColor3 = style.text,
-        TextXAlignment = Enum.TextXAlignment.Left,
+        TextXAlignment = Enum.TextXAlignment.Center,
         Position = UDim2.fromOffset(16, 3),
-        Size = UDim2.new(0, 62, 0, 30),
-        Text = "Stacy",
-    }, self.Header)
-
-    create("TextLabel", {
-        Name = "BrandCMD",
-        BackgroundTransparency = 1,
-        Font = Enum.Font.Bodoni,
-        TextSize = 21,
-        TextColor3 = STACY_GREEN,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromOffset(70, 3),
-        Size = UDim2.new(0, 54, 0, 30),
-        Text = "CMD",
+        Size = UDim2.fromOffset(108, 30),
+        Text = 'Stacy <font color="#50FF7D">CMD</font>',
     }, self.Header)
 
     create("TextLabel", {
