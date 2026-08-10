@@ -14,9 +14,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.2.2"
+StacyUI.Version = "2.2.3"
 
 local UPDATE_LOG = {
+    { Version = "v2.2.3", Text = "Raised the lag detection threshold to 90 percent" },
     { Version = "v2.2.2", Text = "Changed lag detection to trigger when half the server is still" },
     { Version = "v2.2.1", Text = "Fixed semicolon input and added reset and lag detection" },
     { Version = "v2.2.0", Text = "Added command focus, settings, error feedback, random view, and restored suggestions" },
@@ -694,11 +695,11 @@ function StacyUI:SetLagDetectionEnabled(enabled)
                 end
             end
         end
-        local lagging = checked > 0 and still / checked >= 0.5
+        local lagging = checked > 0 and still / checked >= 0.9
 
         if lagging and not self.LagDetected then
             self.LagDetected = true
-            self.LagNotify:push("LAG DETECTED", "At least half of this server is standing still.", { duration = 3600 })
+            self.LagNotify:push("LAG DETECTED", "At least 90% of this server is standing still.", { duration = 3600 })
         elseif self.LagDetected and not lagging then
             self.LagDetected = false
             self.LagNotify:clear()
