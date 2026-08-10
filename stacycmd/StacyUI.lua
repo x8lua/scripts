@@ -12,13 +12,15 @@ local GAME_COMMAND_GREEN = Color3.fromRGB(0, 255, 0)
 local DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/StacyUI.lua"
 local GAKURAN_PLACE_ID = 128736949265057
 local KEY_FILE = "StacyCMD.key"
+local AUTOEXEC_FILE = "StacyCMD.autoexec"
 local REQUIRED_KEY = "x8xxy" -- please do not peek at this
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.3.1"
+StacyUI.Version = "2.4.0"
 
 local UPDATE_LOG = {
+    { Version = "v2.4.0", Text = "Added the supported games browser and script auto-execution" },
     { Version = "v2.3.1", Text = "Made the local StacyCMD key gate required" },
     { Version = "v2.3.0", Text = "Added the optional in-console keysystem page" },
     { Version = "v2.2.9", Text = "Made semicolon command mode close after 2.5 seconds of inactivity" },
@@ -174,6 +176,15 @@ local function readSavedKey()
     return read and trim(tostring(key)) or nil
 end
 
+local function readAutoExecGame()
+    if type(readfile) ~= "function" then
+        return nil
+    end
+    local read, gameId = pcall(readfile, AUTOEXEC_FILE)
+    gameId = read and trim(tostring(gameId)) or ""
+    return gameId ~= "" and gameId or nil
+end
+
 function StacyUI.new(options)
     options = options or {}
 
@@ -195,6 +206,9 @@ function StacyUI.new(options)
     self.SelectedSuggestionIndex = 0
     self.SuggestionButtons = {}
     self.CommandBrowserGameOnly = false
+    self.SelectedGame = nil
+    self.AutoExecGame = readAutoExecGame()
+    self.AutoExecStarted = false
     self.PredictionConnections = {}
     self.PredictionMarkers = {}
     self.PredictionEnabled = false
@@ -262,6 +276,14 @@ function StacyUI:_startVerifiedConsole()
             self:Toggle(true)
         end
     end
+    if not self.AutoExecStarted and self.AutoExecGame then
+        self.AutoExecStarted = true
+        task.defer(function()
+            if not self.Destroyed then
+                self:ExecuteGameScript(self.AutoExecGame, true)
+            end
+        end)
+    end
 end
 
 function StacyUI:_registerBuiltIns()
@@ -317,6 +339,14 @@ function StacyUI:_registerBuiltIns()
         Protected = true,
         Callback = function(_, _, ui)
             ui:ShowGameCommands()
+        end,
+    }
+    self.Commands.games = {
+        Description = "Browse supported game scripts",
+        Usage = "games",
+        Protected = true,
+        Callback = function(_, _, ui)
+            ui:ShowGames()
         end,
     }
     self.Commands.settings = {
@@ -1491,6 +1521,7 @@ function StacyUI:_build(options)
     self:_updatePromptBounds()
     self:_buildSuggestions()
     self:_buildCommandBrowser()
+    self:_buildGames()
     self:_buildUpdateLog()
     self:_buildSettings()
     self:_buildKeySystem()
@@ -1896,6 +1927,7 @@ function StacyUI:ShowUpdateLog()
     self.IgnoreToggleUntil = os.clock() + 0.35
     self:HideCommands(false)
     self:HideSettings(false)
+    self:HideGames(false)
     self.UpdateLog.Visible = true
     self.UpdateLogSearch.Text = ""
     self.UpdateLogSearch.TextEditable = false
@@ -1911,6 +1943,134 @@ function StacyUI:HideUpdateLog(restoreFocus)
         task.defer(self.Prompt.CaptureFocus, self.Prompt)
     end
     return self
+end
+
+function StacyUI:_buildGames()
+    local style = self.Style
+    self.Games = create("Frame", {
+        Name = "Games", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(620, 390), BackgroundColor3 = Color3.fromRGB(16, 16, 18),
+        BorderSizePixel = 0, Visible = false, ZIndex = 40,
+    }, self.Gui)
+    create("UICorner", {CornerRadius = UDim.new(0, 8)}, self.Games)
+    create("UIStroke", {Color = Color3.fromRGB(65, 65, 72), Thickness = 1}, self.Games)
+    local header = create("Frame", {BackgroundColor3 = Color3.fromRGB(24, 24, 28), BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 48), ZIndex = 41}, self.Games)
+    create("TextLabel", {BackgroundTransparency = 1, Font = Enum.Font.Bodoni, Text = 'Stacy <font color="#50FF7D">CMD</font>', RichText = true, TextColor3 = style.text, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(16, 4), Size = UDim2.fromOffset(150, 30), ZIndex = 42}, header)
+    self.GamesTitle = create("TextLabel", {BackgroundTransparency = 1, Font = style.fontMono, Text = "GAMES", TextColor3 = style.muted, TextSize = 11, Position = UDim2.fromOffset(18, 31), Size = UDim2.fromOffset(100, 14), ZIndex = 42}, header)
+    local close = create("TextButton", {BackgroundTransparency = 1, AutoButtonColor = false, Font = style.fontMono, Text = "X", TextColor3 = style.muted, TextSize = 15, Position = UDim2.new(1, -42, 0, 8), Size = UDim2.fromOffset(32, 30), ZIndex = 42}, header)
+    self:_connect(close.MouseButton1Click, function() self:HideGames() end)
+    self.GamesList = create("ScrollingFrame", {BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.fromOffset(14, 60), Size = UDim2.new(1, -28, 1, -72), CanvasSize = UDim2.new(), ScrollBarThickness = 5, ZIndex = 41}, self.Games)
+    self.GamesLayout = create("UIListLayout", {Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder}, self.GamesList)
+    self:_connect(self.GamesLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function() self.GamesList.CanvasSize = UDim2.fromOffset(0, self.GamesLayout.AbsoluteContentSize.Y + 8) end)
+    self.GameDetail = create("Frame", {Name = "Detail", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760, 500), BackgroundColor3 = Color3.fromRGB(16, 16, 18), BorderSizePixel = 0, Visible = false, ZIndex = 45}, self.Gui)
+    create("UICorner", {CornerRadius = UDim.new(0, 8)}, self.GameDetail)
+    create("UIStroke", {Color = Color3.fromRGB(65, 65, 72), Thickness = 1}, self.GameDetail)
+    local dhead = create("Frame", {BackgroundColor3 = Color3.fromRGB(24, 24, 28), BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 48), ZIndex = 46}, self.GameDetail)
+    self.GameDetailBack = create("TextButton", {BackgroundTransparency = 1, AutoButtonColor = false, Font = style.fontMono, Text = "<  GAMES", TextColor3 = style.muted, TextSize = 13, Position = UDim2.fromOffset(14, 8), Size = UDim2.fromOffset(100, 30), ZIndex = 47}, dhead)
+    self:_connect(self.GameDetailBack.MouseButton1Click, function() self:ShowGames() end)
+    self.GameDetailName = create("TextLabel", {BackgroundTransparency = 1, Font = style.fontSans, TextColor3 = style.text, TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(120, 9), Size = UDim2.new(1, -170, 0, 30), ZIndex = 47}, dhead)
+    local detailClose = create("TextButton", {BackgroundTransparency = 1, AutoButtonColor = false, Font = style.fontMono, Text = "X", TextColor3 = style.muted, TextSize = 15, Position = UDim2.new(1, -42, 0, 8), Size = UDim2.fromOffset(32, 30), ZIndex = 47}, dhead)
+    self:_connect(detailClose.MouseButton1Click, function() self:HideGames() end)
+    self.GameDetailImage = create("ImageLabel", {BackgroundColor3 = Color3.fromRGB(30, 30, 34), BorderSizePixel = 0, Image = "", ScaleType = Enum.ScaleType.Crop, Position = UDim2.fromOffset(18, 68), Size = UDim2.fromOffset(420, 235), ZIndex = 46}, self.GameDetail)
+    create("UICorner", {CornerRadius = UDim.new(0, 5)}, self.GameDetailImage)
+    self.GameDetailDescription = create("TextLabel", {BackgroundTransparency = 1, Font = style.fontSans, TextColor3 = style.text, TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Position = UDim2.fromOffset(18, 318), Size = UDim2.fromOffset(700, 58), ZIndex = 46}, self.GameDetail)
+    self.GameExecute = create("TextButton", {AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(55, 110, 255), BorderSizePixel = 0, Font = style.fontSans, Text = "EXECUTE", TextColor3 = Color3.new(1, 1, 1), TextSize = 17, Position = UDim2.fromOffset(460, 68), Size = UDim2.fromOffset(180, 48), ZIndex = 47}, self.GameDetail)
+    create("UICorner", {CornerRadius = UDim.new(0, 5)}, self.GameExecute)
+    self.GameAutoExec = create("TextButton", {AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(45, 45, 50), BorderSizePixel = 0, Font = style.fontMono, TextColor3 = style.muted, TextSize = 12, Position = UDim2.fromOffset(460, 126), Size = UDim2.fromOffset(180, 38), ZIndex = 47}, self.GameDetail)
+    create("UICorner", {CornerRadius = UDim.new(0, 5)}, self.GameAutoExec)
+    self.GameDetailInfo = create("TextLabel", {BackgroundTransparency = 1, Font = style.fontMono, TextColor3 = style.muted, TextSize = 12, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Position = UDim2.fromOffset(460, 182), Size = UDim2.fromOffset(260, 110), ZIndex = 47}, self.GameDetail)
+    self:_connect(self.GameExecute.MouseButton1Click, function()
+        local selectedGame = self.SelectedGame
+        self:HideGames(false)
+        self:ExecuteGameScript(selectedGame)
+    end)
+    self:_connect(self.GameAutoExec.MouseButton1Click, function() self:ToggleGameAutoExec(self.SelectedGame) end)
+end
+
+function StacyUI:_gameData(id)
+    if id == "gakuran" then
+        return {Id = id, Title = "Larpkuran", Author = "Flingpan", Description = "May, 2007 - Flingpan\n\nAn INTENDED Slice of Life experience (though I guess our community just loves to fling LOL)", Icon = "rbxthumb://type=GameIcon&id=128736949265057&w=512&h=512", Image = "rbxthumb://type=GameThumbnail&id=128736949265057&w=768&h=432", SupportedPlace = GAKURAN_PLACE_ID, Url = "https://raw.githubusercontent.com/x8lua/scripts/refs/heads/main/gakuran_fling.lua"}
+    end
+    return {Id = "placeholder", Title = "Placeholder", Author = "StacyCMD", Description = "A placeholder game script for testing compatibility errors.", Image = "", SupportedPlace = -1}
+end
+
+function StacyUI:_updateGameAutoExecButton()
+    local enabled = self.AutoExecGame == self.SelectedGame
+    self.GameAutoExec.Text = enabled and "AUTOEXEC  ON" or "AUTOEXEC  OFF"
+    self.GameAutoExec.BackgroundColor3 = enabled and STACY_GREEN or Color3.fromRGB(45, 45, 50)
+    self.GameAutoExec.TextColor3 = enabled and Color3.fromRGB(10, 20, 10) or self.Style.muted
+end
+
+function StacyUI:ShowGames()
+    self:HideCommands(false); self:HideUpdateLog(false); self:HideSettings(false); self:HideGameDetail(false)
+    self.Games.Visible = true; self.IgnoreToggleUntil = os.clock() + 0.35
+    for _, child in ipairs(self.GamesList:GetChildren()) do if child:IsA("GuiButton") then child:Destroy() end end
+    for _, id in ipairs({"gakuran", "placeholder"}) do
+        local gameInfo = self:_gameData(id)
+        local row = create("TextButton", {AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(27, 27, 31), BorderSizePixel = 0, Text = "", Size = UDim2.new(1, -6, 0, 84), ZIndex = 42}, self.GamesList)
+        create("UICorner", {CornerRadius = UDim.new(0, 5)}, row)
+        create("ImageLabel", {BackgroundTransparency = 1, Image = gameInfo.Icon or gameInfo.Image, ScaleType = Enum.ScaleType.Crop, Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(68, 68), ZIndex = 43}, row)
+        create("TextLabel", {BackgroundTransparency = 1, Font = Enum.Font.SourceSansBold, Text = gameInfo.Title, TextColor3 = self.Style.text, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(88, 12), Size = UDim2.new(1, -100, 0, 24), ZIndex = 43}, row)
+        create("TextLabel", {BackgroundTransparency = 1, Font = self.Style.fontMono, Text = gameInfo.Description:gsub("\n.*", ""), TextColor3 = self.Style.muted, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(88, 42), Size = UDim2.new(1, -100, 0, 30), ZIndex = 43}, row)
+        self:_connect(row.MouseButton1Click, function() self:ShowGameDetail(id) end)
+    end
+    self.GamesTitle.Text = "GAMES  |  SUPPORTED SCRIPTS"
+    self.Prompt:ReleaseFocus()
+    return self
+end
+
+function StacyUI:ShowGameDetail(id)
+    local gameInfo = self:_gameData(id); self.SelectedGame = id
+    self.Games.Visible = false; self.GameDetail.Visible = true
+    self.GameDetailName.Text = gameInfo.Title; self.GameDetailImage.Image = gameInfo.Image; self.GameDetailDescription.Text = gameInfo.Description
+    self.GameDetailInfo.Text = "BY  " .. gameInfo.Author .. "\n\nSCRIPT STATUS  SUPPORTED\nPLACE ID  " .. tostring(gameInfo.SupportedPlace) .. "\n\n" .. (gameInfo.SupportedPlace == game.PlaceId and "CURRENT GAME  COMPATIBLE" or "CURRENT GAME  MAY NOT WORK")
+    self:_updateGameAutoExecButton(); self.Prompt:ReleaseFocus(); self.IgnoreToggleUntil = os.clock() + 0.35
+    return self
+end
+
+function StacyUI:HideGameDetail(restoreFocus)
+    if self.GameDetail then self.GameDetail.Visible = false end
+    if restoreFocus ~= false and self.Open and not self.Destroyed then task.defer(self.Prompt.CaptureFocus, self.Prompt) end
+    return self
+end
+
+function StacyUI:HideGames(restoreFocus)
+    if self.Games then self.Games.Visible = false end
+    self:HideGameDetail(false)
+    if restoreFocus ~= false and self.Open and not self.Destroyed then task.defer(self.Prompt.CaptureFocus, self.Prompt) end
+    return self
+end
+
+function StacyUI:ToggleGameAutoExec(id)
+    if self.AutoExecGame == id then
+        self.AutoExecGame = nil
+        if type(delfile) == "function" then
+            pcall(delfile, AUTOEXEC_FILE)
+        elseif type(writefile) == "function" then
+            pcall(writefile, AUTOEXEC_FILE, "")
+        end
+    else
+        self.AutoExecGame = id
+        if type(writefile) == "function" then pcall(writefile, AUTOEXEC_FILE, id) end
+    end
+    self:_updateGameAutoExecButton()
+    self:Log(self.AutoExecGame and ("Autoexec enabled  " .. self.AutoExecGame) or "Autoexec disabled", self.Style.info)
+end
+
+function StacyUI:ExecuteGameScript(id, fromAutoExec)
+    local gameInfo = self:_gameData(id)
+    if gameInfo.Id == "placeholder" then
+        local messages = {"See? I knew that script wasn't compatible with this game", "What did I tell you? That script doesn't work here", "Like I said earlier, that script isn't compatible with this game"}
+        self:Log(messages[math.random(1, #messages)] .. "\nerror message, OUR MESSAGE", self.Style.error)
+        return false
+    end
+    if gameInfo.SupportedPlace ~= game.PlaceId then
+        self:Log("Warning  " .. gameInfo.Title .. " may not work in this game", self.Style.warn)
+    end
+    if not fromAutoExec then self:Log("Executing " .. gameInfo.Title, self.Style.info) end
+    local ok, result = pcall(function() return loadstring(game:HttpGet(gameInfo.Url))() end)
+    if not ok then self:Log("Script error  " .. tostring(result), self.Style.error); return false, result end
+    return true, result
 end
 
 function StacyUI:_commandKeyText(keyCode)
@@ -2029,6 +2189,7 @@ end
 function StacyUI:ShowSettings()
     self:HideCommands(false)
     self:HideUpdateLog(false)
+    self:HideGames(false)
     self:_clearSuggestions()
     self.Settings.Visible = true
     self.Prompt:ReleaseFocus()
@@ -2134,6 +2295,7 @@ function StacyUI:ShowKeySystem()
     self:HideCommands(false)
     self:HideUpdateLog(false)
     self:HideSettings(false)
+    self:HideGames(false)
     self:_clearSuggestions()
     self.Prompt:ReleaseFocus()
     self.KeySystem.Visible = true
@@ -2245,6 +2407,7 @@ function StacyUI:ShowCommands()
     self.IgnoreToggleUntil = os.clock() + 0.35
     self:HideUpdateLog(false)
     self:HideSettings(false)
+    self:HideGames(false)
     self.CommandBrowserGameOnly = false
     self.CommandBrowserTitle.Text = "COMMANDS"
     self.CommandBrowserSearch.PlaceholderText = "SEARCH COMMANDS"
@@ -2770,6 +2933,7 @@ function StacyUI:FocusCommandBar()
     self:HideCommands(false)
     self:HideUpdateLog(false)
     self:HideSettings(false)
+    self:HideGames(false)
     if self.Open then
         self.Prompt:CaptureFocus()
     else
@@ -2799,7 +2963,7 @@ function StacyUI:_scheduleCommandAutoHide()
         if self.Destroyed or session ~= self.CommandFocusSession or not self.CommandFocusActive then
             return
         end
-        if self.Settings.Visible or self.CommandBrowser.Visible or self.UpdateLog.Visible then
+        if self.Settings.Visible or self.CommandBrowser.Visible or self.UpdateLog.Visible or self.Games.Visible or self.GameDetail.Visible then
             return
         end
         self.CommandFocusActive = false
@@ -2849,6 +3013,7 @@ function StacyUI:Toggle(forceState)
         self:HideCommands(false)
         self:HideUpdateLog(false)
         self:HideSettings(false)
+        self:HideGames(false)
         self.Prompt:ReleaseFocus()
         TweenService:Create(self.Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
             Position = UDim2.new(0.5, 0, 0, 20),

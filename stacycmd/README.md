@@ -41,11 +41,13 @@ The console opens by default after a centered full-screen StacyCMD brand intro t
 
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 
-The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ShowGameCommands` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
+The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ShowGameCommands` `ShowGames` `ShowGameDetail` `ExecuteGameScript` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
-The protected built ins are `help` `clear` `cmds` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `prediction` `lagdetection` `rejoin` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
+The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `prediction` `lagdetection` `rejoin` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
 
 StacyCMD requires the local key `x8xxy` before loading. It reads `StacyCMD.key` through `readfile`; entering the correct key in `keysystem` writes that file through `writefile` when available.
+
+`games` opens the dark supported-games browser. Larpkuran runs `gakuran_fling.lua`; when launched outside its supported place, StacyCMD warns that it might not work. `placeholder` intentionally reports a compatibility error in the console. The detail page's `AUTOEXEC ON` button saves the selected game in `StacyCMD.autoexec` and runs it on the next StacyCMD load; click it again to turn autoexec off.
 
 `maxzoom [num]` sets the speaker's maximum camera zoom distance
 
