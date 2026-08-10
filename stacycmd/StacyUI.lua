@@ -14,9 +14,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.2.5"
+StacyUI.Version = "2.2.6"
 
 local UPDATE_LOG = {
+    { Version = "v2.2.6", Text = "Added reverse intro animation during self-updates" },
     { Version = "v2.2.5", Text = "Changed lag detection to monitor local network ping" },
     { Version = "v2.2.4", Text = "Added a configurable lag detection percentage" },
     { Version = "v2.2.3", Text = "Raised the lag detection threshold to 90 percent" },
@@ -188,6 +189,7 @@ function StacyUI.new(options)
     self.IntroTargetOffset = typeof(options.IntroTargetOffset) == "Vector2" and options.IntroTargetOffset or Vector2.new(0, 0)
     self.IntroTweenDuration = math.max(0.05, tonumber(options.IntroTweenDuration) or 0.7)
     self.IntroPlaying = false
+    self.OutroPlaying = false
     self.IntroSession = 0
     self.Connections = {}
     self.FlyConnections = {}
@@ -1073,6 +1075,7 @@ function StacyUI:CheckForUpdate()
     reloadOptions.Speaker = self.Speaker
     reloadOptions.SourceUrl = self.SourceUrl
     reloadOptions.Visible = true
+    reloadOptions.Intro = true
 
     local customCommands = {}
     for name, command in pairs(self.Commands) do
@@ -1090,6 +1093,8 @@ function StacyUI:CheckForUpdate()
 
     self:Log("Updating StacyCMD v" .. StacyUI.Version .. " -> v" .. remoteVersion, self.Style.accent)
     task.defer(function()
+        self:PlayOutro()
+        task.wait(math.random(1, 20) / 10)
         self:Destroy()
         local created, updatedUI = pcall(updatedModule.new, reloadOptions)
         if not created then
@@ -1111,6 +1116,71 @@ function StacyUI:CheckForUpdate()
     return true, remoteVersion
 end
 
+function StacyUI:PlayOutro()
+    if self.Destroyed or self.OutroPlaying or not self.Open then
+        return self
+    end
+
+    self.OutroPlaying = true
+    self:_clearSuggestions()
+    self:HideCommands(false)
+    self:HideUpdateLog(false)
+    self:HideSettings(false)
+    self.Prompt:ReleaseFocus()
+
+    local overlay = create("Frame", {
+        Name = "Outro",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 100,
+    }, self.Gui)
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(self.Style.width, self.Style.height)
+    local targetSize = self.IntroTargetSize
+    local headerPosition = Vector2.new(
+        (viewport.X - self.Style.width) * 0.5 + 16,
+        40 + math.floor((38 - targetSize.Y) * 0.5)
+    ) + self.IntroTargetOffset
+    local brand = create("Frame", {
+        Name = "Brand",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(headerPosition.X + targetSize.X * 0.5, headerPosition.Y + targetSize.Y * 0.5),
+        Size = UDim2.fromOffset(targetSize.X, targetSize.Y),
+        ZIndex = 101,
+    }, overlay)
+    create("TextLabel", {
+        Name = "Title",
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Bodoni,
+        RichText = true,
+        Text = 'Stacy <font color="#50FF7D">CMD</font>',
+        TextColor3 = self.Style.text,
+        TextScaled = true,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 102,
+    }, brand)
+
+    self.HeaderBrand.TextTransparency = 1
+    local tweenInfo = TweenInfo.new(self.IntroTweenDuration, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
+    local brandTween = TweenService:Create(brand, tweenInfo, {
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(self.IntroSize.X, self.IntroSize.Y),
+    })
+    local consoleTween = TweenService:Create(self.Main, tweenInfo, { GroupTransparency = 1 })
+    brandTween:Play()
+    consoleTween:Play()
+    brandTween.Completed:Wait()
+    if not self.Destroyed then
+        self.Main.Visible = false
+        overlay:Destroy()
+        self.OutroPlaying = false
+    end
+    return self
+end
+
 function StacyUI:_connect(signal, callback)
     local connection = signal:Connect(callback)
     table.insert(self.Connections, connection)
@@ -1119,7 +1189,7 @@ end
 
 function StacyUI:PlayIntro()
     assert(not self.Destroyed, "StacyUI has been destroyed")
-    if self.IntroPlaying then
+    if self.IntroPlaying or self.OutroPlaying then
         return self
     end
 
@@ -2601,6 +2671,7 @@ function StacyUI:Destroy()
     end
     self.IntroSession = self.IntroSession + 1
     self.IntroPlaying = false
+    self.OutroPlaying = false
     if self.IntroOverlay then
         self.IntroOverlay:Destroy()
         self.IntroOverlay = nil

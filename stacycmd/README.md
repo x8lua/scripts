@@ -65,7 +65,7 @@ Press `;` to open or refocus the command bar without closing it. A recognized co
 
 `legacyto` restores username and display-name matching for the current session. `gamecmds` opens the searchable command browser filtered to active game-specific commands, with command names shown in lime green.
 
-`sudoaptupdate` checks the configured StacyUI source for a newer version, validates it, unloads the current console, and reloads it while preserving custom commands. The new instance is also available as `getgenv().StacyCMD`.
+`sudoaptupdate` checks the configured StacyUI source for a newer version, validates it, plays the reverse StacyCMD intro, waits a random `0.1-2.0` seconds, and reloads into the normal intro while preserving custom commands. The new instance is also available as `getgenv().StacyCMD`.
 
 `cmds` opens a separate searchable command browser with descriptions and clickable command rows
 
