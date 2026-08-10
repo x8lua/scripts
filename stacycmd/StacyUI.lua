@@ -7,9 +7,10 @@ local STACY_GREEN = Color3.fromRGB(80, 255, 125)
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.5.0"
+StacyUI.Version = "1.5.1"
 
 local UPDATE_LOG = {
+    { Version = "v1.5.1", Text = "Fixed arrow-key selection while the command prompt has focus" },
     { Version = "v1.5.0", Text = "Restyled command suggestions and added reliable keyboard navigation" },
     { Version = "v1.4.9", Text = "Added the built in maxzoom command for camera distance control" },
     { Version = "v1.4.8", Text = "Matched the command console header to the Bodoni StacyCMD brand" },
@@ -100,11 +101,9 @@ function StacyUI.new(options)
     self.Speaker = options.Speaker or self.Player
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.F1
     self.ActionName = "StacyUIToggle_" .. tostring(self):gsub("[^%w]", "")
-    self.NavigationActionName = "StacyUINavigation_" .. tostring(self):gsub("[^%w]", "")
     self.Prefix = options.Prefix or (self.Player.Name .. "@StacyUI$ ")
 
     self:_build(options)
-    self:_bindPromptNavigation()
     self:SetToggleKey(self.ToggleKey)
     self:_registerBuiltIns()
 
@@ -353,6 +352,10 @@ function StacyUI:_build(options)
 
     self:_connect(self.Prompt.FocusLost, function(enterPressed)
         self:_onFocusLost(enterPressed)
+    end)
+
+    self:_connect(UserInputService.InputBegan, function(input)
+        self:_onPromptInput(input)
     end)
 
     self:_connect(self.Prompt:GetPropertyChangedSignal("Text"), function()
@@ -1079,6 +1082,20 @@ function StacyUI:_updateSuggestions()
 end
 
 function StacyUI:_onPromptInput(input)
+    if UserInputService:GetFocusedTextBox() ~= self.Prompt then
+        return
+    end
+
+    if input.KeyCode == Enum.KeyCode.Return and self.Suggestions.Visible then
+        local selected = self.SuggestionButtons[self.SelectedSuggestionIndex]
+        if selected then
+            self.Prompt.Text = selected.Text
+            self.Prompt.CursorPosition = #self.Prompt.Text + 1
+            self.Prompt:ReleaseFocus(true)
+        end
+        return
+    end
+
     if input.KeyCode == Enum.KeyCode.Tab and self.Suggestions.Visible then
         local selected = self.SuggestionButtons[self.SelectedSuggestionIndex]
         if selected then
@@ -1105,46 +1122,6 @@ function StacyUI:_onPromptInput(input)
             self.Prompt.CursorPosition = #self.Prompt.Text + 1
         end
     end
-end
-
-function StacyUI:_bindPromptNavigation()
-    ContextActionService:UnbindAction(self.NavigationActionName)
-    ContextActionService:BindActionAtPriority(
-        self.NavigationActionName,
-        function(_, inputState, input)
-            if inputState ~= Enum.UserInputState.Begin or UserInputService:GetFocusedTextBox() ~= self.Prompt then
-                return Enum.ContextActionResult.Pass
-            end
-
-            if input.KeyCode == Enum.KeyCode.Return and self.Suggestions.Visible then
-                local selected = self.SuggestionButtons[self.SelectedSuggestionIndex]
-                if selected then
-                    self.Prompt.Text = selected.Text
-                    self.Prompt.CursorPosition = #self.Prompt.Text + 1
-                    self.Prompt:ReleaseFocus(true)
-                end
-                return Enum.ContextActionResult.Sink
-            end
-
-            if input.KeyCode == Enum.KeyCode.Up or input.KeyCode == Enum.KeyCode.Down then
-                self:_onPromptInput(input)
-                return Enum.ContextActionResult.Sink
-            end
-
-            if input.KeyCode == Enum.KeyCode.Tab and self.Suggestions.Visible then
-                self:_onPromptInput(input)
-                return Enum.ContextActionResult.Sink
-            end
-
-            return Enum.ContextActionResult.Pass
-        end,
-        false,
-        Enum.ContextActionPriority.High.Value + 1,
-        Enum.KeyCode.Up,
-        Enum.KeyCode.Down,
-        Enum.KeyCode.Tab,
-        Enum.KeyCode.Return
-    )
 end
 
 function StacyUI:_onFocusLost(enterPressed)
@@ -1332,7 +1309,6 @@ function StacyUI:Destroy()
     self.Destroyed = true
     self.Open = false
     ContextActionService:UnbindAction(self.ActionName)
-    ContextActionService:UnbindAction(self.NavigationActionName)
     for _, connection in ipairs(self.Connections) do
         connection:Disconnect()
     end
