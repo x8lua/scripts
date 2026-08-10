@@ -13,9 +13,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.1.4"
+StacyUI.Version = "2.1.5"
 
 local UPDATE_LOG = {
+    { Version = "v2.1.5", Text = "Matched the intro endpoint to a smaller header title and removed the doubled overlay" },
     { Version = "v2.1.4", Text = "Added manual intro size and tween settings and restored suggestion visibility" },
     { Version = "v2.1.3", Text = "Made view without a player restore the local camera" },
     { Version = "v2.1.2", Text = "Added Gakuran-name view support and reduced the intro title size" },
@@ -171,6 +172,7 @@ function StacyUI.new(options)
     self.PredictionEnabled = false
     self.IntroEnabled = options.Intro ~= false
     self.IntroSize = typeof(options.IntroSize) == "Vector2" and options.IntroSize or Vector2.new(600, 150)
+    self.IntroTargetSize = typeof(options.IntroTargetSize) == "Vector2" and options.IntroTargetSize or Vector2.new(92, 26)
     self.IntroTweenDuration = math.max(0.05, tonumber(options.IntroTweenDuration) or 0.7)
     self.IntroPlaying = false
     self.IntroSession = 0
@@ -1017,7 +1019,7 @@ function StacyUI:PlayIntro()
         ZIndex = 101,
     }, overlay)
 
-    create("TextLabel", {
+    local introTitle = create("TextLabel", {
         Name = "Title",
         BackgroundTransparency = 1,
         Font = Enum.Font.Bodoni,
@@ -1036,14 +1038,12 @@ function StacyUI:PlayIntro()
             return
         end
 
-        local camera = workspace.CurrentCamera
-        local viewport = camera and camera.ViewportSize or Vector2.new(self.Style.width, self.Style.height)
-        local targetX = (viewport.X - self.Style.width) * 0.5 + 16
-        local targetY = 43
+        local targetPosition = self.HeaderBrand.AbsolutePosition
+        local targetSize = self.HeaderBrand.AbsoluteSize
         local tweenInfo = TweenInfo.new(self.IntroTweenDuration, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
         local brandTween = TweenService:Create(brand, tweenInfo, {
-            Position = UDim2.fromOffset(targetX + 54, targetY + 15),
-            Size = UDim2.fromOffset(108, 30),
+            Position = UDim2.fromOffset(targetPosition.X + targetSize.X * 0.5, targetPosition.Y + targetSize.Y * 0.5),
+            Size = UDim2.fromOffset(targetSize.X, targetSize.Y),
         })
         brandTween:Play()
         brandTween.Completed:Wait()
@@ -1053,6 +1053,9 @@ function StacyUI:PlayIntro()
         end
         self.IntroPlaying = false
         self.OpenFromIntro = true
+        TweenService:Create(introTitle, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            TextTransparency = 1,
+        }):Play()
         self:Toggle(true)
         task.wait(0.3)
         if self.Destroyed or self.IntroSession ~= session then
@@ -1114,16 +1117,16 @@ function StacyUI:_build(options)
         Size = UDim2.new(0, 3, 1, 0),
     }, self.Header)
 
-    create("TextLabel", {
+    self.HeaderBrand = create("TextLabel", {
         Name = "Brand",
         BackgroundTransparency = 1,
         Font = Enum.Font.Bodoni,
         RichText = true,
-        TextSize = 21,
+        TextScaled = true,
         TextColor3 = style.text,
         TextXAlignment = Enum.TextXAlignment.Center,
-        Position = UDim2.fromOffset(16, 3),
-        Size = UDim2.fromOffset(108, 30),
+        Position = UDim2.fromOffset(16, math.floor((38 - self.IntroTargetSize.Y) * 0.5)),
+        Size = UDim2.fromOffset(self.IntroTargetSize.X, self.IntroTargetSize.Y),
         Text = 'Stacy <font color="#50FF7D">CMD</font>',
     }, self.Header)
 
@@ -1134,7 +1137,7 @@ function StacyUI:_build(options)
         TextSize = 12,
         TextColor3 = style.accent,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Position = UDim2.fromOffset(128, 9),
+        Position = UDim2.fromOffset(16 + self.IntroTargetSize.X + 6, 9),
         Size = UDim2.new(0, 80, 0, 20),
         Text = "v" .. StacyUI.Version,
     }, self.Header)
