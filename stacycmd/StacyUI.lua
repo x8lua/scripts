@@ -3,11 +3,14 @@ local TweenService = game:GetService("TweenService")
 local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
 
+local STACY_GREEN = Color3.fromRGB(80, 255, 125)
+
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.4.9"
+StacyUI.Version = "1.5.0"
 
 local UPDATE_LOG = {
+    { Version = "v1.5.0", Text = "Restyled command suggestions and added reliable keyboard navigation" },
     { Version = "v1.4.9", Text = "Added the built in maxzoom command for camera distance control" },
     { Version = "v1.4.8", Text = "Matched the command console header to the Bodoni StacyCMD brand" },
     { Version = "v1.4.7", Text = "Added modal focus grace against stray F1 toggle events" },
@@ -97,9 +100,11 @@ function StacyUI.new(options)
     self.Speaker = options.Speaker or self.Player
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.F1
     self.ActionName = "StacyUIToggle_" .. tostring(self):gsub("[^%w]", "")
+    self.NavigationActionName = "StacyUINavigation_" .. tostring(self):gsub("[^%w]", "")
     self.Prefix = options.Prefix or (self.Player.Name .. "@StacyUI$ ")
 
     self:_build(options)
+    self:_bindPromptNavigation()
     self:SetToggleKey(self.ToggleKey)
     self:_registerBuiltIns()
 
@@ -249,7 +254,7 @@ function StacyUI:_build(options)
         BackgroundTransparency = 1,
         Font = Enum.Font.Bodoni,
         TextSize = 21,
-        TextColor3 = Color3.fromRGB(80, 255, 125),
+        TextColor3 = STACY_GREEN,
         TextXAlignment = Enum.TextXAlignment.Left,
         Position = UDim2.fromOffset(70, 3),
         Size = UDim2.new(0, 54, 0, 30),
@@ -348,10 +353,6 @@ function StacyUI:_build(options)
 
     self:_connect(self.Prompt.FocusLost, function(enterPressed)
         self:_onFocusLost(enterPressed)
-    end)
-
-    self:_connect(self.Prompt.InputBegan, function(input)
-        self:_onPromptInput(input)
     end)
 
     self:_connect(self.Prompt:GetPropertyChangedSignal("Text"), function()
@@ -841,52 +842,111 @@ function StacyUI:_buildSuggestions()
 
     self.Suggestions = create("Frame", {
         Name = "Suggestions",
-        BackgroundTransparency = 0.04,
-        BackgroundColor3 = style.suggestionBackground,
+        BackgroundTransparency = 0.02,
+        BackgroundColor3 = style.background,
         BorderSizePixel = 0,
         Position = UDim2.new(0, 10, 1, 6),
-        Size = UDim2.new(0, 288, 0, 0),
+        Size = UDim2.new(0, 316, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         ClipsDescendants = true,
         Visible = false,
     }, self.Main)
 
-    create("UICorner", { CornerRadius = UDim.new(0, 5) }, self.Suggestions)
+    create("UICorner", { CornerRadius = UDim.new(0, 4) }, self.Suggestions)
     create("UIStroke", {
-        Color = style.divider,
-        Transparency = 0.15,
+        Color = STACY_GREEN,
+        Transparency = 0.68,
         Thickness = 1,
     }, self.Suggestions)
     create("UIPadding", {
-        PaddingTop = UDim.new(0, 6),
-        PaddingBottom = UDim.new(0, 6),
-        PaddingLeft = UDim.new(0, 6),
-        PaddingRight = UDim.new(0, 6),
+        PaddingBottom = UDim.new(0, 5),
     }, self.Suggestions)
     create("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 6),
+        Padding = UDim.new(0, 0),
     }, self.Suggestions)
+
+    local header = create("Frame", {
+        Name = "Header",
+        BackgroundColor3 = style.headerBackground,
+        BackgroundTransparency = 0.08,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 30),
+        LayoutOrder = 1,
+    }, self.Suggestions)
+
+    create("Frame", {
+        Name = "AccentLine",
+        BackgroundColor3 = STACY_GREEN,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 3, 1, 0),
+    }, header)
+
+    create("TextLabel", {
+        Name = "BrandStacy",
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Bodoni,
+        TextSize = 17,
+        TextColor3 = style.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(12, 2),
+        Size = UDim2.fromOffset(47, 26),
+        Text = "Stacy",
+    }, header)
+
+    create("TextLabel", {
+        Name = "BrandCMD",
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Bodoni,
+        TextSize = 17,
+        TextColor3 = STACY_GREEN,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(55, 2),
+        Size = UDim2.fromOffset(43, 26),
+        Text = "CMD",
+    }, header)
+
+    create("TextLabel", {
+        Name = "Title",
+        BackgroundTransparency = 1,
+        Font = style.fontMono,
+        TextSize = 10,
+        TextColor3 = style.muted,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        Position = UDim2.new(0, 102, 0, 2),
+        Size = UDim2.new(1, -114, 0, 26),
+        Text = "COMMAND MATCHES",
+    }, header)
 
     self.Description = create("TextLabel", {
         Name = "Description",
-        BackgroundTransparency = 1,
+        BackgroundColor3 = style.suggestionBackground,
+        BackgroundTransparency = 0.28,
+        BorderSizePixel = 0,
         Font = style.fontMono,
         TextSize = 12,
         TextColor3 = style.muted,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Size = UDim2.new(1, 0, 0, 0),
+        Position = UDim2.fromOffset(0, 0),
+        Size = UDim2.new(1, 0, 0, 28),
         AutomaticSize = Enum.AutomaticSize.Y,
-        LayoutOrder = 1,
+        LayoutOrder = 2,
     }, self.Suggestions)
+
+    create("UIPadding", {
+        PaddingTop = UDim.new(0, 6),
+        PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 12),
+        PaddingRight = UDim.new(0, 12),
+    }, self.Description)
 
     create("Frame", {
         Name = "Divider",
         BackgroundColor3 = style.divider,
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, 1),
-        LayoutOrder = 2,
+        LayoutOrder = 3,
     }, self.Suggestions)
 
     self.SuggestionList = create("Frame", {
@@ -894,12 +954,12 @@ function StacyUI:_buildSuggestions()
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
-        LayoutOrder = 3,
+        LayoutOrder = 4,
     }, self.Suggestions)
 
     create("UIListLayout", {
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 3),
+        Padding = UDim.new(0, 1),
     }, self.SuggestionList)
 end
 
@@ -931,28 +991,27 @@ function StacyUI:_makeSuggestion(name)
     local button = create("TextButton", {
         Name = name,
         AutoButtonColor = false,
-        BackgroundColor3 = self.Style.suggestionHighlight,
+        BackgroundColor3 = self.Style.headerBackground,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Font = self.Style.fontMono,
         Text = name,
         TextColor3 = self.Style.text,
-        TextSize = 14,
+        TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Size = UDim2.new(1, 0, 0, 26),
+        Size = UDim2.new(1, 0, 0, 27),
     }, self.SuggestionList)
 
-    create("UICorner", { CornerRadius = UDim.new(0, 4) }, button)
     create("UIPadding", {
-        PaddingLeft = UDim.new(0, 10),
-        PaddingRight = UDim.new(0, 8),
+        PaddingLeft = UDim.new(0, 16),
+        PaddingRight = UDim.new(0, 10),
     }, button)
     create("Frame", {
         Name = "SelectionBar",
-        BackgroundColor3 = self.Style.accent,
+        BackgroundColor3 = STACY_GREEN,
         BorderSizePixel = 0,
-        Position = UDim2.fromOffset(-10, 4),
-        Size = UDim2.new(0, 2, 1, -8),
+        Position = UDim2.fromOffset(-16, 0),
+        Size = UDim2.new(0, 3, 1, 0),
         Visible = false,
     }, button)
 
@@ -980,8 +1039,8 @@ function StacyUI:_changeSelection(delta)
 
     self.SelectedSuggestionIndex = ((self.SelectedSuggestionIndex - 1 + delta) % count) + 1
     local current = self.SuggestionButtons[self.SelectedSuggestionIndex]
-    current.BackgroundTransparency = 0.35
-    current.TextColor3 = self.Style.accent
+    current.BackgroundTransparency = 0.12
+    current.TextColor3 = STACY_GREEN
     current.SelectionBar.Visible = true
 
     local command = self.Commands[current.Text]
@@ -1046,6 +1105,46 @@ function StacyUI:_onPromptInput(input)
             self.Prompt.CursorPosition = #self.Prompt.Text + 1
         end
     end
+end
+
+function StacyUI:_bindPromptNavigation()
+    ContextActionService:UnbindAction(self.NavigationActionName)
+    ContextActionService:BindActionAtPriority(
+        self.NavigationActionName,
+        function(_, inputState, input)
+            if inputState ~= Enum.UserInputState.Begin or UserInputService:GetFocusedTextBox() ~= self.Prompt then
+                return Enum.ContextActionResult.Pass
+            end
+
+            if input.KeyCode == Enum.KeyCode.Return and self.Suggestions.Visible then
+                local selected = self.SuggestionButtons[self.SelectedSuggestionIndex]
+                if selected then
+                    self.Prompt.Text = selected.Text
+                    self.Prompt.CursorPosition = #self.Prompt.Text + 1
+                    self.Prompt:ReleaseFocus(true)
+                end
+                return Enum.ContextActionResult.Sink
+            end
+
+            if input.KeyCode == Enum.KeyCode.Up or input.KeyCode == Enum.KeyCode.Down then
+                self:_onPromptInput(input)
+                return Enum.ContextActionResult.Sink
+            end
+
+            if input.KeyCode == Enum.KeyCode.Tab and self.Suggestions.Visible then
+                self:_onPromptInput(input)
+                return Enum.ContextActionResult.Sink
+            end
+
+            return Enum.ContextActionResult.Pass
+        end,
+        false,
+        Enum.ContextActionPriority.High.Value + 1,
+        Enum.KeyCode.Up,
+        Enum.KeyCode.Down,
+        Enum.KeyCode.Tab,
+        Enum.KeyCode.Return
+    )
 end
 
 function StacyUI:_onFocusLost(enterPressed)
@@ -1233,6 +1332,7 @@ function StacyUI:Destroy()
     self.Destroyed = true
     self.Open = false
     ContextActionService:UnbindAction(self.ActionName)
+    ContextActionService:UnbindAction(self.NavigationActionName)
     for _, connection in ipairs(self.Connections) do
         connection:Disconnect()
     end

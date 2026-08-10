@@ -39,6 +39,8 @@ The protected built ins are `help` `clear` `cmds` `updatelog` `version` `maxzoom
 
 `cmds` opens a separate searchable command browser with descriptions and clickable command rows
 
+Command suggestions support Up and Down selection, Tab completion, and Enter execution
+
 `updatelog` opens the searchable release history with the Bodoni StacyCMD title and bright green CMD mark
 
 Each StacyCMD release adds its newest entry at the top of the update log
