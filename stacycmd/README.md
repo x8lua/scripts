@@ -36,11 +36,13 @@ The console opens by default. Pass `Visible = false` to start it hidden.
 
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 
-The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display.
+The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `SetFlyEnabled` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display.
 
-The protected built ins are `help` `clear` `cmds` `updatelog` `version` `maxzoom` `sudoaptupdate` and `ctrlc`
+The protected built ins are `help` `clear` `cmds` `updatelog` `version` `maxzoom` `fly` `sudoaptupdate` and `ctrlc`
 
 `maxzoom [num]` sets the speaker's maximum camera zoom distance
+
+`fly [speed]` toggles camera-relative flight and closes the console while enabled so W A S D and Q E control movement. The fly movement implementation is adapted from Infinite Yield.
 
 `sudoaptupdate` checks the configured StacyUI source for a newer version, validates it, unloads the current console, and reloads it while preserving custom commands. The new instance is also available as `getgenv().StacyCMD`.
 

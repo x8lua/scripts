@@ -8,9 +8,10 @@ local DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/x8lua/scripts/main
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.6.0"
+StacyUI.Version = "1.7.0"
 
 local UPDATE_LOG = {
+    { Version = "v1.7.0", Text = "Added the built in fly toggle command" },
     { Version = "v1.6.0", Text = "Added sudoaptupdate self updates and made the console visible by default" },
     { Version = "v1.5.2", Text = "Added command usage text to autocomplete suggestions" },
     { Version = "v1.5.1", Text = "Fixed arrow-key selection while the command prompt has focus" },
@@ -122,6 +123,10 @@ function StacyUI.new(options)
     self.SelectedSuggestionIndex = 0
     self.SuggestionButtons = {}
     self.Connections = {}
+    self.FlyConnections = {}
+    self.FlySpeed = 1
+    self.Flying = false
+    self.FlySession = 0
     self.Open = false
     self.Destroyed = false
     self.IgnoreToggleUntil = 0
@@ -138,7 +143,7 @@ function StacyUI.new(options)
 
     if options.Welcome ~= false then
         self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
-        self:Log("BUILTINS  help  clear  cmds  updatelog  version  maxzoom  sudoaptupdate  ctrlc", self.Style.muted)
+        self:Log("BUILTINS  help  clear  cmds  updatelog  version  maxzoom  fly  sudoaptupdate  ctrlc", self.Style.muted)
     end
 
     if options.Visible ~= false then
@@ -209,6 +214,33 @@ function StacyUI:_registerBuiltIns()
             ui:Log("Camera max zoom  " .. tostring(args[1]), ui.Style.info)
         end,
     }
+    self.Commands.fly = {
+        Description = "Toggle camera-relative character flight",
+        Usage = "fly [speed]",
+        Protected = true,
+        Callback = function(args, _, ui)
+            local speed = args[1] and tonumber(args[1]) or ui.FlySpeed
+            if not speed or speed <= 0 then
+                ui:Log("Usage  fly [speed]", ui.Style.warn)
+                return false, "fly speed must be a positive number"
+            end
+
+            local targetState = not ui.Flying
+            local changed, reason = ui:SetFlyEnabled(targetState, speed)
+            if not changed then
+                ui:Log("Fly error  " .. tostring(reason), ui.Style.error)
+                return false, reason
+            end
+
+            if targetState then
+                ui:Log("Fly enabled  speed " .. tostring(speed), ui.Style.info)
+                ui:Toggle(false)
+            else
+                ui:Log("Fly disabled", ui.Style.info)
+            end
+            return targetState
+        end,
+    }
     self.Commands.sudoaptupdate = {
         Description = "Check for and reload the newest StacyCMD version",
         Usage = "sudoaptupdate",
@@ -225,6 +257,151 @@ function StacyUI:_registerBuiltIns()
             ui:Destroy()
         end,
     }
+end
+
+function StacyUI:_stopFly()
+    self.FlySession = self.FlySession + 1
+    self.Flying = false
+
+    for _, connection in ipairs(self.FlyConnections) do
+        connection:Disconnect()
+    end
+    table.clear(self.FlyConnections)
+
+    if self.FlyGyro then
+        self.FlyGyro:Destroy()
+        self.FlyGyro = nil
+    end
+    if self.FlyVelocity then
+        self.FlyVelocity:Destroy()
+        self.FlyVelocity = nil
+    end
+    if self.FlyHumanoid and self.FlyHumanoid.Parent then
+        self.FlyHumanoid.PlatformStand = false
+    end
+    self.FlyHumanoid = nil
+    pcall(function()
+        workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+    end)
+end
+
+-- Thanks for Infinite Yield fly
+function StacyUI:SetFlyEnabled(enabled, speed)
+    self:_stopFly()
+    if not enabled then
+        return true
+    end
+
+    local flySpeed = tonumber(speed) or self.FlySpeed
+    if not flySpeed or flySpeed <= 0 then
+        return false, "fly speed must be a positive number"
+    end
+
+    local speaker = self.Speaker
+    local character = speaker.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    local root = character and (
+        character:FindFirstChild("HumanoidRootPart")
+        or character.PrimaryPart
+        or character:FindFirstChild("Torso")
+        or character:FindFirstChild("UpperTorso")
+    )
+    if not humanoid or not root then
+        return false, "character humanoid or root part not found"
+    end
+
+    self.FlySpeed = flySpeed
+    self.Flying = true
+    self.FlyHumanoid = humanoid
+    self.FlySession = self.FlySession + 1
+    local session = self.FlySession
+    local control = { F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0 }
+    local lastControl = { F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0 }
+
+    local gyro = Instance.new("BodyGyro")
+    gyro.P = 9e4
+    gyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    gyro.CFrame = root.CFrame
+    gyro.Parent = root
+
+    local velocity = Instance.new("BodyVelocity")
+    velocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    velocity.Velocity = Vector3.new(0, 0, 0)
+    velocity.Parent = root
+
+    self.FlyGyro = gyro
+    self.FlyVelocity = velocity
+
+    table.insert(self.FlyConnections, UserInputService.InputBegan:Connect(function(input, processed)
+        if processed or self.FlySession ~= session then
+            return
+        end
+        if input.KeyCode == Enum.KeyCode.W then
+            control.F = self.FlySpeed
+        elseif input.KeyCode == Enum.KeyCode.S then
+            control.B = -self.FlySpeed
+        elseif input.KeyCode == Enum.KeyCode.A then
+            control.L = -self.FlySpeed
+        elseif input.KeyCode == Enum.KeyCode.D then
+            control.R = self.FlySpeed
+        elseif input.KeyCode == Enum.KeyCode.E then
+            control.Q = self.FlySpeed * 2
+        elseif input.KeyCode == Enum.KeyCode.Q then
+            control.E = -self.FlySpeed * 2
+        end
+    end))
+
+    table.insert(self.FlyConnections, UserInputService.InputEnded:Connect(function(input)
+        if self.FlySession ~= session then
+            return
+        end
+        if input.KeyCode == Enum.KeyCode.W then
+            control.F = 0
+        elseif input.KeyCode == Enum.KeyCode.S then
+            control.B = 0
+        elseif input.KeyCode == Enum.KeyCode.A then
+            control.L = 0
+        elseif input.KeyCode == Enum.KeyCode.D then
+            control.R = 0
+        elseif input.KeyCode == Enum.KeyCode.E then
+            control.Q = 0
+        elseif input.KeyCode == Enum.KeyCode.Q then
+            control.E = 0
+        end
+    end))
+
+    task.spawn(function()
+        while self.Flying and self.FlySession == session and root.Parent and humanoid.Parent and gyro.Parent and velocity.Parent do
+            task.wait()
+            local camera = workspace.CurrentCamera
+            humanoid.PlatformStand = true
+
+            local forward = control.F + control.B
+            local lateral = control.L + control.R
+            local vertical = control.Q + control.E
+            if forward ~= 0 or lateral ~= 0 or vertical ~= 0 then
+                lastControl.F = control.F
+                lastControl.B = control.B
+                lastControl.L = control.L
+                lastControl.R = control.R
+                velocity.Velocity = (
+                    camera.CFrame.LookVector * forward
+                    + (camera.CFrame * CFrame.new(lateral, (forward + vertical) * 0.2, 0)).Position
+                    - camera.CFrame.Position
+                ) * 50
+            elseif lastControl.F + lastControl.B ~= 0 or lastControl.L + lastControl.R ~= 0 then
+                velocity.Velocity = Vector3.new(0, 0, 0)
+            else
+                velocity.Velocity = Vector3.new(0, 0, 0)
+            end
+            gyro.CFrame = camera.CFrame
+        end
+
+        if self.FlySession == session then
+            self:_stopFly()
+        end
+    end)
+    return true
 end
 
 function StacyUI:CheckForUpdate()
@@ -1435,6 +1612,7 @@ function StacyUI:Destroy()
     if self.Destroyed then
         return
     end
+    self:_stopFly()
     self.Destroyed = true
     self.Open = false
     ContextActionService:UnbindAction(self.ActionName)
