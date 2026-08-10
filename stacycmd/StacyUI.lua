@@ -14,9 +14,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.2.7"
+StacyUI.Version = "2.2.8"
 
 local UPDATE_LOG = {
+    { Version = "v2.2.8", Text = "Removed the startup built-in command list" },
     { Version = "v2.2.7", Text = "Changed lag detection to sample player positions" },
     { Version = "v2.2.6", Text = "Added reverse intro animation during self-updates" },
     { Version = "v2.2.5", Text = "Changed lag detection to monitor local network ping" },
@@ -226,7 +227,6 @@ function StacyUI.new(options)
 
     if options.Welcome ~= false then
         self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
-        self:Log("BUILTINS  help  clear  cmds  gamecmds  settings  updatelog  version  to  view  maxzoom  jpower  reset  fly  prediction  lagdetection  rejoin  sudoaptupdate  ctrlc", self.Style.muted)
     end
 
     if options.Visible ~= false then
