@@ -15,25 +15,25 @@ local function loadSansFlexFont()
             error("custom asset APIs unavailable")
         end
         local ttfAsset = getcustomasset("SansFlex.ttf")
-        local jsonName = "SansFlex_Family.json"
+        local jsonName = "SansFlex.json"
         local jsonStr = [[
 {
     "name": "SansFlex",
     "faces": [
         {"name": "Regular", "weight": 400, "style": "normal", "assetId": "]] .. ttfAsset .. [["},
-        {"name": "Bold", "weight": 700, "style": "normal", "assetId": "]] .. ttfAsset .. [["}
+        {"name": "BoldItalic", "weight": 700, "style": "italic", "assetId": "]] .. ttfAsset .. [["}
     ]
 }
 ]]
         writefile(jsonName, jsonStr)
-        customFont = Font.new(getcustomasset(jsonName), Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+        customFont = Font.new(getcustomasset(jsonName), Enum.FontWeight.Bold, Enum.FontStyle.Italic)
     end)
     if success and customFont then
-        return customFont
+        return customFont, true
     end
     local builderSans
     pcall(function() builderSans = Enum.Font.BuilderSans end)
-    return builderSans or Enum.Font.Gotham
+    return builderSans or Enum.Font.Gotham, false
 end
 
 local STACY_GREEN = Color3.fromRGB(80, 255, 125)
@@ -47,9 +47,10 @@ local REQUIRED_KEY = "x8xxy" -- please do not peek at this
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.4.3"
+StacyUI.Version = "2.4.4"
 
 local UPDATE_LOG = {
+    { Version = "v2.4.4", Text = "Fixed custom Sans Flex FontFace assignment in the games pages" },
     { Version = "v2.4.3", Text = "Added serverhop and shop commands for finding a new public server" },
     { Version = "v2.4.2", Text = "Added Sans Flex game typography and restored the Larpkuran thumbnail" },
     { Version = "v2.4.1", Text = "Redesigned the games pages and fixed the Larpkuran icon" },
@@ -194,7 +195,11 @@ end
 local function create(className, properties, parent)
     local object = Instance.new(className)
     for key, value in pairs(properties or {}) do
-        object[key] = value
+        if key == "Font" and typeof(value) == "Font" then
+            object.FontFace = value
+        else
+            object[key] = value
+        end
     end
     object.Parent = parent
     return object
@@ -230,7 +235,7 @@ function StacyUI.new(options)
     assert(self.Player, "StacyUI requires a LocalPlayer or options Player")
 
     self.Style = mergeStyle(options.Style)
-    self.GameFont = loadSansFlexFont()
+    self.GameFont, self.UseCustomGameFont = loadSansFlexFont()
     self.KeyVerified = readSavedKey() == REQUIRED_KEY
     self.WelcomeEnabled = options.Welcome ~= false
     self.StartVisible = options.Visible ~= false
@@ -2052,6 +2057,15 @@ function StacyUI:HideUpdateLog(restoreFocus)
         task.defer(self.Prompt.CaptureFocus, self.Prompt)
     end
     return self
+end
+
+function StacyUI:_applyGameFont(object)
+    if self.UseCustomGameFont then
+        object.FontFace = self.GameFont
+    else
+        object.Font = self.GameFont
+    end
+    return object
 end
 
 function StacyUI:_buildGames()

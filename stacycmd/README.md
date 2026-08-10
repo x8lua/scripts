@@ -49,7 +49,7 @@ StacyCMD requires the local key `x8xxy` before loading. It reads `StacyCMD.key` 
 
 `games` opens the dark supported-games browser with Roblox thumbnails and icons. Larpkuran runs `gakuran_fling.lua`; when launched outside its supported place, StacyCMD warns that it might not work. `placeholder` intentionally produces a runtime nil-call error followed by a randomized compatibility remark in the console. The detail page's `AUTOEXEC ON` button saves the selected game in `StacyCMD.autoexec` and runs it on the next StacyCMD load; click it again to turn autoexec off.
 
-Games typography loads `SansFlex.ttf` through `getcustomasset` and a generated font-family JSON when executor file APIs are available. It falls back to BuilderSans or Gotham when that local font file is unavailable.
+Games typography loads `SansFlex.ttf` through `getcustomasset` and a generated font-family JSON when executor file APIs are available, then assigns the resulting object through `FontFace`. It falls back to BuilderSans or Gotham when that local font file is unavailable.
 
 `maxzoom [num]` sets the speaker's maximum camera zoom distance
 
