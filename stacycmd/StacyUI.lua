@@ -12,9 +12,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.0.0"
+StacyUI.Version = "2.0.1"
 
 local UPDATE_LOG = {
+    { Version = "v2.0.1", Text = "Removed the startup intro background" },
     { Version = "v2.0.0", Text = "Added the full-screen StacyCMD startup intro" },
     { Version = "v1.9.0", Text = "Added random teleporting, command focus cleanup, and the prediction toggle" },
     { Version = "v1.8.1", Text = "Changed gamecmds to use the searchable command browser" },
@@ -889,8 +890,7 @@ function StacyUI:PlayIntro()
 
     local overlay = create("Frame", {
         Name = "Intro",
-        BackgroundColor3 = self.Style.background,
-        BackgroundTransparency = 0.02,
+        BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Size = UDim2.fromScale(1, 1),
         ZIndex = 100,
@@ -947,11 +947,7 @@ function StacyUI:PlayIntro()
             Position = UDim2.fromOffset(targetX + 54, targetY + 15),
             Size = UDim2.fromOffset(108, 30),
         })
-        local overlayTween = TweenService:Create(overlay, tweenInfo, {
-            BackgroundTransparency = 1,
-        })
         brandTween:Play()
-        overlayTween:Play()
         brandTween.Completed:Wait()
 
         if self.Destroyed or self.IntroSession ~= session then
