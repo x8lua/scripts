@@ -14,9 +14,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.2.0"
+StacyUI.Version = "2.2.1"
 
 local UPDATE_LOG = {
+    { Version = "v2.2.1", Text = "Fixed semicolon input and added reset and lag detection" },
     { Version = "v2.2.0", Text = "Added command focus, settings, error feedback, random view, and restored suggestions" },
     { Version = "v2.1.6", Text = "Fixed the intro title endpoint and added a position offset" },
     { Version = "v2.1.5", Text = "Matched the intro endpoint to a smaller header title and removed the doubled overlay" },
@@ -173,6 +174,9 @@ function StacyUI.new(options)
     self.PredictionConnections = {}
     self.PredictionMarkers = {}
     self.PredictionEnabled = false
+    self.LagConnections = {}
+    self.LagDetectionEnabled = false
+    self.LagDetected = false
     self.IntroEnabled = options.Intro ~= false
     self.IntroSize = typeof(options.IntroSize) == "Vector2" and options.IntroSize or Vector2.new(600, 150)
     self.IntroTargetSize = typeof(options.IntroTargetSize) == "Vector2" and options.IntroTargetSize or Vector2.new(92, 26)
@@ -213,7 +217,7 @@ function StacyUI.new(options)
 
     if options.Welcome ~= false then
         self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
-        self:Log("BUILTINS  help  clear  cmds  gamecmds  settings  updatelog  version  to  view  maxzoom  jpower  fly  prediction  rejoin  sudoaptupdate  ctrlc", self.Style.muted)
+        self:Log("BUILTINS  help  clear  cmds  gamecmds  settings  updatelog  version  to  view  maxzoom  jpower  reset  fly  prediction  lagdetection  rejoin  sudoaptupdate  ctrlc", self.Style.muted)
     end
 
     if options.Visible ~= false then
@@ -377,6 +381,19 @@ function StacyUI:_registerBuiltIns()
             return true
         end,
     }
+    self.Commands.reset = {
+        Description = "Reset your character",
+        Usage = "reset",
+        Protected = true,
+        Callback = function(_, _, ui)
+            local humanoid = ui.Speaker.Character and ui.Speaker.Character:FindFirstChildOfClass("Humanoid")
+            if not humanoid then
+                return false, "character humanoid not found"
+            end
+            humanoid.Health = 0
+            return true
+        end,
+    }
     self.Commands.fly = {
         Description = "Toggle camera-relative character flight",
         Usage = "fly [speed]",
@@ -418,6 +435,19 @@ function StacyUI:_registerBuiltIns()
             end
             ui:Log("Prediction " .. (ui.PredictionEnabled and "enabled" or "disabled"), ui.Style.info)
             return ui.PredictionEnabled
+        end,
+    }
+    self.Commands.lagdetection = {
+        Description = "Toggle server movement lag detection",
+        Usage = "lagdetection",
+        Protected = true,
+        Callback = function(_, _, ui)
+            local enabled, reason = ui:SetLagDetectionEnabled(not ui.LagDetectionEnabled)
+            if not enabled then
+                return false, reason
+            end
+            ui:Log("Lag detection " .. (ui.LagDetectionEnabled and "enabled" or "disabled"), ui.Style.info)
+            return true
         end,
     }
     self.Commands.rejoin = {
@@ -605,6 +635,75 @@ function StacyUI:StopPrediction()
         end)
     end
     table.clear(self.PredictionMarkers)
+end
+
+function StacyUI:StopLagDetection()
+    self.LagDetectionEnabled = false
+    self.LagDetected = false
+    for _, connection in ipairs(self.LagConnections) do
+        connection:Disconnect()
+    end
+    table.clear(self.LagConnections)
+    if self.LagNotify then
+        pcall(self.LagNotify.clear, self.LagNotify)
+    end
+end
+
+function StacyUI:SetLagDetectionEnabled(enabled)
+    self:StopLagDetection()
+    if not enabled then
+        return true
+    end
+
+    local loaded, notifyOrError = pcall(function()
+        local Notify = loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/ImGUI/Notify.lua?nocache=" .. tostring(tick()), true))()
+        return Notify.new({ color = Color3.fromRGB(130, 25, 25), accentColor = Color3.fromRGB(255, 85, 85) })
+    end)
+    if not loaded then
+        return false, notifyOrError
+    end
+
+    self.LagNotify = notifyOrError
+    self.LagDetectionEnabled = true
+    local elapsed = 0
+    table.insert(self.LagConnections, RunService.Heartbeat:Connect(function(deltaTime)
+        if not self.LagDetectionEnabled then
+            return
+        end
+        elapsed = elapsed + deltaTime
+        if elapsed < 0.5 then
+            return
+        end
+        elapsed = 0
+
+        local checked = 0
+        local allStill = true
+        for _, player in ipairs(Players:GetPlayers()) do
+            local character = player.Character
+            local root = character and (
+                character:FindFirstChild("HumanoidRootPart")
+                or character.PrimaryPart
+                or character:FindFirstChild("Torso")
+                or character:FindFirstChild("UpperTorso")
+            )
+            if root then
+                checked = checked + 1
+                if root.AssemblyLinearVelocity.Magnitude > 1 then
+                    allStill = false
+                    break
+                end
+            end
+        end
+
+        if checked > 0 and allStill and not self.LagDetected then
+            self.LagDetected = true
+            self.LagNotify:push("LAG DETECTED", "Everyone in this server is standing still.", { duration = 3600 })
+        elseif self.LagDetected and (not allStill or checked == 0) then
+            self.LagDetected = false
+            self.LagNotify:clear()
+        end
+    end))
+    return true
 end
 
 function StacyUI:SetPredictionEnabled(enabled)
@@ -2414,6 +2513,16 @@ function StacyUI:FocusCommandBar()
     else
         self:Toggle(true)
     end
+    task.delay(0.05, function()
+        if self.Destroyed or self.CommandKey ~= Enum.KeyCode.Semicolon then
+            return
+        end
+        local text = self.Prompt.Text
+        if text:sub(-1) == ";" then
+            self.Prompt.Text = text:sub(1, -2)
+            self.Prompt.CursorPosition = #self.Prompt.Text + 1
+        end
+    end)
     return self
 end
 
@@ -2496,6 +2605,7 @@ function StacyUI:Destroy()
         self.IntroOverlay = nil
     end
     self:StopPrediction()
+    self:StopLagDetection()
     self:_stopFly()
     self.Destroyed = true
     self.Open = false
