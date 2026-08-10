@@ -4,12 +4,14 @@ local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
 
 local STACY_GREEN = Color3.fromRGB(80, 255, 125)
+local DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/StacyUI.lua"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.5.2"
+StacyUI.Version = "1.6.0"
 
 local UPDATE_LOG = {
+    { Version = "v1.6.0", Text = "Added sudoaptupdate self updates and made the console visible by default" },
     { Version = "v1.5.2", Text = "Added command usage text to autocomplete suggestions" },
     { Version = "v1.5.1", Text = "Fixed arrow-key selection while the command prompt has focus" },
     { Version = "v1.5.0", Text = "Restyled command suggestions and added reliable keyboard navigation" },
@@ -72,6 +74,27 @@ local function splitWords(value)
     return words
 end
 
+local function isNewerVersion(candidate, current)
+    local candidateParts = {}
+    local currentParts = {}
+    for part in candidate:gmatch("%d+") do
+        table.insert(candidateParts, tonumber(part))
+    end
+    for part in current:gmatch("%d+") do
+        table.insert(currentParts, tonumber(part))
+    end
+
+    local count = math.max(#candidateParts, #currentParts)
+    for index = 1, count do
+        local candidatePart = candidateParts[index] or 0
+        local currentPart = currentParts[index] or 0
+        if candidatePart ~= currentPart then
+            return candidatePart > currentPart
+        end
+    end
+    return false
+end
+
 local function create(className, properties, parent)
     local object = Instance.new(className)
     for key, value in pairs(properties or {}) do
@@ -85,6 +108,10 @@ function StacyUI.new(options)
     options = options or {}
 
     local self = setmetatable({}, StacyUI)
+    self.ReloadOptions = {}
+    for key, value in pairs(options) do
+        self.ReloadOptions[key] = value
+    end
     self.Player = options.Player or Players.LocalPlayer
     assert(self.Player, "StacyUI requires a LocalPlayer or options Player")
 
@@ -100,6 +127,7 @@ function StacyUI.new(options)
     self.IgnoreToggleUntil = 0
     self.OnDestroy = options.OnDestroy
     self.Speaker = options.Speaker or self.Player
+    self.SourceUrl = options.SourceUrl or DEFAULT_SOURCE_URL
     self.ToggleKey = options.ToggleKey or Enum.KeyCode.F1
     self.ActionName = "StacyUIToggle_" .. tostring(self):gsub("[^%w]", "")
     self.Prefix = options.Prefix or (self.Player.Name .. "@StacyUI$ ")
@@ -110,10 +138,10 @@ function StacyUI.new(options)
 
     if options.Welcome ~= false then
         self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
-        self:Log("BUILTINS  help  clear  cmds  updatelog  version  maxzoom  ctrlc", self.Style.muted)
+        self:Log("BUILTINS  help  clear  cmds  updatelog  version  maxzoom  sudoaptupdate  ctrlc", self.Style.muted)
     end
 
-    if options.Visible == true then
+    if options.Visible ~= false then
         self:Toggle(true)
     end
 
@@ -181,6 +209,14 @@ function StacyUI:_registerBuiltIns()
             ui:Log("Camera max zoom  " .. tostring(args[1]), ui.Style.info)
         end,
     }
+    self.Commands.sudoaptupdate = {
+        Description = "Check for and reload the newest StacyCMD version",
+        Usage = "sudoaptupdate",
+        Protected = true,
+        Callback = function(_, _, ui)
+            ui:CheckForUpdate()
+        end,
+    }
     self.Commands.ctrlc = {
         Description = "Destroy the entire script and UI",
         Usage = "ctrlc",
@@ -189,6 +225,84 @@ function StacyUI:_registerBuiltIns()
             ui:Destroy()
         end,
     }
+end
+
+function StacyUI:CheckForUpdate()
+    assert(not self.Destroyed, "StacyUI has been destroyed")
+    self:Log("Checking for StacyCMD updates...", self.Style.info)
+
+    local fetched, source = pcall(game.HttpGet, game, self.SourceUrl, true)
+    if not fetched then
+        self:Log("Update check failed  " .. tostring(source), self.Style.error)
+        return false, source
+    end
+
+    local remoteVersion = source:match('StacyUI%.Version%s*=%s*"([^"]+)"')
+    if not remoteVersion then
+        self:Log("Update check failed  remote version not found", self.Style.error)
+        return false, "remote version not found"
+    end
+
+    if not isNewerVersion(remoteVersion, StacyUI.Version) then
+        self:Log("StacyCMD v" .. StacyUI.Version .. " is already current", self.Style.info)
+        return false, "already current"
+    end
+
+    local chunk, compileError = loadstring(source)
+    if not chunk then
+        self:Log("Update compile failed  " .. tostring(compileError), self.Style.error)
+        return false, compileError
+    end
+
+    local loaded, updatedModule = pcall(chunk)
+    if not loaded or type(updatedModule) ~= "table" or type(updatedModule.new) ~= "function" then
+        local reason = loaded and "download did not return StacyUI" or updatedModule
+        self:Log("Update load failed  " .. tostring(reason), self.Style.error)
+        return false, reason
+    end
+
+    local reloadOptions = {}
+    for key, value in pairs(self.ReloadOptions) do
+        reloadOptions[key] = value
+    end
+    reloadOptions.Player = self.Player
+    reloadOptions.Speaker = self.Speaker
+    reloadOptions.SourceUrl = self.SourceUrl
+    reloadOptions.Visible = true
+
+    local customCommands = {}
+    for name, command in pairs(self.Commands) do
+        if not command.Protected then
+            table.insert(customCommands, {
+                Name = name,
+                Description = command.Description,
+                Usage = command.Usage,
+                Callback = command.Callback,
+            })
+        end
+    end
+
+    self:Log("Updating StacyCMD v" .. StacyUI.Version .. " -> v" .. remoteVersion, self.Style.accent)
+    task.defer(function()
+        self:Destroy()
+        local created, updatedUI = pcall(updatedModule.new, reloadOptions)
+        if not created then
+            warn("[StacyUI] Reload failed  " .. tostring(updatedUI))
+            return
+        end
+
+        for _, definition in ipairs(customCommands) do
+            local registered, registerError = pcall(updatedUI.Register, updatedUI, definition)
+            if not registered then
+                warn("[StacyUI] Could not restore command " .. definition.Name .. "  " .. tostring(registerError))
+            end
+        end
+
+        local environment = getgenv and getgenv() or _G
+        environment.StacyCMD = updatedUI
+        updatedUI:Log("Updated to StacyCMD v" .. remoteVersion, updatedUI.Style.info)
+    end)
+    return true, remoteVersion
 end
 
 function StacyUI:_connect(signal, callback)
