@@ -6,6 +6,7 @@ local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
 local TeleportService = game:GetService("TeleportService")
 local SoundService = game:GetService("SoundService")
+local HttpService = game:GetService("HttpService")
 
 local function loadSansFlexFont()
     local customFont
@@ -41,13 +42,15 @@ local DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/x8lua/scripts/main
 local GAKURAN_PLACE_ID = 128736949265057
 local KEY_FILE = "StacyCMD.key"
 local AUTOEXEC_FILE = "StacyCMD.autoexec"
+local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 local REQUIRED_KEY = "x8xxy" -- please do not peek at this
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.4.2"
+StacyUI.Version = "2.4.3"
 
 local UPDATE_LOG = {
+    { Version = "v2.4.3", Text = "Added serverhop and shop commands for finding a new public server" },
     { Version = "v2.4.2", Text = "Added Sans Flex game typography and restored the Larpkuran thumbnail" },
     { Version = "v2.4.1", Text = "Redesigned the games pages and fixed the Larpkuran icon" },
     { Version = "v2.4.0", Text = "Added the supported games browser and script auto-execution" },
@@ -577,6 +580,26 @@ function StacyUI:_registerBuiltIns()
             return true
         end,
     }
+    local serverHopCommand = {
+        Description = "Find and join a different public server",
+        Usage = "serverhop",
+        Protected = true,
+        Callback = function(_, _, ui)
+            local hopped, reason = ui:ServerHop()
+            if not hopped then
+                ui:Log("Server hop error  " .. tostring(reason), ui.Style.error)
+                return false, reason
+            end
+            return true
+        end,
+    }
+    self.Commands.serverhop = serverHopCommand
+    self.Commands.shop = {
+        Description = "Alias for serverhop",
+        Usage = "shop",
+        Protected = true,
+        Callback = serverHopCommand.Callback,
+    }
     self.Commands.sudoaptupdate = {
         Description = "Check for and reload the newest StacyCMD version",
         Usage = "sudoaptupdate",
@@ -709,6 +732,61 @@ function StacyUI:ViewPlayer(input)
     camera.CameraSubject = humanoid
     self:Log(target == self.Speaker and "Viewing your own character" or "Viewing " .. target.Name, self.Style.info)
     return true, target
+end
+
+function StacyUI:ServerHop()
+    local hour = os.date("!*t").hour
+    local visited = { Hour = hour, IDs = {} }
+    if type(readfile) == "function" then
+        local read, contents = pcall(readfile, SERVER_HOP_FILE)
+        if read then
+            local decoded, saved = pcall(HttpService.JSONDecode, HttpService, contents)
+            if decoded and type(saved) == "table" and saved.Hour == hour and type(saved.IDs) == "table" then
+                visited = saved
+            end
+        end
+    end
+
+    local seen = {}
+    for _, id in ipairs(visited.IDs) do
+        seen[tostring(id)] = true
+    end
+    local cursor = nil
+    for _ = 1, 5 do
+        local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
+        if cursor then
+            url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
+        end
+        local requested, body = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if not requested then
+            return false, body
+        end
+        local decoded, page = pcall(HttpService.JSONDecode, HttpService, body)
+        if not decoded or type(page) ~= "table" then
+            return false, "could not read public server list"
+        end
+        for _, server in ipairs(page.data or {}) do
+            local id = tostring(server.id)
+            local playing = tonumber(server.playing)
+            local maxPlayers = tonumber(server.maxPlayers)
+            if id ~= game.JobId and not seen[id] and playing and maxPlayers and playing < maxPlayers then
+                table.insert(visited.IDs, id)
+                if type(writefile) == "function" then
+                    pcall(writefile, SERVER_HOP_FILE, HttpService:JSONEncode(visited))
+                end
+                self:Log("Server hop found a new server...", self.Style.info)
+                local teleported, teleportError = pcall(TeleportService.TeleportToPlaceInstance, TeleportService, game.PlaceId, id, self.Speaker)
+                return teleported, teleportError
+            end
+        end
+        cursor = page.nextPageCursor
+        if not cursor or cursor == "null" then
+            break
+        end
+    end
+    return false, "no unvisited public server found"
 end
 
 function StacyUI:ShowGameCommands()

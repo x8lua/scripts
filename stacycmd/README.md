@@ -41,9 +41,9 @@ The console opens by default after a centered full-screen StacyCMD brand intro t
 
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 
-The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ShowGameCommands` `ShowGames` `ShowGameDetail` `ExecuteGameScript` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
+The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ServerHop` `ShowGameCommands` `ShowGames` `ShowGameDetail` `ExecuteGameScript` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
-The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `prediction` `lagdetection` `rejoin` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
+The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `prediction` `lagdetection` `rejoin` `serverhop` `shop` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
 
 StacyCMD requires the local key `x8xxy` before loading. It reads `StacyCMD.key` through `readfile`; entering the correct key in `keysystem` writes that file through `writefile` when available.
 
@@ -61,7 +61,7 @@ Games typography loads `SansFlex.ttf` through `getcustomasset` and a generated f
 
 Press `;` to open or refocus the command bar without closing it. It closes after 2.5 seconds of inactivity, with input and text changes resetting the timer. F1 remains the console toggle. `settings` opens the command-key configuration page.
 
-`jpower [num]` sets the local character's jump power. `rejoin` reconnects to the current server instance.
+`jpower [num]` sets the local character's jump power. `rejoin` reconnects to the current server instance. `serverhop` (or `shop`) finds a non-full public server that has not been visited during the current UTC hour, records it in `StacyCMD.NotSameServers.json`, and teleports there.
 
 `reset` sets the local character humanoid health to zero. `lagdetection [percentage]` samples player positions every half-second and uses PurgatoryNotify when the chosen percentage have not moved for 1.5 seconds; it defaults to `90` and clears below that threshold.
 
