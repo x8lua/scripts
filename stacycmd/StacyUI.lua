@@ -1,7 +1,9 @@
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ContextActionService = game:GetService("ContextActionService")
 local UserInputService = game:GetService("UserInputService")
+local Stats = game:GetService("Stats")
 
 local STACY_GREEN = Color3.fromRGB(80, 255, 125)
 local GAME_COMMAND_GREEN = Color3.fromRGB(0, 255, 0)
@@ -10,9 +12,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.8.1"
+StacyUI.Version = "1.9.0"
 
 local UPDATE_LOG = {
+    { Version = "v1.9.0", Text = "Added random teleporting, command focus cleanup, and the prediction toggle" },
     { Version = "v1.8.1", Text = "Changed gamecmds to use the searchable command browser" },
     { Version = "v1.8.0", Text = "Added gamecmds and Gakuran name teleportation with legacyto rollback" },
     { Version = "v1.7.0", Text = "Added the built in fly toggle command" },
@@ -154,6 +157,9 @@ function StacyUI.new(options)
     self.SelectedSuggestionIndex = 0
     self.SuggestionButtons = {}
     self.CommandBrowserGameOnly = false
+    self.PredictionConnections = {}
+    self.PredictionMarkers = {}
+    self.PredictionEnabled = false
     self.Connections = {}
     self.FlyConnections = {}
     self.FlySpeed = 1
@@ -181,7 +187,7 @@ function StacyUI.new(options)
 
     if options.Welcome ~= false then
         self:Log("StacyCMD v" .. StacyUI.Version .. "  READY", self.Style.info)
-        self:Log("BUILTINS  help  clear  cmds  gamecmds  updatelog  version  to  maxzoom  fly  sudoaptupdate  ctrlc", self.Style.muted)
+        self:Log("BUILTINS  help  clear  cmds  gamecmds  updatelog  version  to  maxzoom  fly  prediction  sudoaptupdate  ctrlc", self.Style.muted)
     end
 
     if options.Visible ~= false then
@@ -249,7 +255,7 @@ function StacyUI:_registerBuiltIns()
     local gakuranToActive = self.IsGakuranGame and not self.UseLegacyTo
     self.Commands.to = {
         Description = gakuranToActive and "Teleport to a player by Gakuran name" or "Teleport to a player by username or display name",
-        Usage = "to [player]",
+        Usage = "to [player|random]",
         GameSpecific = gakuranToActive,
         HighlightLime = gakuranToActive,
         Protected = true,
@@ -322,6 +328,20 @@ function StacyUI:_registerBuiltIns()
             return targetState
         end,
     }
+    self.Commands.prediction = {
+        Description = "Toggle cyan predicted-position markers for nearby players",
+        Usage = "prediction",
+        Protected = true,
+        Callback = function(_, _, ui)
+            local enabled, reason = ui:SetPredictionEnabled(not ui.PredictionEnabled)
+            if not enabled then
+                ui:Log("Prediction error  " .. tostring(reason), ui.Style.error)
+                return false, reason
+            end
+            ui:Log("Prediction " .. (ui.PredictionEnabled and "enabled" or "disabled"), ui.Style.info)
+            return ui.PredictionEnabled
+        end,
+    }
     self.Commands.sudoaptupdate = {
         Description = "Check for and reload the newest StacyCMD version",
         Usage = "sudoaptupdate",
@@ -362,11 +382,31 @@ end
 
 function StacyUI:TeleportTo(input)
     if type(input) ~= "string" or trim(input) == "" then
-        return false, "usage: to [player]"
+        return false, "usage: to [player|random]"
     end
 
     local useGakuranName = self.IsGakuranGame and not self.UseLegacyTo
-    local target = useGakuranName and findPlayerByGameName(input) or findPlayerByUsername(input)
+    local target
+    if trim(input):lower() == "random" then
+        local candidates = {}
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= self.Speaker and player.Character then
+                local root = player.Character:FindFirstChild("HumanoidRootPart")
+                    or player.Character.PrimaryPart
+                    or player.Character:FindFirstChild("Torso")
+                    or player.Character:FindFirstChild("UpperTorso")
+                if root then
+                    table.insert(candidates, player)
+                end
+            end
+        end
+        if #candidates == 0 then
+            return false, "no random teleport targets are available"
+        end
+        target = candidates[math.random(1, #candidates)]
+    else
+        target = useGakuranName and findPlayerByGameName(input) or findPlayerByUsername(input)
+    end
     if not target then
         return false, useGakuranName and "Gakuran name not found" or "player not found"
     end
@@ -404,6 +444,186 @@ function StacyUI:ShowGameCommands()
     self.CommandBrowserSearch.TextEditable = false
     self:_refreshCommandBrowser()
     return self
+end
+
+function StacyUI:StopPrediction()
+    self.PredictionEnabled = false
+    for _, connection in ipairs(self.PredictionConnections) do
+        connection:Disconnect()
+    end
+    table.clear(self.PredictionConnections)
+
+    for _, marker in pairs(self.PredictionMarkers) do
+        pcall(function()
+            marker.Circle:Remove()
+            marker.Dot:Remove()
+            marker.Line:Remove()
+        end)
+    end
+    table.clear(self.PredictionMarkers)
+end
+
+function StacyUI:SetPredictionEnabled(enabled)
+    self:StopPrediction()
+    if not enabled then
+        return true
+    end
+    if not Drawing or type(Drawing.new) ~= "function" then
+        return false, "the Drawing API is unavailable"
+    end
+
+    self.PredictionEnabled = true
+    local markerColor = Color3.fromRGB(0, 255, 255)
+    local visibleRadius = 17
+    local predictionScale = 2.6
+    local offset = Vector3.new(0, 0, -1.5)
+
+    local function getPing()
+        local pingValue = 0.1
+        pcall(function()
+            pingValue = Stats.Network.ServerStatsItem["Data Ping"]:GetValue() / 1000
+        end)
+        return math.clamp(pingValue, 0.01, 0.5)
+    end
+
+    local function createMarker()
+        local marker = {}
+        marker.Circle = Drawing.new("Circle")
+        marker.Circle.Radius = 12
+        marker.Circle.Thickness = 3
+        marker.Circle.Filled = false
+        marker.Circle.Color = markerColor
+        marker.Circle.Transparency = 1
+        marker.Circle.NumSides = 32
+        marker.Circle.Visible = false
+
+        marker.Dot = Drawing.new("Circle")
+        marker.Dot.Radius = 4
+        marker.Dot.Filled = true
+        marker.Dot.Color = markerColor
+        marker.Dot.Transparency = 1
+        marker.Dot.NumSides = 24
+        marker.Dot.Visible = false
+
+        marker.Line = Drawing.new("Line")
+        marker.Line.Color = markerColor
+        marker.Line.Thickness = 2
+        marker.Line.Transparency = 0.65
+        marker.Line.Visible = false
+        return marker
+    end
+
+    local function hideMarker(marker)
+        marker.Circle.Visible = false
+        marker.Dot.Visible = false
+        marker.Line.Visible = false
+    end
+
+    local function destroyMarker(marker)
+        pcall(function()
+            marker.Circle:Remove()
+            marker.Dot:Remove()
+            marker.Line:Remove()
+        end)
+    end
+
+    local function getPrediction(character, root)
+        local totalPredictTime = (getPing() + 0.08) * predictionScale
+        local position = root.Position
+        local velocity = root.AssemblyLinearVelocity
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local isAirborne = math.abs(velocity.Y) > 2
+        if humanoid then
+            isAirborne = humanoid.FloorMaterial == Enum.Material.Air
+        end
+
+        local predictedPosition
+        if isAirborne then
+            predictedPosition = position
+                + velocity * totalPredictTime
+                + Vector3.new(0, -workspace.Gravity, 0) * 0.5 * totalPredictTime ^ 2
+        else
+            predictedPosition = Vector3.new(
+                position.X + velocity.X * totalPredictTime,
+                position.Y,
+                position.Z + velocity.Z * totalPredictTime
+            )
+        end
+        return predictedPosition + offset
+    end
+
+    local function updateMarker(player, marker)
+        local localCharacter = self.Player.Character
+        local localRoot = localCharacter and localCharacter:FindFirstChild("HumanoidRootPart")
+        local character = player.Character
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        if not localRoot or not root or not humanoid or humanoid.Health <= 0 then
+            hideMarker(marker)
+            return
+        end
+        if (root.Position - localRoot.Position).Magnitude > visibleRadius then
+            hideMarker(marker)
+            return
+        end
+
+        local camera = workspace.CurrentCamera
+        if not camera then
+            hideMarker(marker)
+            return
+        end
+        local standScreen, standOnScreen = camera:WorldToViewportPoint(getPrediction(character, root))
+        if not standOnScreen or standScreen.Z <= 0 then
+            hideMarker(marker)
+            return
+        end
+
+        local targetScreen, targetOnScreen = camera:WorldToViewportPoint(root.Position)
+        local markerPosition = Vector2.new(standScreen.X, standScreen.Y)
+        marker.Circle.Position = markerPosition
+        marker.Dot.Position = markerPosition
+        marker.Circle.Visible = true
+        marker.Dot.Visible = true
+        if targetOnScreen and targetScreen.Z > 0 then
+            marker.Line.From = Vector2.new(targetScreen.X, targetScreen.Y)
+            marker.Line.To = markerPosition
+            marker.Line.Visible = true
+        else
+            marker.Line.Visible = false
+        end
+    end
+
+    table.insert(self.PredictionConnections, UserInputService.InputBegan:Connect(function(input, processed)
+        if not processed and input.KeyCode == Enum.KeyCode.P then
+            self:StopPrediction()
+            self:Log("Prediction disabled", self.Style.info)
+        end
+    end))
+
+    table.insert(self.PredictionConnections, RunService.RenderStepped:Connect(function()
+        if not self.PredictionEnabled then
+            return
+        end
+        local activePlayers = {}
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= self.Player then
+                activePlayers[player] = true
+                local marker = self.PredictionMarkers[player]
+                if not marker then
+                    marker = createMarker()
+                    self.PredictionMarkers[player] = marker
+                end
+                pcall(updateMarker, player, marker)
+            end
+        end
+        for player, marker in pairs(self.PredictionMarkers) do
+            if not activePlayers[player] then
+                destroyMarker(marker)
+                self.PredictionMarkers[player] = nil
+            end
+        end
+    end))
+    return true
 end
 
 function StacyUI:_stopFly()
@@ -1588,17 +1808,19 @@ end
 function StacyUI:_onFocusLost(enterPressed)
     if enterPressed then
         local line = trim(self.Prompt.Text)
+        local shouldRefocus = false
         self.Prompt.Text = ""
         if line ~= "" then
             local commandName = splitWords(line)[1]
             local command = commandName and self.Commands[commandName]
+            shouldRefocus = command == nil
             local commandColor = command and command.HighlightLime and GAME_COMMAND_GREEN or self.Style.accent
             self:Log(self.Prefix .. line, commandColor)
             table.insert(self.History, 1, line)
             self.HistoryIndex = 0
             self:Execute(line)
         end
-        if not self.Destroyed and self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible then
+        if shouldRefocus and not self.Destroyed and self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible then
             task.defer(self.Prompt.CaptureFocus, self.Prompt)
         end
     elseif self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible then
@@ -1773,6 +1995,7 @@ function StacyUI:Destroy()
     if self.Destroyed then
         return
     end
+    self:StopPrediction()
     self:_stopFly()
     self.Destroyed = true
     self.Open = false

@@ -36,15 +36,19 @@ The console opens by default. Pass `Visible = false` to start it hidden.
 
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 
-The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `SetFlyEnabled` `TeleportTo` `ShowGameCommands` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
+The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ShowGameCommands` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
-The protected built ins are `help` `clear` `cmds` `gamecmds` `updatelog` `version` `to` `maxzoom` `fly` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
+The protected built ins are `help` `clear` `cmds` `gamecmds` `updatelog` `version` `to` `maxzoom` `fly` `prediction` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
 
 `maxzoom [num]` sets the speaker's maximum camera zoom distance
 
 `fly [speed]` toggles camera-relative flight and closes the console while enabled so W A S D and Q E control movement. The fly movement implementation is adapted from Infinite Yield.
 
+`prediction` toggles cyan Drawing API markers at predicted nearby-player positions. Press P to remove the markers.
+
 `to [player]` normally matches usernames and display names. In place `128736949265057`, it matches `PlayerInfoBillboard.Info.Text` instead and is highlighted as a game-specific command.
+
+`to random` teleports to a random available player other than the local player.
 
 `legacyto` restores username and display-name matching for the current session. `gamecmds` opens the searchable command browser filtered to active game-specific commands, with command names shown in lime green.
 
@@ -53,6 +57,8 @@ The protected built ins are `help` `clear` `cmds` `gamecmds` `updatelog` `versio
 `cmds` opens a separate searchable command browser with descriptions and clickable command rows
 
 Command suggestions support Up and Down selection, Tab completion, and Enter execution
+
+After Enter, recognized commands leave the prompt unfocused. Unknown command names restore prompt focus for correction.
 
 `updatelog` opens the searchable release history with the Bodoni StacyCMD title and bright green CMD mark
 
