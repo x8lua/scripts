@@ -12,7 +12,7 @@ local GAME_COMMAND_GREEN = Color3.fromRGB(0, 255, 0)
 local DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/StacyUI.lua"
 local GAKURAN_PLACE_ID = 128736949265057
 local KEY_FILE = "StacyCMD.key"
-local REQUIRED_KEY = "x8xxy"
+local REQUIRED_KEY = "x8xxy" -- please do not peek at this
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
