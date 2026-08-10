@@ -57,7 +57,7 @@ Press `;` to open or refocus the command bar without closing it. A recognized co
 
 `jpower [num]` sets the local character's jump power. `rejoin` reconnects to the current server instance.
 
-`reset` sets the local character humanoid health to zero. `lagdetection` toggles server movement monitoring and uses PurgatoryNotify to show `LAG DETECTED` when at least 90% of available player roots have velocity at or below `1`; the notice clears below that threshold.
+`reset` sets the local character humanoid health to zero. `lagdetection [percentage]` toggles server movement monitoring and uses PurgatoryNotify to show `LAG DETECTED` when the chosen percentage of available player roots have velocity at or below `1`; it defaults to `90` and clears below that threshold.
 
 `to [player]` normally matches usernames and display names. In place `128736949265057`, it matches `PlayerInfoBillboard.Info.Text` instead and is highlighted as a game-specific command.
 
