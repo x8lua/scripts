@@ -14,9 +14,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.2.1"
+StacyUI.Version = "2.2.2"
 
 local UPDATE_LOG = {
+    { Version = "v2.2.2", Text = "Changed lag detection to trigger when half the server is still" },
     { Version = "v2.2.1", Text = "Fixed semicolon input and added reset and lag detection" },
     { Version = "v2.2.0", Text = "Added command focus, settings, error feedback, random view, and restored suggestions" },
     { Version = "v2.1.6", Text = "Fixed the intro title endpoint and added a position offset" },
@@ -677,7 +678,7 @@ function StacyUI:SetLagDetectionEnabled(enabled)
         elapsed = 0
 
         local checked = 0
-        local allStill = true
+        local still = 0
         for _, player in ipairs(Players:GetPlayers()) do
             local character = player.Character
             local root = character and (
@@ -688,17 +689,17 @@ function StacyUI:SetLagDetectionEnabled(enabled)
             )
             if root then
                 checked = checked + 1
-                if root.AssemblyLinearVelocity.Magnitude > 1 then
-                    allStill = false
-                    break
+                if root.AssemblyLinearVelocity.Magnitude <= 1 then
+                    still = still + 1
                 end
             end
         end
+        local lagging = checked > 0 and still / checked >= 0.5
 
-        if checked > 0 and allStill and not self.LagDetected then
+        if lagging and not self.LagDetected then
             self.LagDetected = true
-            self.LagNotify:push("LAG DETECTED", "Everyone in this server is standing still.", { duration = 3600 })
-        elseif self.LagDetected and (not allStill or checked == 0) then
+            self.LagNotify:push("LAG DETECTED", "At least half of this server is standing still.", { duration = 3600 })
+        elseif self.LagDetected and not lagging then
             self.LagDetected = false
             self.LagNotify:clear()
         end
