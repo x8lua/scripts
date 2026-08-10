@@ -46,7 +46,7 @@ The protected built ins are `help` `clear` `cmds` `gamecmds` `updatelog` `versio
 
 `to [player]` normally matches usernames and display names. In place `128736949265057`, it matches `PlayerInfoBillboard.Info.Text` instead and is highlighted as a game-specific command.
 
-`legacyto` restores username and display-name matching for the current session. `gamecmds` lists active game-specific commands in lime green.
+`legacyto` restores username and display-name matching for the current session. `gamecmds` opens the searchable command browser filtered to active game-specific commands, with command names shown in lime green.
 
 `sudoaptupdate` checks the configured StacyUI source for a newer version, validates it, unloads the current console, and reloads it while preserving custom commands. The new instance is also available as `getgenv().StacyCMD`.
 

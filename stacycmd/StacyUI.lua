@@ -10,9 +10,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.8.0"
+StacyUI.Version = "1.8.1"
 
 local UPDATE_LOG = {
+    { Version = "v1.8.1", Text = "Changed gamecmds to use the searchable command browser" },
     { Version = "v1.8.0", Text = "Added gamecmds and Gakuran name teleportation with legacyto rollback" },
     { Version = "v1.7.0", Text = "Added the built in fly toggle command" },
     { Version = "v1.6.0", Text = "Added sudoaptupdate self updates and made the console visible by default" },
@@ -152,6 +153,7 @@ function StacyUI.new(options)
     self.HistoryIndex = 0
     self.SelectedSuggestionIndex = 0
     self.SuggestionButtons = {}
+    self.CommandBrowserGameOnly = false
     self.Connections = {}
     self.FlyConnections = {}
     self.FlySpeed = 1
@@ -390,25 +392,18 @@ function StacyUI:TeleportTo(input)
 end
 
 function StacyUI:ShowGameCommands()
-    local names = {}
-    for name, command in pairs(self.Commands) do
-        if command.GameSpecific then
-            table.insert(names, name)
-        end
-    end
-    table.sort(names)
-
-    if #names == 0 then
-        self:Log("No game-specific commands are available", self.Style.muted)
-        return names
-    end
-
-    self:Log("GAME COMMANDS", self.Style.info)
-    for _, name in ipairs(names) do
-        local command = self.Commands[name]
-        self:Log(command.Usage .. "  " .. command.Description, GAME_COMMAND_GREEN)
-    end
-    return names
+    assert(not self.Destroyed, "StacyUI has been destroyed")
+    self.IgnoreToggleUntil = os.clock() + 0.35
+    self:HideUpdateLog(false)
+    self.CommandBrowserGameOnly = true
+    self.CommandBrowserTitle.Text = "GAME COMMANDS"
+    self.CommandBrowserSearch.PlaceholderText = "SEARCH GAME COMMANDS"
+    self.CommandBrowserEmpty.Text = "NO GAME COMMANDS"
+    self.CommandBrowser.Visible = true
+    self.CommandBrowserSearch.Text = ""
+    self.CommandBrowserSearch.TextEditable = false
+    self:_refreshCommandBrowser()
+    return self
 end
 
 function StacyUI:_stopFly()
@@ -855,7 +850,7 @@ function StacyUI:_buildCommandBrowser()
         ZIndex = 22,
     }, header)
 
-    create("TextLabel", {
+    self.CommandBrowserTitle = create("TextLabel", {
         Name = "Title",
         BackgroundTransparency = 1,
         Font = style.fontSans,
@@ -1218,8 +1213,9 @@ function StacyUI:_refreshCommandBrowser()
     end
 
     local names = {}
-    for name in pairs(self.Commands) do
-        if query == "" or name:lower():find(query, 1, true) then
+    for name, command in pairs(self.Commands) do
+        local inCurrentMode = not self.CommandBrowserGameOnly or command.GameSpecific
+        if inCurrentMode and (query == "" or name:lower():find(query, 1, true)) then
             table.insert(names, name)
         end
     end
@@ -1244,7 +1240,8 @@ function StacyUI:_refreshCommandBrowser()
             BackgroundTransparency = 1,
             Font = self.Style.fontMono,
             Text = name,
-            TextColor3 = command.HighlightLime and GAME_COMMAND_GREEN or self.Style.accent,
+            TextColor3 = self.CommandBrowserGameOnly and GAME_COMMAND_GREEN
+                or (command.HighlightLime and GAME_COMMAND_GREEN or self.Style.accent),
             TextSize = 13,
             TextXAlignment = Enum.TextXAlignment.Left,
             Position = UDim2.fromOffset(10, 4),
@@ -1276,6 +1273,10 @@ function StacyUI:ShowCommands()
     assert(not self.Destroyed, "StacyUI has been destroyed")
     self.IgnoreToggleUntil = os.clock() + 0.35
     self:HideUpdateLog(false)
+    self.CommandBrowserGameOnly = false
+    self.CommandBrowserTitle.Text = "COMMANDS"
+    self.CommandBrowserSearch.PlaceholderText = "SEARCH COMMANDS"
+    self.CommandBrowserEmpty.Text = "NO MATCHES"
     self.CommandBrowser.Visible = true
     self.CommandBrowserSearch.Text = ""
     self.CommandBrowserSearch.TextEditable = false
