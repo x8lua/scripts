@@ -17,9 +17,10 @@ local REQUIRED_KEY = "x8xxy" -- please do not peek at this
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.4.0"
+StacyUI.Version = "2.4.1"
 
 local UPDATE_LOG = {
+    { Version = "v2.4.1", Text = "Redesigned the games pages and fixed the Larpkuran icon" },
     { Version = "v2.4.0", Text = "Added the supported games browser and script auto-execution" },
     { Version = "v2.3.1", Text = "Made the local StacyCMD key gate required" },
     { Version = "v2.3.0", Text = "Added the optional in-console keysystem page" },
@@ -1949,36 +1950,45 @@ function StacyUI:_buildGames()
     local style = self.Style
     self.Games = create("Frame", {
         Name = "Games", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(620, 390), BackgroundColor3 = Color3.fromRGB(16, 16, 18),
+        Size = UDim2.fromOffset(680, 360), BackgroundColor3 = Color3.fromRGB(15, 15, 17),
         BorderSizePixel = 0, Visible = false, ZIndex = 40,
     }, self.Gui)
-    create("UICorner", {CornerRadius = UDim.new(0, 8)}, self.Games)
-    create("UIStroke", {Color = Color3.fromRGB(65, 65, 72), Thickness = 1}, self.Games)
-    local header = create("Frame", {BackgroundColor3 = Color3.fromRGB(24, 24, 28), BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 48), ZIndex = 41}, self.Games)
-    create("TextLabel", {BackgroundTransparency = 1, Font = Enum.Font.Bodoni, Text = 'Stacy <font color="#50FF7D">CMD</font>', RichText = true, TextColor3 = style.text, TextSize = 22, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(16, 4), Size = UDim2.fromOffset(150, 30), ZIndex = 42}, header)
-    self.GamesTitle = create("TextLabel", {BackgroundTransparency = 1, Font = style.fontMono, Text = "GAMES", TextColor3 = style.muted, TextSize = 11, Position = UDim2.fromOffset(18, 31), Size = UDim2.fromOffset(100, 14), ZIndex = 42}, header)
+    create("UICorner", {CornerRadius = UDim.new(0, 10)}, self.Games)
+    create("UIStroke", {Color = Color3.fromRGB(52, 53, 60), Transparency = 0.25, Thickness = 1}, self.Games)
+    local header = create("Frame", {BackgroundColor3 = Color3.fromRGB(23, 23, 27), BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 58), ZIndex = 41}, self.Games)
+    create("UICorner", {CornerRadius = UDim.new(0, 10)}, header)
+    create("Frame", {BackgroundColor3 = Color3.fromRGB(23, 23, 27), BorderSizePixel = 0, Position = UDim2.new(0, 0, 1, -10), Size = UDim2.new(1, 0, 0, 10), ZIndex = 41}, header)
+    create("TextLabel", {BackgroundTransparency = 1, Font = Enum.Font.Bodoni, Text = 'Stacy <font color="#50FF7D">CMD</font>', RichText = true, TextColor3 = style.text, TextSize = 24, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(18, 5), Size = UDim2.fromOffset(160, 30), ZIndex = 42}, header)
+    self.GamesTitle = create("TextLabel", {BackgroundTransparency = 1, Font = style.fontMono, Text = "SUPPORTED GAMES", TextColor3 = style.muted, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(20, 35), Size = UDim2.fromOffset(180, 14), ZIndex = 42}, header)
     local close = create("TextButton", {BackgroundTransparency = 1, AutoButtonColor = false, Font = style.fontMono, Text = "X", TextColor3 = style.muted, TextSize = 15, Position = UDim2.new(1, -42, 0, 8), Size = UDim2.fromOffset(32, 30), ZIndex = 42}, header)
     self:_connect(close.MouseButton1Click, function() self:HideGames() end)
-    self.GamesList = create("ScrollingFrame", {BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.fromOffset(14, 60), Size = UDim2.new(1, -28, 1, -72), CanvasSize = UDim2.new(), ScrollBarThickness = 5, ZIndex = 41}, self.Games)
-    self.GamesLayout = create("UIListLayout", {Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder}, self.GamesList)
-    self:_connect(self.GamesLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function() self.GamesList.CanvasSize = UDim2.fromOffset(0, self.GamesLayout.AbsoluteContentSize.Y + 8) end)
-    self.GameDetail = create("Frame", {Name = "Detail", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(760, 500), BackgroundColor3 = Color3.fromRGB(16, 16, 18), BorderSizePixel = 0, Visible = false, ZIndex = 45}, self.Gui)
-    create("UICorner", {CornerRadius = UDim.new(0, 8)}, self.GameDetail)
-    create("UIStroke", {Color = Color3.fromRGB(65, 65, 72), Thickness = 1}, self.GameDetail)
-    local dhead = create("Frame", {BackgroundColor3 = Color3.fromRGB(24, 24, 28), BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 48), ZIndex = 46}, self.GameDetail)
-    self.GameDetailBack = create("TextButton", {BackgroundTransparency = 1, AutoButtonColor = false, Font = style.fontMono, Text = "<  GAMES", TextColor3 = style.muted, TextSize = 13, Position = UDim2.fromOffset(14, 8), Size = UDim2.fromOffset(100, 30), ZIndex = 47}, dhead)
+    create("TextLabel", {BackgroundTransparency = 1, Font = Enum.Font.SourceSansBold, Text = "Continue  >", TextColor3 = style.text, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(18, 70), Size = UDim2.fromOffset(180, 26), ZIndex = 42}, self.Games)
+    self.GamesList = create("ScrollingFrame", {BackgroundTransparency = 1, BorderSizePixel = 0, Position = UDim2.fromOffset(18, 104), Size = UDim2.new(1, -36, 0, 236), CanvasSize = UDim2.new(), ScrollBarThickness = 4, ScrollingDirection = Enum.ScrollingDirection.X, ZIndex = 41}, self.Games)
+    self.GamesLayout = create("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder}, self.GamesList)
+    self:_connect(self.GamesLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function() self.GamesList.CanvasSize = UDim2.fromOffset(self.GamesLayout.AbsoluteContentSize.X + 8, 0) end)
+    self.GameDetail = create("Frame", {Name = "Detail", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(680, 460), BackgroundColor3 = Color3.fromRGB(15, 15, 17), BorderSizePixel = 0, Visible = false, ZIndex = 45}, self.Gui)
+    create("UICorner", {CornerRadius = UDim.new(0, 10)}, self.GameDetail)
+    create("UIStroke", {Color = Color3.fromRGB(52, 53, 60), Transparency = 0.25, Thickness = 1}, self.GameDetail)
+    local dhead = create("Frame", {BackgroundColor3 = Color3.fromRGB(23, 23, 27), BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 48), ZIndex = 46}, self.GameDetail)
+    create("UICorner", {CornerRadius = UDim.new(0, 10)}, dhead)
+    create("Frame", {BackgroundColor3 = Color3.fromRGB(23, 23, 27), BorderSizePixel = 0, Position = UDim2.new(0, 0, 1, -10), Size = UDim2.new(1, 0, 0, 10), ZIndex = 46}, dhead)
+    self.GameDetailBack = create("TextButton", {BackgroundTransparency = 1, AutoButtonColor = false, Font = style.fontMono, Text = "<  GAMES", TextColor3 = style.muted, TextSize = 12, Position = UDim2.fromOffset(12, 8), Size = UDim2.fromOffset(90, 30), ZIndex = 47}, dhead)
     self:_connect(self.GameDetailBack.MouseButton1Click, function() self:ShowGames() end)
-    self.GameDetailName = create("TextLabel", {BackgroundTransparency = 1, Font = style.fontSans, TextColor3 = style.text, TextSize = 20, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(120, 9), Size = UDim2.new(1, -170, 0, 30), ZIndex = 47}, dhead)
+    create("TextLabel", {BackgroundTransparency = 1, Font = Enum.Font.Bodoni, RichText = true, Text = 'Stacy <font color="#50FF7D">CMD</font>', TextColor3 = style.text, TextSize = 20, Position = UDim2.new(0.5, -75, 0, 8), Size = UDim2.fromOffset(150, 30), ZIndex = 47}, dhead)
     local detailClose = create("TextButton", {BackgroundTransparency = 1, AutoButtonColor = false, Font = style.fontMono, Text = "X", TextColor3 = style.muted, TextSize = 15, Position = UDim2.new(1, -42, 0, 8), Size = UDim2.fromOffset(32, 30), ZIndex = 47}, dhead)
     self:_connect(detailClose.MouseButton1Click, function() self:HideGames() end)
-    self.GameDetailImage = create("ImageLabel", {BackgroundColor3 = Color3.fromRGB(30, 30, 34), BorderSizePixel = 0, Image = "", ScaleType = Enum.ScaleType.Crop, Position = UDim2.fromOffset(18, 68), Size = UDim2.fromOffset(420, 235), ZIndex = 46}, self.GameDetail)
-    create("UICorner", {CornerRadius = UDim.new(0, 5)}, self.GameDetailImage)
-    self.GameDetailDescription = create("TextLabel", {BackgroundTransparency = 1, Font = style.fontSans, TextColor3 = style.text, TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Position = UDim2.fromOffset(18, 318), Size = UDim2.fromOffset(700, 58), ZIndex = 46}, self.GameDetail)
-    self.GameExecute = create("TextButton", {AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(55, 110, 255), BorderSizePixel = 0, Font = style.fontSans, Text = "EXECUTE", TextColor3 = Color3.new(1, 1, 1), TextSize = 17, Position = UDim2.fromOffset(460, 68), Size = UDim2.fromOffset(180, 48), ZIndex = 47}, self.GameDetail)
-    create("UICorner", {CornerRadius = UDim.new(0, 5)}, self.GameExecute)
-    self.GameAutoExec = create("TextButton", {AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(45, 45, 50), BorderSizePixel = 0, Font = style.fontMono, TextColor3 = style.muted, TextSize = 12, Position = UDim2.fromOffset(460, 126), Size = UDim2.fromOffset(180, 38), ZIndex = 47}, self.GameDetail)
-    create("UICorner", {CornerRadius = UDim.new(0, 5)}, self.GameAutoExec)
-    self.GameDetailInfo = create("TextLabel", {BackgroundTransparency = 1, Font = style.fontMono, TextColor3 = style.muted, TextSize = 12, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Position = UDim2.fromOffset(460, 182), Size = UDim2.fromOffset(260, 110), ZIndex = 47}, self.GameDetail)
+    self.GameDetailImage = create("ImageLabel", {BackgroundColor3 = Color3.fromRGB(28, 28, 32), BorderSizePixel = 0, Image = "", ScaleType = Enum.ScaleType.Crop, Position = UDim2.fromOffset(18, 66), Size = UDim2.fromOffset(400, 225), ZIndex = 46}, self.GameDetail)
+    create("UICorner", {CornerRadius = UDim.new(0, 7)}, self.GameDetailImage)
+    self.GameDetailIcon = create("ImageLabel", {BackgroundColor3 = Color3.fromRGB(28, 28, 32), BorderSizePixel = 0, Image = "", ScaleType = Enum.ScaleType.Crop, Position = UDim2.fromOffset(438, 66), Size = UDim2.fromOffset(58, 58), ZIndex = 47}, self.GameDetail)
+    create("UICorner", {CornerRadius = UDim.new(0, 8)}, self.GameDetailIcon)
+    self.GameDetailName = create("TextLabel", {BackgroundTransparency = 1, Font = Enum.Font.SourceSansBold, TextColor3 = style.text, TextSize = 23, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, Position = UDim2.fromOffset(508, 66), Size = UDim2.fromOffset(150, 58), ZIndex = 47}, self.GameDetail)
+    self.GameDetailInfo = create("TextLabel", {BackgroundTransparency = 1, Font = style.fontSans, TextColor3 = style.muted, TextSize = 13, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Position = UDim2.fromOffset(438, 134), Size = UDim2.fromOffset(220, 88), ZIndex = 47}, self.GameDetail)
+    self.GameExecute = create("TextButton", {AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(51, 102, 255), BorderSizePixel = 0, Font = Enum.Font.SourceSansBold, Text = "EXECUTE", TextColor3 = Color3.new(1, 1, 1), TextSize = 16, Position = UDim2.fromOffset(438, 233), Size = UDim2.fromOffset(142, 58), ZIndex = 47}, self.GameDetail)
+    create("UICorner", {CornerRadius = UDim.new(0, 7)}, self.GameExecute)
+    self.GameAutoExec = create("TextButton", {AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(38, 38, 43), BorderSizePixel = 0, Font = style.fontMono, TextColor3 = style.muted, TextSize = 11, Position = UDim2.fromOffset(588, 233), Size = UDim2.fromOffset(70, 58), ZIndex = 47}, self.GameDetail)
+    create("UICorner", {CornerRadius = UDim.new(0, 7)}, self.GameAutoExec)
+    create("Frame", {BackgroundColor3 = Color3.fromRGB(50, 50, 56), BorderSizePixel = 0, Position = UDim2.fromOffset(18, 309), Size = UDim2.new(1, -36, 0, 1), ZIndex = 46}, self.GameDetail)
+    self.GameDetailDescription = create("TextLabel", {BackgroundTransparency = 1, Font = style.fontSans, RichText = true, TextColor3 = style.text, TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, Position = UDim2.fromOffset(24, 327), Size = UDim2.new(1, -48, 0, 100), ZIndex = 46}, self.GameDetail)
     self:_connect(self.GameExecute.MouseButton1Click, function()
         local selectedGame = self.SelectedGame
         self:HideGames(false)
@@ -1989,14 +1999,14 @@ end
 
 function StacyUI:_gameData(id)
     if id == "gakuran" then
-        return {Id = id, Title = "Larpkuran", Author = "Flingpan", Description = "May, 2007 - Flingpan\n\nAn INTENDED Slice of Life experience (though I guess our community just loves to fling LOL)", Icon = "rbxthumb://type=GameIcon&id=128736949265057&w=512&h=512", Image = "rbxthumb://type=GameThumbnail&id=128736949265057&w=768&h=432", SupportedPlace = GAKURAN_PLACE_ID, Url = "https://raw.githubusercontent.com/x8lua/scripts/refs/heads/main/gakuran_fling.lua"}
+        return {Id = id, Title = "Larpkuran", Author = "Flingpan", Summary = "May, 2007 - Flingpan", Description = 'May, 2007 <font color="#999999">-</font> Flingpan\n\nAn <b>INTENDED</b> Slice of Life experience (though I guess our community just loves to fling LOL)', Icon = "rbxthumb://type=GameIcon&id=9199655655&w=512&h=512", Image = "rbxthumb://type=GameThumbnail&id=9199655655&w=768&h=432", SupportedPlace = GAKURAN_PLACE_ID, Url = "https://raw.githubusercontent.com/x8lua/scripts/refs/heads/main/gakuran_fling.lua"}
     end
-    return {Id = "placeholder", Title = "Placeholder", Author = "StacyCMD", Description = "A placeholder game script for testing compatibility errors.", Image = "", SupportedPlace = -1}
+    return {Id = "placeholder", Title = "Placeholder", Author = "StacyCMD", Summary = "Compatibility test", Description = "A placeholder game script for testing compatibility errors.", Icon = "rbxassetid://1847653031", Image = "rbxassetid://1847653031", SupportedPlace = -1}
 end
 
 function StacyUI:_updateGameAutoExecButton()
     local enabled = self.AutoExecGame == self.SelectedGame
-    self.GameAutoExec.Text = enabled and "AUTOEXEC  ON" or "AUTOEXEC  OFF"
+    self.GameAutoExec.Text = enabled and "AUTO\nON" or "AUTO\nOFF"
     self.GameAutoExec.BackgroundColor3 = enabled and STACY_GREEN or Color3.fromRGB(45, 45, 50)
     self.GameAutoExec.TextColor3 = enabled and Color3.fromRGB(10, 20, 10) or self.Style.muted
 end
@@ -2007,14 +2017,15 @@ function StacyUI:ShowGames()
     for _, child in ipairs(self.GamesList:GetChildren()) do if child:IsA("GuiButton") then child:Destroy() end end
     for _, id in ipairs({"gakuran", "placeholder"}) do
         local gameInfo = self:_gameData(id)
-        local row = create("TextButton", {AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(27, 27, 31), BorderSizePixel = 0, Text = "", Size = UDim2.new(1, -6, 0, 84), ZIndex = 42}, self.GamesList)
-        create("UICorner", {CornerRadius = UDim.new(0, 5)}, row)
-        create("ImageLabel", {BackgroundTransparency = 1, Image = gameInfo.Icon or gameInfo.Image, ScaleType = Enum.ScaleType.Crop, Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(68, 68), ZIndex = 43}, row)
-        create("TextLabel", {BackgroundTransparency = 1, Font = Enum.Font.SourceSansBold, Text = gameInfo.Title, TextColor3 = self.Style.text, TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(88, 12), Size = UDim2.new(1, -100, 0, 24), ZIndex = 43}, row)
-        create("TextLabel", {BackgroundTransparency = 1, Font = self.Style.fontMono, Text = gameInfo.Description:gsub("\n.*", ""), TextColor3 = self.Style.muted, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(88, 42), Size = UDim2.new(1, -100, 0, 30), ZIndex = 43}, row)
+        local row = create("TextButton", {AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(26, 26, 30), BorderSizePixel = 0, Text = "", Size = UDim2.fromOffset(190, 224), ZIndex = 42}, self.GamesList)
+        create("UICorner", {CornerRadius = UDim.new(0, 8)}, row)
+        local icon = create("ImageLabel", {BackgroundColor3 = Color3.fromRGB(35, 35, 39), BorderSizePixel = 0, Image = gameInfo.Icon, ScaleType = Enum.ScaleType.Crop, Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(174, 150), ZIndex = 43}, row)
+        create("UICorner", {CornerRadius = UDim.new(0, 6)}, icon)
+        create("TextLabel", {BackgroundTransparency = 1, Font = Enum.Font.SourceSansBold, Text = gameInfo.Title, TextColor3 = self.Style.text, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(10, 164), Size = UDim2.new(1, -20, 0, 24), ZIndex = 43}, row)
+        create("TextLabel", {BackgroundTransparency = 1, Font = self.Style.fontSans, Text = gameInfo.Summary, TextColor3 = self.Style.muted, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(10, 190), Size = UDim2.new(1, -20, 0, 20), ZIndex = 43}, row)
         self:_connect(row.MouseButton1Click, function() self:ShowGameDetail(id) end)
     end
-    self.GamesTitle.Text = "GAMES  |  SUPPORTED SCRIPTS"
+    self.GamesTitle.Text = "SUPPORTED GAMES  |  2 SCRIPTS"
     self.Prompt:ReleaseFocus()
     return self
 end
@@ -2022,8 +2033,8 @@ end
 function StacyUI:ShowGameDetail(id)
     local gameInfo = self:_gameData(id); self.SelectedGame = id
     self.Games.Visible = false; self.GameDetail.Visible = true
-    self.GameDetailName.Text = gameInfo.Title; self.GameDetailImage.Image = gameInfo.Image; self.GameDetailDescription.Text = gameInfo.Description
-    self.GameDetailInfo.Text = "BY  " .. gameInfo.Author .. "\n\nSCRIPT STATUS  SUPPORTED\nPLACE ID  " .. tostring(gameInfo.SupportedPlace) .. "\n\n" .. (gameInfo.SupportedPlace == game.PlaceId and "CURRENT GAME  COMPATIBLE" or "CURRENT GAME  MAY NOT WORK")
+    self.GameDetailName.Text = gameInfo.Title; self.GameDetailImage.Image = gameInfo.Image; self.GameDetailIcon.Image = gameInfo.Icon; self.GameDetailDescription.Text = gameInfo.Description
+    self.GameDetailInfo.Text = "By " .. gameInfo.Author .. "\n\nScript status: Supported\n" .. (gameInfo.SupportedPlace == game.PlaceId and "Current game: Compatible" or "Current game: May not work")
     self:_updateGameAutoExecButton(); self.Prompt:ReleaseFocus(); self.IgnoreToggleUntil = os.clock() + 0.35
     return self
 end
@@ -2061,7 +2072,12 @@ function StacyUI:ExecuteGameScript(id, fromAutoExec)
     local gameInfo = self:_gameData(id)
     if gameInfo.Id == "placeholder" then
         local messages = {"See? I knew that script wasn't compatible with this game", "What did I tell you? That script doesn't work here", "Like I said earlier, that script isn't compatible with this game"}
-        self:Log(messages[math.random(1, #messages)] .. "\nerror message, OUR MESSAGE", self.Style.error)
+        local incompatibleScript
+        local _, scriptError = pcall(function()
+            incompatibleScript()
+        end)
+        local cleanError = tostring(scriptError):match("attempt to .+") or tostring(scriptError)
+        self:Log(cleanError .. ", " .. messages[math.random(1, #messages)], self.Style.error)
         return false
     end
     if gameInfo.SupportedPlace ~= game.PlaceId then

@@ -47,7 +47,7 @@ The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` 
 
 StacyCMD requires the local key `x8xxy` before loading. It reads `StacyCMD.key` through `readfile`; entering the correct key in `keysystem` writes that file through `writefile` when available.
 
-`games` opens the dark supported-games browser. Larpkuran runs `gakuran_fling.lua`; when launched outside its supported place, StacyCMD warns that it might not work. `placeholder` intentionally reports a compatibility error in the console. The detail page's `AUTOEXEC ON` button saves the selected game in `StacyCMD.autoexec` and runs it on the next StacyCMD load; click it again to turn autoexec off.
+`games` opens the dark supported-games browser with Roblox thumbnails and icons. Larpkuran runs `gakuran_fling.lua`; when launched outside its supported place, StacyCMD warns that it might not work. `placeholder` intentionally produces a runtime nil-call error followed by a randomized compatibility remark in the console. The detail page's `AUTOEXEC ON` button saves the selected game in `StacyCMD.autoexec` and runs it on the next StacyCMD load; click it again to turn autoexec off.
 
 `maxzoom [num]` sets the speaker's maximum camera zoom distance
 
