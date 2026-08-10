@@ -12,9 +12,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.9.0"
+StacyUI.Version = "2.0.0"
 
 local UPDATE_LOG = {
+    { Version = "v2.0.0", Text = "Added the full-screen StacyCMD startup intro" },
     { Version = "v1.9.0", Text = "Added random teleporting, command focus cleanup, and the prediction toggle" },
     { Version = "v1.8.1", Text = "Changed gamecmds to use the searchable command browser" },
     { Version = "v1.8.0", Text = "Added gamecmds and Gakuran name teleportation with legacyto rollback" },
@@ -160,6 +161,9 @@ function StacyUI.new(options)
     self.PredictionConnections = {}
     self.PredictionMarkers = {}
     self.PredictionEnabled = false
+    self.IntroEnabled = options.Intro ~= false
+    self.IntroPlaying = false
+    self.IntroSession = 0
     self.Connections = {}
     self.FlyConnections = {}
     self.FlySpeed = 1
@@ -191,7 +195,11 @@ function StacyUI.new(options)
     end
 
     if options.Visible ~= false then
-        self:Toggle(true)
+        if self.IntroEnabled then
+            self:PlayIntro()
+        else
+            self:Toggle(true)
+        end
     end
 
     return self
@@ -362,6 +370,12 @@ end
 
 function StacyUI:_notifyGakuranToOverride()
     task.defer(function()
+        while self.IntroPlaying and not self.Destroyed do
+            task.wait()
+        end
+        if self.Destroyed then
+            return
+        end
         local loaded, notifyOrError = pcall(function()
             local Notify = loadstring(game:HttpGet("https://raw.githubusercontent.com/x8lua/scripts/main/ImGUI/Notify.lua?nocache=" .. tostring(tick()), true))()
             Notify.push(
@@ -855,6 +869,101 @@ function StacyUI:_connect(signal, callback)
     local connection = signal:Connect(callback)
     table.insert(self.Connections, connection)
     return connection
+end
+
+function StacyUI:PlayIntro()
+    assert(not self.Destroyed, "StacyUI has been destroyed")
+    if self.IntroPlaying then
+        return self
+    end
+
+    self.IntroSession = self.IntroSession + 1
+    local session = self.IntroSession
+    self.IntroPlaying = true
+    self.Open = false
+    self:_clearSuggestions()
+    self:HideCommands(false)
+    self:HideUpdateLog(false)
+    self.Prompt:ReleaseFocus()
+    self.Main.Visible = false
+
+    local overlay = create("Frame", {
+        Name = "Intro",
+        BackgroundColor3 = self.Style.background,
+        BackgroundTransparency = 0.02,
+        BorderSizePixel = 0,
+        Size = UDim2.fromScale(1, 1),
+        ZIndex = 100,
+    }, self.Gui)
+    self.IntroOverlay = overlay
+
+    local brand = create("Frame", {
+        Name = "Brand",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundTransparency = 1,
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(720, 180),
+        ZIndex = 101,
+    }, overlay)
+
+    create("TextLabel", {
+        Name = "Stacy",
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Bodoni,
+        Text = "Stacy",
+        TextColor3 = self.Style.text,
+        TextScaled = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromScale(0, 0),
+        Size = UDim2.fromScale(0.58, 1),
+        ZIndex = 102,
+    }, brand)
+
+    create("TextLabel", {
+        Name = "CMD",
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Bodoni,
+        Text = "CMD",
+        TextColor3 = STACY_GREEN,
+        TextScaled = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromScale(0.53, 0),
+        Size = UDim2.fromScale(0.47, 1),
+        ZIndex = 102,
+    }, brand)
+
+    task.spawn(function()
+        task.wait(1)
+        if self.Destroyed or self.IntroSession ~= session or not overlay.Parent then
+            return
+        end
+
+        local camera = workspace.CurrentCamera
+        local viewport = camera and camera.ViewportSize or Vector2.new(self.Style.width, self.Style.height)
+        local targetX = (viewport.X - self.Style.width) * 0.5 + 16
+        local targetY = 43
+        local tweenInfo = TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
+        local brandTween = TweenService:Create(brand, tweenInfo, {
+            Position = UDim2.fromOffset(targetX + 54, targetY + 15),
+            Size = UDim2.fromOffset(108, 30),
+        })
+        local overlayTween = TweenService:Create(overlay, tweenInfo, {
+            BackgroundTransparency = 1,
+        })
+        brandTween:Play()
+        overlayTween:Play()
+        brandTween.Completed:Wait()
+
+        if self.Destroyed or self.IntroSession ~= session then
+            return
+        end
+        overlay:Destroy()
+        self.IntroOverlay = nil
+        self.IntroPlaying = false
+        self.OpenFromIntro = true
+        self:Toggle(true)
+    end)
+    return self
 end
 
 function StacyUI:_build(options)
@@ -1958,6 +2067,9 @@ end
 
 function StacyUI:Toggle(forceState)
     assert(not self.Destroyed, "StacyUI has been destroyed")
+    if self.IntroPlaying then
+        return self.Open
+    end
     local nextState = forceState
     if nextState == nil then
         nextState = not self.Open
@@ -1969,10 +2081,15 @@ function StacyUI:Toggle(forceState)
     self.Open = nextState
     if self.Open then
         self.Main.Visible = true
-        self.Main.Position = UDim2.new(0.5, 0, 0, 20)
-        TweenService:Create(self.Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Position = UDim2.new(0.5, 0, 0, 40),
-        }):Play()
+        if self.OpenFromIntro then
+            self.OpenFromIntro = false
+            self.Main.Position = UDim2.new(0.5, 0, 0, 40)
+        else
+            self.Main.Position = UDim2.new(0.5, 0, 0, 20)
+            TweenService:Create(self.Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Position = UDim2.new(0.5, 0, 0, 40),
+            }):Play()
+        end
         task.defer(self.Prompt.CaptureFocus, self.Prompt)
     else
         self:_clearSuggestions()
@@ -1994,6 +2111,12 @@ end
 function StacyUI:Destroy()
     if self.Destroyed then
         return
+    end
+    self.IntroSession = self.IntroSession + 1
+    self.IntroPlaying = false
+    if self.IntroOverlay then
+        self.IntroOverlay:Destroy()
+        self.IntroOverlay = nil
     end
     self:StopPrediction()
     self:_stopFly()

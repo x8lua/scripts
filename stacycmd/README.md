@@ -32,11 +32,11 @@ console:Register({
 })
 ```
 
-The console opens by default. Pass `Visible = false` to start it hidden.
+The console opens by default after a full-screen StacyCMD brand intro. Pass `Intro = false` to skip the intro or `Visible = false` to start hidden.
 
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 
-The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ShowGameCommands` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
+The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ShowGameCommands` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
 The protected built ins are `help` `clear` `cmds` `gamecmds` `updatelog` `version` `to` `maxzoom` `fly` `prediction` `sudoaptupdate` and `ctrlc`. `legacyto` is also available in the supported Gakuran game.
 
