@@ -25,13 +25,16 @@ local console = StacyUI.new({
 console:Register({
     Name = "echo",
     Description = "Print text in the console",
+    Usage = "echo [text]",
     Callback = function(arguments, _, ui)
         ui:Log(table.concat(arguments, " "))
     end,
 })
 ```
 
-The public API includes `new` `Register` `Unregister` `Execute` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`
+Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
+
+The public API includes `new` `Register` `Unregister` `Execute` `Log` `Clear` `SetPrefix` `SetToggleKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display.
 
 The protected built ins are `help` `clear` `cmds` `updatelog` `version` `maxzoom` and `ctrlc`
 

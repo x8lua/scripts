@@ -7,9 +7,10 @@ local STACY_GREEN = Color3.fromRGB(80, 255, 125)
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "1.5.1"
+StacyUI.Version = "1.5.2"
 
 local UPDATE_LOG = {
+    { Version = "v1.5.2", Text = "Added command usage text to autocomplete suggestions" },
     { Version = "v1.5.1", Text = "Fixed arrow-key selection while the command prompt has focus" },
     { Version = "v1.5.0", Text = "Restyled command suggestions and added reliable keyboard navigation" },
     { Version = "v1.4.9", Text = "Added the built in maxzoom command for camera distance control" },
@@ -122,6 +123,7 @@ end
 function StacyUI:_registerBuiltIns()
     self.Commands.help = {
         Description = "List every available command",
+        Usage = "help",
         Protected = true,
         Callback = function(_, _, ui)
             local names = {}
@@ -134,6 +136,7 @@ function StacyUI:_registerBuiltIns()
     }
     self.Commands.clear = {
         Description = "Clear all console output",
+        Usage = "clear",
         Protected = true,
         Callback = function(_, _, ui)
             ui:Clear()
@@ -141,6 +144,7 @@ function StacyUI:_registerBuiltIns()
     }
     self.Commands.version = {
         Description = "Show the StacyCMD version",
+        Usage = "version",
         Protected = true,
         Callback = function(_, _, ui)
             ui:Log("StacyCMD v" .. StacyUI.Version, ui.Style.accent)
@@ -148,6 +152,7 @@ function StacyUI:_registerBuiltIns()
     }
     self.Commands.cmds = {
         Description = "Open the searchable command browser",
+        Usage = "cmds",
         Protected = true,
         Callback = function(_, _, ui)
             ui:ShowCommands()
@@ -155,6 +160,7 @@ function StacyUI:_registerBuiltIns()
     }
     self.Commands.updatelog = {
         Description = "Open the StacyCMD update log",
+        Usage = "updatelog",
         Protected = true,
         Callback = function(_, _, ui)
             ui:ShowUpdateLog()
@@ -162,6 +168,7 @@ function StacyUI:_registerBuiltIns()
     }
     self.Commands.maxzoom = {
         Description = "Set the maximum camera zoom distance",
+        Usage = "maxzoom [num]",
         Protected = true,
         Callback = function(args, _, ui)
             args[1] = tonumber(args[1])
@@ -176,6 +183,7 @@ function StacyUI:_registerBuiltIns()
     }
     self.Commands.ctrlc = {
         Description = "Destroy the entire script and UI",
+        Usage = "ctrlc",
         Protected = true,
         Callback = function(_, _, ui)
             ui:Destroy()
@@ -991,6 +999,12 @@ function StacyUI:_clearSuggestions()
 end
 
 function StacyUI:_makeSuggestion(name)
+    local command = self.Commands[name]
+    local usage = tostring(command and command.Usage or name)
+    if usage:lower():sub(1, #name) ~= name:lower() then
+        usage = name .. " " .. usage
+    end
+
     local button = create("TextButton", {
         Name = name,
         AutoButtonColor = false,
@@ -998,7 +1012,7 @@ function StacyUI:_makeSuggestion(name)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         Font = self.Style.fontMono,
-        Text = name,
+        Text = usage,
         TextColor3 = self.Style.text,
         TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -1046,7 +1060,7 @@ function StacyUI:_changeSelection(delta)
     current.TextColor3 = STACY_GREEN
     current.SelectionBar.Visible = true
 
-    local command = self.Commands[current.Text]
+    local command = self.Commands[current.Name]
     self.Description.Text = command and command.Description or ""
 end
 
@@ -1089,7 +1103,7 @@ function StacyUI:_onPromptInput(input)
     if input.KeyCode == Enum.KeyCode.Return and self.Suggestions.Visible then
         local selected = self.SuggestionButtons[self.SelectedSuggestionIndex]
         if selected then
-            self.Prompt.Text = selected.Text
+            self.Prompt.Text = selected.Name
             self.Prompt.CursorPosition = #self.Prompt.Text + 1
             self.Prompt:ReleaseFocus(true)
         end
@@ -1099,7 +1113,7 @@ function StacyUI:_onPromptInput(input)
     if input.KeyCode == Enum.KeyCode.Tab and self.Suggestions.Visible then
         local selected = self.SuggestionButtons[self.SelectedSuggestionIndex]
         if selected then
-            self.Prompt.Text = selected.Text .. " "
+            self.Prompt.Text = selected.Name .. " "
             self.Prompt.CursorPosition = #self.Prompt.Text + 1
         end
         return
@@ -1150,6 +1164,7 @@ function StacyUI:Register(definition)
 
     self.Commands[definition.Name] = {
         Description = definition.Description or "No description available",
+        Usage = definition.Usage or definition.Name,
         Callback = definition.Callback,
     }
     return self
