@@ -13,9 +13,11 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.1.0"
+StacyUI.Version = "2.1.2"
 
 local UPDATE_LOG = {
+    { Version = "v2.1.2", Text = "Added Gakuran-name view support and reduced the intro title size" },
+    { Version = "v2.1.1", Text = "Moved view to the regular command category" },
     { Version = "v2.1.0", Text = "Added view, jpower, and rejoin; fixed fly recovery; and added the intro UI fade" },
     { Version = "v2.0.2", Text = "Aligned the startup intro and header branding" },
     { Version = "v2.0.1", Text = "Removed the startup intro background" },
@@ -313,11 +315,12 @@ function StacyUI:_registerBuiltIns()
             ui:Log("Camera max zoom  " .. tostring(args[1]), ui.Style.info)
         end,
     }
+    local gakuranViewActive = self.IsGakuranGame
     self.Commands.view = {
-        Description = "View another player's character or return to your own",
+        Description = gakuranViewActive and "View by Gakuran name or return to your own character" or "View another player's character or return to your own",
         Usage = "view [player|self]",
-        GameSpecific = true,
-        HighlightLime = true,
+        GameSpecific = gakuranViewActive,
+        HighlightLime = gakuranViewActive,
         Protected = true,
         Callback = function(args, _, ui)
             local viewed, reason = ui:ViewPlayer(args[1])
@@ -516,10 +519,10 @@ function StacyUI:ViewPlayer(input)
 
     local target = self.Speaker
     if type(input) == "string" and trim(input) ~= "" and trim(input):lower() ~= "self" then
-        target = findPlayerByUsername(input)
+        target = self.IsGakuranGame and findPlayerByGameName(input) or findPlayerByUsername(input)
     end
     if not target then
-        return false, "player not found"
+        return false, self.IsGakuranGame and "Gakuran name not found" or "player not found"
     end
 
     local character = target.Character
@@ -1006,7 +1009,7 @@ function StacyUI:PlayIntro()
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundTransparency = 1,
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(720, 180),
+        Size = UDim2.fromOffset(600, 150),
         ZIndex = 101,
     }, overlay)
 
