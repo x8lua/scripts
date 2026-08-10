@@ -17,6 +17,8 @@ local console = StacyUI.new({
     Name = "MyConsole",
     Prefix = "demo@StacyUI$ ",
     ToggleKey = Enum.KeyCode.F1,
+    IntroSize = Vector2.new(480, 120),
+    IntroTweenDuration = 0.7,
     OnDestroy = function()
         print("Script resources destroyed")
     end,
@@ -32,7 +34,7 @@ console:Register({
 })
 ```
 
-The console opens by default after a centered full-screen StacyCMD brand intro that shrinks directly into the aligned header title, then fades in the command UI. Pass `Intro = false` to skip the intro or `Visible = false` to start hidden.
+The console opens by default after a centered full-screen StacyCMD brand intro that shrinks directly into the aligned header title, then fades in the command UI. Set `IntroSize = Vector2.new(width, height)` and `IntroTweenDuration = seconds` to tune the intro manually. Pass `Intro = false` to skip the intro or `Visible = false` to start hidden.
 
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 

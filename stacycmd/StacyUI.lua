@@ -13,9 +13,10 @@ local GAKURAN_PLACE_ID = 128736949265057
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.1.3"
+StacyUI.Version = "2.1.4"
 
 local UPDATE_LOG = {
+    { Version = "v2.1.4", Text = "Added manual intro size and tween settings and restored suggestion visibility" },
     { Version = "v2.1.3", Text = "Made view without a player restore the local camera" },
     { Version = "v2.1.2", Text = "Added Gakuran-name view support and reduced the intro title size" },
     { Version = "v2.1.1", Text = "Moved view to the regular command category" },
@@ -169,6 +170,8 @@ function StacyUI.new(options)
     self.PredictionMarkers = {}
     self.PredictionEnabled = false
     self.IntroEnabled = options.Intro ~= false
+    self.IntroSize = typeof(options.IntroSize) == "Vector2" and options.IntroSize or Vector2.new(600, 150)
+    self.IntroTweenDuration = math.max(0.05, tonumber(options.IntroTweenDuration) or 0.7)
     self.IntroPlaying = false
     self.IntroSession = 0
     self.Connections = {}
@@ -1010,7 +1013,7 @@ function StacyUI:PlayIntro()
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundTransparency = 1,
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(600, 150),
+        Size = UDim2.fromOffset(self.IntroSize.X, self.IntroSize.Y),
         ZIndex = 101,
     }, overlay)
 
@@ -1037,7 +1040,7 @@ function StacyUI:PlayIntro()
         local viewport = camera and camera.ViewportSize or Vector2.new(self.Style.width, self.Style.height)
         local targetX = (viewport.X - self.Style.width) * 0.5 + 16
         local targetY = 43
-        local tweenInfo = TweenInfo.new(0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
+        local tweenInfo = TweenInfo.new(self.IntroTweenDuration, Enum.EasingStyle.Quint, Enum.EasingDirection.InOut)
         local brandTween = TweenService:Create(brand, tweenInfo, {
             Position = UDim2.fromOffset(targetX + 54, targetY + 15),
             Size = UDim2.fromOffset(108, 30),
@@ -1723,6 +1726,7 @@ function StacyUI:_buildSuggestions()
         AutomaticSize = Enum.AutomaticSize.Y,
         ClipsDescendants = true,
         Visible = false,
+        ZIndex = 40,
     }, self.Main)
 
     create("UICorner", { CornerRadius = UDim.new(0, 4) }, self.Suggestions)
@@ -1746,6 +1750,7 @@ function StacyUI:_buildSuggestions()
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, 30),
         LayoutOrder = 1,
+        ZIndex = 41,
     }, self.Suggestions)
 
     create("Frame", {
@@ -1753,6 +1758,7 @@ function StacyUI:_buildSuggestions()
         BackgroundColor3 = STACY_GREEN,
         BorderSizePixel = 0,
         Size = UDim2.new(0, 3, 1, 0),
+        ZIndex = 42,
     }, header)
 
     create("TextLabel", {
@@ -1765,6 +1771,7 @@ function StacyUI:_buildSuggestions()
         Position = UDim2.fromOffset(12, 2),
         Size = UDim2.fromOffset(47, 26),
         Text = "Stacy",
+        ZIndex = 42,
     }, header)
 
     create("TextLabel", {
@@ -1777,6 +1784,7 @@ function StacyUI:_buildSuggestions()
         Position = UDim2.fromOffset(55, 2),
         Size = UDim2.fromOffset(43, 26),
         Text = "CMD",
+        ZIndex = 42,
     }, header)
 
     create("TextLabel", {
@@ -1789,6 +1797,7 @@ function StacyUI:_buildSuggestions()
         Position = UDim2.new(0, 102, 0, 2),
         Size = UDim2.new(1, -114, 0, 26),
         Text = "COMMAND MATCHES",
+        ZIndex = 42,
     }, header)
 
     self.Description = create("TextLabel", {
@@ -1805,6 +1814,7 @@ function StacyUI:_buildSuggestions()
         Size = UDim2.new(1, 0, 0, 28),
         AutomaticSize = Enum.AutomaticSize.Y,
         LayoutOrder = 2,
+        ZIndex = 41,
     }, self.Suggestions)
 
     create("UIPadding", {
@@ -1820,6 +1830,7 @@ function StacyUI:_buildSuggestions()
         BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, 1),
         LayoutOrder = 3,
+        ZIndex = 41,
     }, self.Suggestions)
 
     self.SuggestionList = create("Frame", {
@@ -1828,6 +1839,7 @@ function StacyUI:_buildSuggestions()
         Size = UDim2.new(1, 0, 0, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         LayoutOrder = 4,
+        ZIndex = 41,
     }, self.Suggestions)
 
     create("UIListLayout", {
@@ -1879,6 +1891,7 @@ function StacyUI:_makeSuggestion(name)
         TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Left,
         Size = UDim2.new(1, 0, 0, 27),
+        ZIndex = 42,
     }, self.SuggestionList)
 
     create("UIPadding", {
@@ -1892,6 +1905,7 @@ function StacyUI:_makeSuggestion(name)
         Position = UDim2.fromOffset(-16, 0),
         Size = UDim2.new(0, 3, 1, 0),
         Visible = false,
+        ZIndex = 43,
     }, button)
 
     self:_connect(button.MouseButton1Click, function()
