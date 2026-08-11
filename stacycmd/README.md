@@ -43,7 +43,9 @@ Set `Usage` on a command to show its syntax in autocomplete suggestions, for exa
 
 The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ServerHop` `ShowWhoIsThis` `HideWhoIsThis` `ShowGameCommands` `ShowGames` `ShowGameDetail` `ExecuteGameScript` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
-The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `prediction` `lagdetection` `rejoin` `serverhop` `shop` `sudoaptupdate` and `ctrlc`. `legacyto` and `whoisthis` are also available in the supported Gakuran game.
+The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `flingui` `prediction` `lagdetection` `rejoin` `serverhop` `shop` `sudoaptupdate` and `ctrlc`. `legacyto` and `whoisthis` are also available in the supported Gakuran game.
+
+`flingui` loads the FlingV2 interface from the configured FlingV2 source URL.
 
 StacyCMD requires a local key before loading. It reads and persists the verified key through executor file APIs when available.
 

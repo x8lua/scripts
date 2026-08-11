@@ -45,9 +45,10 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.4.8"
+StacyUI.Version = "2.4.9"
 
 local UPDATE_LOG = {
+    { Version = "v2.4.9", Text = "Added the regular flingui loader command" },
     { Version = "v2.4.8", Text = "Changed whoisthis to select the player closest to the cursor" },
     { Version = "v2.4.7", Text = "Moved the local key-gate values out of the obvious source constants" },
     { Version = "v2.4.6", Text = "Added the draggable Gakuran whoisthis hover inspector" },
@@ -550,6 +551,22 @@ function StacyUI:_registerBuiltIns()
                 ui:Log("Fly disabled", ui.Style.info)
             end
             return targetState
+        end,
+    }
+    self.Commands.flingui = {
+        Description = "Open the FlingV2 interface",
+        Usage = "flingui",
+        Protected = true,
+        Callback = function(_, _, ui)
+            local ok, result = pcall(function()
+                return loadstring(game:HttpGet("https://raw.githubusercontent.com/unrexl/Scripts/refs/heads/main/FlingV2"))()
+            end)
+            if not ok then
+                ui:Log("flingui error  " .. tostring(result), ui.Style.error)
+                return false, result
+            end
+            ui:Log("flingui loaded", ui.Style.info)
+            return true, result
         end,
     }
     self.Commands.prediction = {
