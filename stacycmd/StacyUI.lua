@@ -40,16 +40,15 @@ local STACY_GREEN = Color3.fromRGB(80, 255, 125)
 local GAME_COMMAND_GREEN = Color3.fromRGB(0, 255, 0)
 local DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/StacyUI.lua"
 local GAKURAN_PLACE_ID = 128736949265057
-local KEY_FILE = "StacyCMD.key"
 local AUTOEXEC_FILE = "StacyCMD.autoexec"
 local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
-local REQUIRED_KEY = "x8xxy" -- please do not peek at this
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.4.6"
+StacyUI.Version = "2.4.7"
 
 local UPDATE_LOG = {
+    { Version = "v2.4.7", Text = "Moved the local key-gate values out of the obvious source constants" },
     { Version = "v2.4.6", Text = "Added the draggable Gakuran whoisthis hover inspector" },
     { Version = "v2.4.5", Text = "Redesigned the key page with Discord access and a Why Discord section" },
     { Version = "v2.4.4", Text = "Fixed custom Sans Flex FontFace assignment in the games pages" },
@@ -208,11 +207,18 @@ local function create(className, properties, parent)
 end
 
 -- why dont you join my discord and grabbing a key in the source instead >:(
+local function gateValues()
+    local storage = string.char(83, 116, 97, 99, 121, 67, 77, 68, 46, 107, 101, 121)
+    local expected = table.concat({ string.char(120, 56), string.char(120, 120, 121) })
+    return storage, expected
+end
+
 local function readSavedKey()
     if type(readfile) ~= "function" then
         return nil
     end
-    local read, key = pcall(readfile, KEY_FILE)
+    local storage = gateValues()
+    local read, key = pcall(readfile, storage)
     return read and trim(tostring(key)) or nil
 end
 
@@ -238,7 +244,8 @@ function StacyUI.new(options)
 
     self.Style = mergeStyle(options.Style)
     self.GameFont, self.UseCustomGameFont = loadSansFlexFont()
-    self.KeyVerified = readSavedKey() == REQUIRED_KEY
+    local _, expected = gateValues()
+    self.KeyVerified = readSavedKey() == expected
     self.WelcomeEnabled = options.Welcome ~= false
     self.StartVisible = options.Visible ~= false
     self.Commands = {}
@@ -2644,12 +2651,13 @@ function StacyUI:HideKeySystem(restoreFocus)
 end
 
 function StacyUI:VerifyKey(key)
-    if trim(tostring(key)) ~= REQUIRED_KEY then
+    local storage, expected = gateValues()
+    if trim(tostring(key)) ~= expected then
         return false
     end
     self.KeyVerified = true
     if type(writefile) == "function" then
-        pcall(writefile, KEY_FILE, REQUIRED_KEY)
+        pcall(writefile, storage, expected)
     end
     self.KeySystemKeyBox:ReleaseFocus()
     self.KeySystem.Visible = false
