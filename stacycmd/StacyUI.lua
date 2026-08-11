@@ -47,9 +47,10 @@ local REQUIRED_KEY = "x8xxy" -- please do not peek at this
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.4.5"
+StacyUI.Version = "2.4.6"
 
 local UPDATE_LOG = {
+    { Version = "v2.4.6", Text = "Added the draggable Gakuran whoisthis hover inspector" },
     { Version = "v2.4.5", Text = "Redesigned the key page with Discord access and a Why Discord section" },
     { Version = "v2.4.4", Text = "Fixed custom Sans Flex FontFace assignment in the games pages" },
     { Version = "v2.4.3", Text = "Added serverhop and shop commands for finding a new public server" },
@@ -422,6 +423,17 @@ function StacyUI:_registerBuiltIns()
         end,
     }
     if self.IsGakuranGame then
+        self.Commands.whoisthis = {
+            Description = "Hover a player to see their Gakuran, username, and display name",
+            Usage = "whoisthis",
+            GameSpecific = true,
+            HighlightLime = true,
+            Protected = true,
+            Callback = function(_, _, ui)
+                ui:ShowWhoIsThis()
+                return true
+            end,
+        }
         self.Commands.legacyto = {
             Description = "Restore username and display-name teleporting for this session",
             Usage = "legacyto",
@@ -1640,6 +1652,7 @@ function StacyUI:_build(options)
     self:_buildUpdateLog()
     self:_buildSettings()
     self:_buildKeySystem()
+    self:_buildWhoIsThis()
     self:_updatePromptBounds()
 
     self:_connect(self.PrefixLabel:GetPropertyChangedSignal("TextBounds"), function()
@@ -2067,6 +2080,130 @@ function StacyUI:_applyGameFont(object)
         object.Font = self.GameFont
     end
     return object
+end
+
+function StacyUI:_buildWhoIsThis()
+    local style = self.Style
+    self.WhoIsThis = create("Frame", {
+        Name = "WhoIsThis", AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(32, 160),
+        Size = UDim2.fromOffset(335, 184), BackgroundColor3 = Color3.fromRGB(16, 16, 19),
+        BorderSizePixel = 0, Visible = false, Active = true, ZIndex = 60,
+    }, self.Gui)
+    create("UICorner", { CornerRadius = UDim.new(0, 8) }, self.WhoIsThis)
+    create("UIStroke", { Color = STACY_GREEN, Transparency = 0.35, Thickness = 1 }, self.WhoIsThis)
+    local header = create("Frame", {
+        Name = "Header", Active = true, BackgroundColor3 = Color3.fromRGB(28, 28, 33),
+        BorderSizePixel = 0, Size = UDim2.new(1, 0, 0, 44), ZIndex = 61,
+    }, self.WhoIsThis)
+    create("UICorner", { CornerRadius = UDim.new(0, 8) }, header)
+    create("Frame", { BackgroundColor3 = Color3.fromRGB(28, 28, 33), BorderSizePixel = 0, Position = UDim2.new(0, 0, 1, -8), Size = UDim2.new(1, 0, 0, 8), ZIndex = 61 }, header)
+    create("TextLabel", {
+        BackgroundTransparency = 1, Font = Enum.Font.Bodoni, RichText = true,
+        Text = 'Stacy <font color="#50FF7D">CMD</font>', TextColor3 = style.text, TextSize = 21,
+        TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(14, 5), Size = UDim2.fromOffset(140, 28), ZIndex = 62,
+    }, header)
+    create("TextLabel", {
+        BackgroundTransparency = 1, Font = style.fontMono, Text = "WHO IS THIS", TextColor3 = STACY_GREEN,
+        TextSize = 10, TextXAlignment = Enum.TextXAlignment.Left, Position = UDim2.fromOffset(156, 14), Size = UDim2.fromOffset(100, 18), ZIndex = 62,
+    }, header)
+    local close = create("TextButton", {
+        AutoButtonColor = false, BackgroundTransparency = 1, Font = style.fontMono, Text = "X", TextColor3 = style.muted,
+        TextSize = 15, Position = UDim2.new(1, -38, 0, 6), Size = UDim2.fromOffset(30, 30), ZIndex = 62,
+    }, header)
+    self.WhoIsThisHint = create("TextLabel", {
+        BackgroundTransparency = 1, Font = self.GameFont, Text = "Move your cursor over a player", TextColor3 = style.muted,
+        TextSize = 16, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
+        Position = UDim2.fromOffset(16, 58), Size = UDim2.new(1, -32, 0, 108), ZIndex = 61,
+    }, self.WhoIsThis)
+    self.WhoIsThisDetails = create("TextLabel", {
+        BackgroundTransparency = 1, Font = self.GameFont, RichText = true, TextColor3 = style.text,
+        TextSize = 16, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+        Visible = false, Position = UDim2.fromOffset(18, 56), Size = UDim2.new(1, -36, 0, 112), ZIndex = 61,
+    }, self.WhoIsThis)
+    local dragging, dragStart, startPosition
+    self:_connect(header.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPosition = self.WhoIsThis.Position
+        end
+    end)
+    self:_connect(header.InputEnded, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+    self:_connect(UserInputService.InputChanged, function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            self.WhoIsThis.Position = UDim2.new(startPosition.X.Scale, startPosition.X.Offset + delta.X, startPosition.Y.Scale, startPosition.Y.Offset + delta.Y)
+        end
+    end)
+    self:_connect(close.MouseButton1Click, function() self:HideWhoIsThis() end)
+end
+
+function StacyUI:_getPlayerUnderCursor()
+    local camera = workspace.CurrentCamera
+    if not camera then
+        return nil
+    end
+    local cursor = UserInputService:GetMouseLocation()
+    local ray = camera:ViewportPointToRay(cursor.X, cursor.Y)
+    local parameters = RaycastParams.new()
+    parameters.FilterType = Enum.RaycastFilterType.Exclude
+    parameters.FilterDescendantsInstances = self.Speaker.Character and { self.Speaker.Character } or {}
+    local hit = workspace:Raycast(ray.Origin, ray.Direction * 2000, parameters)
+    local instance = hit and hit.Instance
+    if not instance then
+        return nil
+    end
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player.Character and instance:IsDescendantOf(player.Character) then
+            return player
+        end
+    end
+    return nil
+end
+
+function StacyUI:_refreshWhoIsThis()
+    if self.Destroyed or not self.WhoIsThis or not self.WhoIsThis.Visible then
+        return
+    end
+    local player = self:_getPlayerUnderCursor()
+    if not player then
+        self.WhoIsThisHint.Visible = true
+        self.WhoIsThisDetails.Visible = false
+        return
+    end
+    local billboard = player.Character and player.Character:FindFirstChild("PlayerInfoBillboard")
+    local info = billboard and billboard:FindFirstChild("Info")
+    local gakuranName = info and info.Text or "Unavailable"
+    self.WhoIsThisHint.Visible = false
+    self.WhoIsThisDetails.Visible = true
+    self.WhoIsThisDetails.Text = '<font color="#50FF7D">GAKURAN NAME</font>\n' .. gakuranName .. '\n\n<font color="#A0A0A0">USERNAME</font>\n@' .. player.Name .. '\n\n<font color="#A0A0A0">DISPLAY NAME</font>\n' .. player.DisplayName
+end
+
+function StacyUI:ShowWhoIsThis()
+    if not self.IsGakuranGame then
+        self:Log("whoisthis is only available in Gakuran", self.Style.warn)
+        return self
+    end
+    self.WhoIsThis.Visible = true
+    self:HideCommands(false)
+    task.spawn(function()
+        while not self.Destroyed and self.WhoIsThis and self.WhoIsThis.Visible do
+            self:_refreshWhoIsThis()
+            task.wait(0.1)
+        end
+    end)
+    return self
+end
+
+function StacyUI:HideWhoIsThis()
+    if self.WhoIsThis then
+        self.WhoIsThis.Visible = false
+    end
+    return self
 end
 
 function StacyUI:_buildGames()
