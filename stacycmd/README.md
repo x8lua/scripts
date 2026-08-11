@@ -71,7 +71,7 @@ Press `;` to open or refocus the command bar without closing it. It closes after
 
 `to random` teleports to a random available player other than the local player.
 
-`whoisthis` opens a draggable Gakuran inspector. Move the cursor over another player's character to see their Gakuran name, username, and display name.
+`whoisthis` opens a draggable Gakuran inspector. It selects the visible player closest to the cursor without requiring the cursor to touch their model, then shows their Gakuran name, username, and display name.
 
 `legacyto` restores username and display-name matching for the current session. `gamecmds` opens the searchable command browser filtered to active game-specific commands, with command names shown in lime green.
 

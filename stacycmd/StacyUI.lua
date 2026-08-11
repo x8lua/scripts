@@ -45,9 +45,10 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.4.7"
+StacyUI.Version = "2.4.8"
 
 local UPDATE_LOG = {
+    { Version = "v2.4.8", Text = "Changed whoisthis to select the player closest to the cursor" },
     { Version = "v2.4.7", Text = "Moved the local key-gate values out of the obvious source constants" },
     { Version = "v2.4.6", Text = "Added the draggable Gakuran whoisthis hover inspector" },
     { Version = "v2.4.5", Text = "Redesigned the key page with Discord access and a Why Discord section" },
@@ -2118,7 +2119,7 @@ function StacyUI:_buildWhoIsThis()
         TextSize = 15, Position = UDim2.new(1, -38, 0, 6), Size = UDim2.fromOffset(30, 30), ZIndex = 62,
     }, header)
     self.WhoIsThisHint = create("TextLabel", {
-        BackgroundTransparency = 1, Font = self.GameFont, Text = "Move your cursor over a player", TextColor3 = style.muted,
+        BackgroundTransparency = 1, Font = self.GameFont, Text = "Move your cursor near a player", TextColor3 = style.muted,
         TextSize = 16, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
         Position = UDim2.fromOffset(16, 58), Size = UDim2.new(1, -32, 0, 108), ZIndex = 61,
     }, self.WhoIsThis)
@@ -2155,21 +2156,25 @@ function StacyUI:_getPlayerUnderCursor()
         return nil
     end
     local cursor = UserInputService:GetMouseLocation()
-    local ray = camera:ViewportPointToRay(cursor.X, cursor.Y)
-    local parameters = RaycastParams.new()
-    parameters.FilterType = Enum.RaycastFilterType.Exclude
-    parameters.FilterDescendantsInstances = self.Speaker.Character and { self.Speaker.Character } or {}
-    local hit = workspace:Raycast(ray.Origin, ray.Direction * 2000, parameters)
-    local instance = hit and hit.Instance
-    if not instance then
-        return nil
-    end
+    local closestPlayer
+    local closestDistance = math.huge
     for _, player in ipairs(Players:GetPlayers()) do
-        if player.Character and instance:IsDescendantOf(player.Character) then
-            return player
+        if player ~= self.Speaker then
+            local character = player.Character
+            local target = character and (character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart"))
+            if target then
+                local screenPoint, visible = camera:WorldToViewportPoint(target.Position)
+                if visible and screenPoint.Z > 0 then
+                    local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - cursor).Magnitude
+                    if distance < closestDistance then
+                        closestDistance = distance
+                        closestPlayer = player
+                    end
+                end
+            end
         end
     end
-    return nil
+    return closestPlayer
 end
 
 function StacyUI:_refreshWhoIsThis()
