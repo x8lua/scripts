@@ -47,6 +47,8 @@ The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` 
 
 StacyCMD requires the local key `x8xxy` before loading. It reads `StacyCMD.key` through `readfile`; entering the correct key in `keysystem` writes that file through `writefile` when available.
 
+The key page includes a copyable Discord invite (`https://discord.gg/WM7RyD7Znn`) for getting a key, with no ad-key system or redirect pages. Its expandable `Why Discord?` section explains how to join the community, share feedback, and suggest features or games.
+
 `games` opens the dark supported-games browser with Roblox thumbnails and icons. Larpkuran runs `gakuran_fling.lua`; when launched outside its supported place, StacyCMD warns that it might not work. `placeholder` intentionally produces a runtime nil-call error followed by a randomized compatibility remark in the console. The detail page's `AUTOEXEC ON` button saves the selected game in `StacyCMD.autoexec` and runs it on the next StacyCMD load; click it again to turn autoexec off.
 
 Games typography loads `SansFlex.ttf` through `getcustomasset` and a generated font-family JSON when executor file APIs are available, then assigns the resulting object through `FontFace`. It falls back to BuilderSans or Gotham when that local font file is unavailable.
