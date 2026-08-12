@@ -43,7 +43,7 @@ Set `Usage` on a command to show its syntax in autocomplete suggestions, for exa
 
 The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ServerHop` `ShowWhoIsThis` `HideWhoIsThis` `ShowGameCommands` `ShowGames` `ShowGameDetail` `ExecuteGameScript` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
-The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `flingui` `prediction` `lagdetection` `rejoin` `serverhop` `shop` `sudoaptupdate` and `ctrlc`. `legacyto` and `whoisthis` are also available in the supported Gakuran game.
+The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `flingui` `prediction` `lagdetection` `rejoin` `serverhop` `shop` `sudoaptupdate` and `ctrlc`. `autorevive`, `legacyto`, and `whoisthis` are also available in the supported Gakuran game.
 
 `flingui` loads the FlingV2 interface from the configured FlingV2 source URL.
 
@@ -74,6 +74,8 @@ Press `;` to open or refocus the command bar without closing it. It closes after
 `to random` teleports to a random available player other than the local player.
 
 `whoisthis` opens a draggable Gakuran inspector. It selects the visible player closest to the cursor without requiring the cursor to touch their model, then shows their Gakuran name, username, and display name.
+
+`autorevive` is a one-way Gakuran command for the current executor session. It revives the local humanoid, clears game death effects, and replaces the reset callback with a forced revive flow. Reload the executor session to clear it.
 
 `legacyto` restores username and display-name matching for the current session. `gamecmds` opens the searchable command browser filtered to active game-specific commands, with command names shown in lime green.
 

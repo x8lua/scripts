@@ -7,6 +7,7 @@ local Stats = game:GetService("Stats")
 local TeleportService = game:GetService("TeleportService")
 local SoundService = game:GetService("SoundService")
 local HttpService = game:GetService("HttpService")
+local StarterGui = game:GetService("StarterGui")
 
 local function loadSansFlexFont()
     local customFont
@@ -45,9 +46,10 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.4.9"
+StacyUI.Version = "2.5.0"
 
 local UPDATE_LOG = {
+    { Version = "v2.5.0", Text = "Added the one-way Gakuran autorevive command" },
     { Version = "v2.4.9", Text = "Added the regular flingui loader command" },
     { Version = "v2.4.8", Text = "Changed whoisthis to select the player closest to the cursor" },
     { Version = "v2.4.7", Text = "Moved the local key-gate values out of the obvious source constants" },
@@ -432,6 +434,22 @@ function StacyUI:_registerBuiltIns()
         end,
     }
     if self.IsGakuranGame then
+        self.Commands.autorevive = {
+            Description = "Permanently enable automatic revive and death-screen cleanup this session",
+            Usage = "autorevive",
+            GameSpecific = true,
+            HighlightLime = true,
+            Protected = true,
+            Callback = function(_, _, ui)
+                local enabled, reason = ui:EnableAutoRevive()
+                if not enabled then
+                    ui:Log("autorevive  " .. tostring(reason), ui.Style.warn)
+                    return false, reason
+                end
+                ui:Log("autorevive enabled for this executor session", GAME_COMMAND_GREEN)
+                return true
+            end,
+        }
         self.Commands.whoisthis = {
             Description = "Hover a player to see their Gakuran, username, and display name",
             Usage = "whoisthis",
@@ -775,6 +793,114 @@ function StacyUI:ViewPlayer(input)
     camera.CameraSubject = humanoid
     self:Log(target == self.Speaker and "Viewing your own character" or "Viewing " .. target.Name, self.Style.info)
     return true, target
+end
+
+function StacyUI:EnableAutoRevive()
+    local env = getgenv()
+    if env.__STACYCMD_AUTO_REVIVE_ACTIVE then
+        return false, "already enabled; reload the executor session to clear it"
+    end
+
+    local player = self.Speaker
+    local activeCharacter
+    local resetRequested = false
+    local respawnDeadline = 0
+
+    local function clearScreenEffects()
+        local playerGui = player:FindFirstChildOfClass("PlayerGui")
+        local deathUI = playerGui and playerGui:FindFirstChild("DeathUI")
+        if deathUI then
+            deathUI:Destroy()
+        end
+        local healthUI = playerGui and playerGui:FindFirstChild("HealthServiceUI")
+        if healthUI then
+            for _, name in ipairs({ "VignetteContainer", "GrippedDarkOverlay", "GrippedImpactFlash", "M2RagdollImpactFlash", "M2RagdollDarkOverlay" }) do
+                local effect = healthUI:FindFirstChild(name, true)
+                if effect and effect:IsA("GuiObject") then
+                    effect.Visible = false
+                end
+            end
+        end
+        for _, container in ipairs({ Lighting, workspace.CurrentCamera }) do
+            if container then
+                for _, effect in ipairs(container:GetChildren()) do
+                    if effect:IsA("BlurEffect") or (effect:IsA("ColorCorrectionEffect") and effect.Saturation <= 0) then
+                        effect.Enabled = false
+                    end
+                end
+            end
+        end
+    end
+
+    local function reviveHumanoid(humanoid)
+        if humanoid and humanoid.Parent and humanoid.Health <= 0 then
+            humanoid.Health = humanoid.MaxHealth
+            humanoid.PlatformStand = false
+            humanoid.AutoRotate = true
+            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+    end
+
+    local function bind(character)
+        activeCharacter = character
+        resetRequested = false
+        respawnDeadline = 0
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.HealthChanged:Connect(function(health)
+                if health <= 0 then
+                    task.defer(reviveHumanoid, humanoid)
+                end
+            end)
+        end
+        clearScreenEffects()
+    end
+
+    env.__STACYCMD_AUTO_REVIVE_ACTIVE = true
+    player.CharacterAdded:Connect(bind)
+    if player.Character then
+        bind(player.Character)
+    end
+    RunService.Heartbeat:Connect(function()
+        clearScreenEffects()
+        local humanoid = activeCharacter and activeCharacter:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid.Health <= 0 then
+            reviveHumanoid(humanoid)
+            resetRequested = false
+            respawnDeadline = 0
+        elseif not humanoid and not resetRequested then
+            resetRequested = true
+            respawnDeadline = os.clock() + 1
+        elseif resetRequested and os.clock() >= respawnDeadline and player.Character == activeCharacter then
+            resetRequested = false
+            pcall(function()
+                player:LoadCharacter()
+            end)
+        end
+    end)
+    player:WaitForChild("PlayerGui").ChildAdded:Connect(function()
+        task.defer(clearScreenEffects)
+    end)
+    Lighting.ChildAdded:Connect(function()
+        task.defer(clearScreenEffects)
+    end)
+    pcall(function()
+        local resetEvent = Instance.new("BindableEvent")
+        resetEvent.Event:Connect(function()
+            if resetRequested then
+                return
+            end
+            resetRequested = true
+            respawnDeadline = os.clock() + 1
+            local humanoid = activeCharacter and activeCharacter:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                humanoid.Health = 0
+            end
+        end)
+        StarterGui:SetCore("ResetButtonCallback", resetEvent)
+    end)
+    clearScreenEffects()
+    return true
 end
 
 function StacyUI:ServerHop()
