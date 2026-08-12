@@ -46,9 +46,10 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.5.0"
+StacyUI.Version = "2.5.1"
 
 local UPDATE_LOG = {
+    { Version = "v2.5.1", Text = "Made recognized semicolon commands fade out immediately" },
     { Version = "v2.5.0", Text = "Added the one-way Gakuran autorevive command" },
     { Version = "v2.4.9", Text = "Added the regular flingui loader command" },
     { Version = "v2.4.8", Text = "Changed whoisthis to select the player closest to the cursor" },
@@ -3233,6 +3234,13 @@ function StacyUI:_onFocusLost(enterPressed)
             table.insert(self.History, 1, line)
             self.HistoryIndex = 0
             self:Execute(line)
+            if command and self.CommandFocusActive and not self.Destroyed then
+                self.CommandFocusActive = false
+                self.CommandFocusSession = self.CommandFocusSession + 1
+                if not self.CommandBrowser.Visible and not self.UpdateLog.Visible and not self.Settings.Visible and not self.Games.Visible and not self.GameDetail.Visible and not self.KeySystem.Visible then
+                    self:Toggle(false)
+                end
+            end
         end
         if shouldRefocus and not self.Destroyed and self.Open and not self.CommandBrowser.Visible and not self.UpdateLog.Visible and not self.Settings.Visible then
             task.defer(self.Prompt.CaptureFocus, self.Prompt)

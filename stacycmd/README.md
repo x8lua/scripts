@@ -63,7 +63,7 @@ Games typography loads `SansFlex.ttf` through `getcustomasset` and a generated f
 
 `view [player|self|random]` is a regular command that changes the camera subject. In the Gakuran place it also appears in `gamecmds` and matches Gakuran names. Use plain `view` or `view self` to restore the local character camera.
 
-Press `;` to open or refocus the command bar without closing it. It closes after 2.5 seconds of inactivity, with input and text changes resetting the timer. F1 remains the console toggle. `settings` opens the command-key configuration page.
+Press `;` to open or refocus the command bar. Recognized semicolon commands fade the console out immediately; unknown commands keep the prompt focused for correction. Inactivity still closes it after 2.5 seconds. F1 remains the console toggle. `settings` opens the command-key configuration page.
 
 `jpower [num]` sets the local character's jump power. `rejoin` reconnects to the current server instance. `serverhop` (or `shop`) finds a non-full public server that has not been visited during the current UTC hour, records it in `StacyCMD.NotSameServers.json`, and teleports there.
 
