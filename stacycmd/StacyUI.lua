@@ -8,6 +8,7 @@ local TeleportService = game:GetService("TeleportService")
 local SoundService = game:GetService("SoundService")
 local HttpService = game:GetService("HttpService")
 local StarterGui = game:GetService("StarterGui")
+local Lighting = game:GetService("Lighting")
 
 local function loadSansFlexFont()
     local customFont
@@ -46,9 +47,10 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.5.1"
+StacyUI.Version = "2.5.2"
 
 local UPDATE_LOG = {
+    { Version = "v2.5.2", Text = "Fixed autorevive death-effect cleanup service binding" },
     { Version = "v2.5.1", Text = "Made recognized semicolon commands fade out immediately" },
     { Version = "v2.5.0", Text = "Added the one-way Gakuran autorevive command" },
     { Version = "v2.4.9", Text = "Added the regular flingui loader command" },
