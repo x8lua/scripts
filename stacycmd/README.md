@@ -43,13 +43,9 @@ Set `Usage` on a command to show its syntax in autocomplete suggestions, for exa
 
 The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ServerHop` `ShowWhoIsThis` `HideWhoIsThis` `ShowGameCommands` `ShowGames` `ShowGameDetail` `ExecuteGameScript` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
-The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `flingui` `prediction` `lagdetection` `rejoin` `serverhop` `shop` `sudoaptupdate` and `ctrlc`. `autorevive`, `legacyto`, and `whoisthis` are also available in the supported Gakuran game.
+The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `flingui` `prediction` `lagdetection` `rejoin` `serverhop` `shop` `sudoaptupdate` and `ctrlc`. `autorevive`, `legacyto`, and `whoisthis` are also available in the supported Gakuran game.
 
 `flingui` loads the FlingV2 interface from the configured FlingV2 source URL.
-
-StacyCMD requires a local key before loading. It reads and persists the verified key through executor file APIs when available.
-
-The key page includes a copyable Discord invite (`https://discord.gg/WM7RyD7Znn`) for getting a key, with no ad-key system or redirect pages. Its expandable `Why Discord?` section explains how to join the community, share feedback, and suggest features or games.
 
 `games` opens the dark supported-games browser with Roblox thumbnails and icons. Larpkuran runs `gakuran_fling.lua`; when launched outside its supported place, StacyCMD warns that it might not work. `placeholder` intentionally produces a runtime nil-call error followed by a randomized compatibility remark in the console. The detail page's `AUTOEXEC ON` button saves the selected game in `StacyCMD.autoexec` and runs it on the next StacyCMD load; click it again to turn autoexec off.
 
