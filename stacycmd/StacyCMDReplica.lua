@@ -74,7 +74,7 @@ function StacyCMDReplica.new(options)
     self:_connect(self.MobileOpenButton.MouseButton1Click, function() self:FocusCommandBar() end)
     self:_connect(self.CommandBar.FocusLost, function(enterPressed) if enterPressed then self:Execute(self.CommandBar.Text) end end)
     self:_connect(UserInputService.InputBegan, function(input, processed) if not processed and input.KeyCode == Enum.KeyCode.F1 then self:Toggle() end end)
-    self:Log("StacyCMD replica loaded. Only <font color="#50FF7D">echo [text]</font> is available.")
+    self:Log('StacyCMD replica loaded. Only <font color="#50FF7D">echo [text]</font> is available.')
     return self
 end
 
@@ -93,7 +93,7 @@ end
 function StacyCMDReplica:Execute(raw)
     raw = trim(tostring(raw or ""))
     if raw == "" then return end
-    self:Log("<font color="#50FF7D">&gt;</font> " .. raw, MUTED)
+    self:Log('<font color="#50FF7D">&gt;</font> ' .. raw, MUTED)
     local command, remainder = raw:match("^(%S+)%s*(.-)$")
     command = command:lower()
     if command == "echo" then self:Log(remainder, TEXT) else self:Log("Unknown command: " .. command .. ". Available: echo [text]", ERROR) end
