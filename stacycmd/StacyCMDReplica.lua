@@ -39,7 +39,7 @@ function StacyCMDReplica.new(options)
 
     local header = create("Frame", {Name = "Header", Size = UDim2.new(1, 0, 0, 46), BackgroundColor3 = PANEL, BorderSizePixel = 0}, self.Console)
     create("Frame", {Size = UDim2.new(1, 0, 0, 1), Position = UDim2.new(0, 0, 1, -1), BackgroundColor3 = Color3.fromRGB(51, 64, 55), BorderSizePixel = 0}, header)
-    create("TextLabel", {BackgroundTransparency = 1, Position = UDim2.fromOffset(17, 0), Size = UDim2.new(1, -140, 1, 0), Font = Enum.Font.Bodoni, RichText = true, Text = "Stacy <font color="#50FF7D">CMD</font>", TextColor3 = TEXT, TextSize = 27, TextXAlignment = Enum.TextXAlignment.Left}, header)
+    create("TextLabel", {BackgroundTransparency = 1, Position = UDim2.fromOffset(17, 0), Size = UDim2.new(1, -140, 1, 0), Font = Enum.Font.Bodoni, RichText = true, Text = 'Stacy <font color="#50FF7D">CMD</font>', TextColor3 = TEXT, TextSize = 27, TextXAlignment = Enum.TextXAlignment.Left}, header)
     create("TextLabel", {BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -54, 0.5, 0), Size = UDim2.fromOffset(78, 22), Font = Enum.Font.GothamMedium, Text = "ECHO ONLY", TextColor3 = STACY_GREEN, TextSize = 10, TextXAlignment = Enum.TextXAlignment.Right}, header)
     local close = create("TextButton", {Name = "Close", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -14, 0.5, 0), Size = UDim2.fromOffset(28, 28), BackgroundColor3 = Color3.fromRGB(40, 47, 43), BorderSizePixel = 0, Font = Enum.Font.GothamBold, Text = "×", TextColor3 = TEXT, TextSize = 21}, header)
     create("UICorner", {CornerRadius = UDim.new(0, 7)}, close)
