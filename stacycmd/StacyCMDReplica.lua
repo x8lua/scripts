@@ -1,4 +1,4 @@
-﻿-- StacyCMDReplica.lua
+-- StacyCMDReplica.lua
 -- Standalone, mobile-ready StacyCMD-style console. The only command is: echo [text]
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -121,4 +121,3 @@ function StacyCMDReplica:Destroy()
 end
 
 return StacyCMDReplica
-
