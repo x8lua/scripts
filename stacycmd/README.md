@@ -96,3 +96,16 @@ Each StacyCMD release adds its newest entry at the top of the update log
 The console displays a compact Bodoni StacyCMD header with bright green CMD branding F1 state ready banner and accent matched command suggestions by default
 
 See `Example.lua` for a complete loader and command setup
+
+## Mobile echo-only replica
+
+`StacyCMDReplica.lua` is a self-contained StacyCMD-style interface for lightweight/mobile use. It deliberately supports **only** `echo [text]`; it does not load any StacyCMD built-ins. On touch devices, its round green `CMD` button is always present in the lower-right corner, including when the console is closed. Tapping it opens the console and focuses the command bar for the on-screen keyboard.
+
+```lua
+local StacyCMDReplica = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/StacyCMDReplica.lua"
+))()
+local console = StacyCMDReplica.new()
+```
+
+Use `F1` on desktop or the mobile `CMD` button to open it. `MobileReplicaExample.lua` is a ready-to-run loader.
