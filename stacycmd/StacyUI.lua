@@ -47,9 +47,10 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.5.6"
+StacyUI.Version = "2.5.7"
 
 local UPDATE_LOG = {
+    { Version = "v2.5.7", Text = "Added the persistent draggable Stacy mobile launcher to the main console" },
     { Version = "v2.5.6", Text = "Added responsive mobile scaling and rotation reflow for the main console" },
     { Version = "v2.5.5", Text = "Simplified declared command callbacks to receive arguments directly" },
     { Version = "v2.5.4", Text = "Added quoted and named argument support for registered commands" },
@@ -1837,6 +1838,7 @@ function StacyUI:_build(options)
     self:_buildUpdateLog()
     self:_buildSettings()
     self:_buildWhoIsThis()
+    self:_buildMobileOpenButton()
     self:_updatePromptBounds()
 
     self:_connect(self.PrefixLabel:GetPropertyChangedSignal("TextBounds"), function()
@@ -1869,6 +1871,88 @@ function StacyUI:_build(options)
         if self.CommandFocusActive then
             self:_scheduleCommandAutoHide()
         end
+    end)
+end
+
+function StacyUI:_buildMobileOpenButton()
+    self.MobileOpenButton = create("TextButton", {
+        Name = "MobileOpen",
+        AnchorPoint = Vector2.new(1, 1),
+        Position = UDim2.new(1, -18, 1, -18),
+        Size = UDim2.fromOffset(58, 58),
+        BackgroundColor3 = Color3.fromRGB(55, 58, 57),
+        BackgroundTransparency = 0.5,
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Font = Enum.Font.Bodoni,
+        Text = "Stacy",
+        TextColor3 = Color3.fromRGB(235, 240, 236),
+        TextSize = 14,
+        Visible = UserInputService.TouchEnabled,
+        Active = true,
+        ZIndex = 100,
+    }, self.Gui)
+    create("UICorner", { CornerRadius = UDim.new(1, 0) }, self.MobileOpenButton)
+    create("UIStroke", {
+        Color = Color3.fromRGB(175, 180, 177),
+        Transparency = 0.35,
+        Thickness = 1,
+        ZIndex = 101,
+    }, self.MobileOpenButton)
+
+    local holdToken = 0
+    local dragging = false
+    local dragInput
+    local dragStart
+    local startPosition
+    local function setDragStyle(active)
+        dragging = active
+        self.MobileOpenButton.BackgroundColor3 = active and Color3.fromRGB(35, 37, 36) or Color3.fromRGB(55, 58, 57)
+        self.MobileOpenButton.BackgroundTransparency = active and 0.25 or 0.5
+        self.MobileOpenButton.Text = active and "MOVE" or "Stacy"
+        self.MobileOpenButton.TextColor3 = active and Color3.fromRGB(150, 255, 170) or Color3.fromRGB(235, 240, 236)
+    end
+
+    self:_connect(self.MobileOpenButton.InputBegan, function(input)
+        if input.UserInputType ~= Enum.UserInputType.Touch then
+            return
+        end
+        holdToken = holdToken + 1
+        local token = holdToken
+        dragInput = input
+        dragStart = input.Position
+        startPosition = self.MobileOpenButton.Position
+        task.delay(1, function()
+            if not self.Destroyed and token == holdToken and dragStart and self.MobileOpenButton.Parent then
+                setDragStyle(true)
+            end
+        end)
+    end)
+    self:_connect(UserInputService.InputChanged, function(input)
+        if not dragging or input ~= dragInput or not dragStart then
+            return
+        end
+        local delta = input.Position - dragStart
+        self.MobileOpenButton.Position = UDim2.new(
+            startPosition.X.Scale, startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale, startPosition.Y.Offset + delta.Y
+        )
+    end)
+    self:_connect(UserInputService.InputEnded, function(input)
+        if input ~= dragInput or not dragStart then
+            return
+        end
+        holdToken = holdToken + 1
+        local moved = (input.Position - dragStart).Magnitude > 8
+        if not dragging and not moved then
+            self:FocusCommandBar()
+        end
+        if dragging then
+            setDragStyle(false)
+        end
+        dragStart = nil
+        startPosition = nil
+        dragInput = nil
     end)
 end
 

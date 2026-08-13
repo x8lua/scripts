@@ -41,6 +41,8 @@ The console opens by default after a centered full-screen StacyCMD brand intro t
 
 On touch devices, the main console automatically uses the available screen width with a mobile-safe height and updates when the device rotates. Desktop dimensions remain unchanged.
 
+The main StacyCMD UI also shows a persistent bottom-right `Stacy` launcher on touch devices. Tap it to open and focus the command bar; hold for one second to drag it.
+
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 
 Use the easy `Args` format for a command with parameters. Your callback receives those values directly, in the same order:
