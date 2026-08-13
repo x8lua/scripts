@@ -47,9 +47,10 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.5.4"
+StacyUI.Version = "2.5.5"
 
 local UPDATE_LOG = {
+    { Version = "v2.5.5", Text = "Simplified declared command callbacks to receive arguments directly" },
     { Version = "v2.5.4", Text = "Added quoted and named argument support for registered commands" },
     { Version = "v2.5.3", Text = "Removed the StacyCMD key system; the console now loads directly" },
     { Version = "v2.5.2", Text = "Fixed autorevive death-effect cleanup service binding" },
@@ -3159,7 +3160,16 @@ function StacyUI:Execute(line)
         end
     end
 
-    local ok, result = pcall(command.Callback, arguments, source, self)
+    local ok
+    local result
+    if type(command.Args) == "table" then
+        -- Declared Args use the simple callback form: function(player, cmd, time, ui).
+        local count = math.max(#arguments, #command.Args)
+        ok, result = pcall(command.Callback, table.unpack(arguments, 1, count), self, source)
+    else
+        -- Existing commands keep the original callback form: function(args, rawLine, ui).
+        ok, result = pcall(command.Callback, arguments, source, self)
+    end
     if not ok then
         self:Log("Command error  " .. tostring(result), self.Style.error)
         return false, result

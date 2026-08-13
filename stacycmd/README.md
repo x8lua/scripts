@@ -41,22 +41,22 @@ The console opens by default after a centered full-screen StacyCMD brand intro t
 
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 
-Commands receive positional values in `arguments[1]`, `arguments[2]`, and so on. Quoted values and escaped quotes are supported, so `echo "hello world"` keeps `hello world` as one argument. Register a command with `Args` to validate required values and expose named values at `arguments.Named`:
+Use the easy `Args` format for a command with parameters. Your callback receives those values directly, in the same order:
 
 ```lua
 console:Register({
-    Name = "echo",
-    Description = "Print text",
-    Args = {
-        { Name = "text", Required = true },
-    },
-    Callback = function(arguments, _, ui)
-        ui:Log(arguments.Named.text)
+    Name = "sudo",
+    Args = { "player", "cmd", "time" },
+    Callback = function(player, cmd, time, ui)
+        -- sudo x8lua fly 30
+        -- player = "x8lua"
+        -- cmd = "fly"
+        -- time = "30"
     end,
 })
 ```
 
-`Args` automatically creates usage text when `Usage` is omitted. `arguments.Raw` contains the unparsed text after the command name.
+This automatically shows `sudo [player] [cmd] [time]` in suggestions. Use `{ Name = "reason", Required = false }` for an optional argument. Quotes preserve spaces: `sudo x8lua "say hello everyone" 30`. Existing commands without `Args` keep the original callback format: `function(arguments, rawLine, ui)`.
 
 The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ServerHop` `ShowWhoIsThis` `HideWhoIsThis` `ShowGameCommands` `ShowGames` `ShowGameDetail` `ExecuteGameScript` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
