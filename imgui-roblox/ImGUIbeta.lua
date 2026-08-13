@@ -2843,6 +2843,7 @@ function xGui.CreateKeySystem(options)
     subtitleLabel.Parent = window.MainFrame
 
     local tab = window:CreateTab("Access")
+    local keyWidget
     local function checkKey(candidate, status)
         if busy then
             return
@@ -2884,22 +2885,38 @@ function xGui.CreateKeySystem(options)
         status.Text = "Status: " .. (message or "access granted")
         status.TextColor3 = Color3.fromRGB(110, 225, 140)
         task.wait(0.35)
-        if window.ScreenGui then
-            window.ScreenGui:Destroy()
+        if keyWidget then
+            keyWidget:SetState(false)
         end
+
+        for index, existingTab in ipairs(window.Tabs) do
+            if existingTab == tab then
+                table.remove(window.Tabs, index)
+                break
+            end
+        end
+        tab.Button:Destroy()
+        tab.View:Destroy()
+        heading:Destroy()
+        subtitleLabel:Destroy()
+        window.TitleBar.Visible = true
+        window.TabBar.Visible = true
+        window.ContentContainer.Position = UDim2.new(0, 5, 0, 50)
+        window.ContentContainer.Size = UDim2.new(1, -10, 1, -55)
         onSuccess(candidate)
     end
 
     local status, input, screenGui
-    tab:Script("Key Access", false, function(state)
+    keyWidget = tab:Script("Key Access", false, function(state)
         if not state then
             if screenGui then screenGui:Destroy() screenGui = nil end
             return
         end
 
         screenGui = Instance.new("ScreenGui")
+        screenGui.Size = UDim2.new(1, 0, 0, 110)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 1, 0)
+        frame.Size = UDim2.new(1, 0, 0, 104)
         frame.BackgroundTransparency = 1
         frame.Parent = screenGui
 
@@ -2941,7 +2958,9 @@ function xGui.CreateKeySystem(options)
         end)
         screenGui.Parent = game.Players.LocalPlayer.PlayerGui
     end)
+    keyWidget:SetState(true)
     window:HideTabs(true, "Access")
+    tab.Select()
 
     -- Additional tabs can be created by the caller before/after this gate:
     -- window:CreateTabs({
