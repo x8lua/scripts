@@ -576,13 +576,14 @@ function xGui.new(title, toggleKey)
 
     doSearch = function(query)
         for _, child in ipairs(resultsList:GetChildren()) do
-            if not child:IsA("UIListLayout") then child:Destroy() end
+            if not child:IsA("UIListLayout") and child ~= noResultsLbl then child:Destroy() end
         end
         if query == "" then
-            noResultsLbl.Parent = resultsList
+            noResultsLbl.Visible = true
             noResultsLbl.Text   = "Type to searchâ¦"
             return
         end
+        noResultsLbl.Visible = false
         local lq    = query:lower()
         local found = 0
         for _, tab in ipairs(self.Tabs) do
