@@ -39,6 +39,8 @@ console:Register({
 
 The console opens by default after a centered full-screen StacyCMD brand intro that shrinks directly into the aligned header title, then fades in the command UI. `IntroSize` controls the starting title, `IntroTargetSize` controls the finished header title, `IntroTargetOffset` adjusts its final X/Y position, and `IntroTweenDuration` controls the shrink time. Pass `Intro = false` to skip the intro or `Visible = false` to start hidden.
 
+On touch devices, the main console automatically uses the available screen width with a mobile-safe height and updates when the device rotates. Desktop dimensions remain unchanged.
+
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 
 Use the easy `Args` format for a command with parameters. Your callback receives those values directly, in the same order:
