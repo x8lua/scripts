@@ -11,38 +11,38 @@ local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
--- Theme Configuration (Classic Dear ImGui Theme)
+-- Theme Configuration (premium graphite)
 local Theme = {
-    WindowBg = Color3.fromRGB(23, 23, 28),         -- Dark charcoal panel background
-    WindowBorder = Color3.fromRGB(45, 45, 50),     -- Thin borders
+    WindowBg = Color3.fromRGB(18, 20, 25),
+    WindowBorder = Color3.fromRGB(54, 61, 71),
     
-    TitleBg = Color3.fromRGB(41, 74, 122),          -- Classic ImGui active title bar blue
-    TitleBgCollapsed = Color3.fromRGB(30, 30, 35),
+    TitleBg = Color3.fromRGB(28, 35, 45),
+    TitleBgCollapsed = Color3.fromRGB(22, 25, 31),
     
-    TabBg = Color3.fromRGB(30, 30, 35),
-    TabActive = Color3.fromRGB(41, 74, 122),
-    TabHovered = Color3.fromRGB(50, 50, 55),
+    TabBg = Color3.fromRGB(22, 25, 31),
+    TabActive = Color3.fromRGB(29, 110, 131),
+    TabHovered = Color3.fromRGB(38, 48, 59),
     
-    FrameBg = Color3.fromRGB(15, 15, 15),          -- Textbox/checkbox background
-    FrameBgHovered = Color3.fromRGB(25, 25, 30),
-    FrameBgActive = Color3.fromRGB(35, 35, 40),
+    FrameBg = Color3.fromRGB(13, 15, 19),
+    FrameBgHovered = Color3.fromRGB(26, 31, 38),
+    FrameBgActive = Color3.fromRGB(33, 40, 49),
     
-    ButtonBg = Color3.fromRGB(41, 74, 122),
-    ButtonBgHovered = Color3.fromRGB(51, 84, 132),
-    ButtonBgActive = Color3.fromRGB(31, 64, 112),
+    ButtonBg = Color3.fromRGB(27, 125, 148),
+    ButtonBgHovered = Color3.fromRGB(40, 151, 176),
+    ButtonBgActive = Color3.fromRGB(19, 91, 110),
     
-    SliderBg = Color3.fromRGB(41, 74, 122),
-    SliderBgHovered = Color3.fromRGB(51, 84, 132),
+    SliderBg = Color3.fromRGB(27, 125, 148),
+    SliderBgHovered = Color3.fromRGB(40, 151, 176),
     
-    TextColor = Color3.fromRGB(240, 240, 240),
-    TextDisabled = Color3.fromRGB(150, 150, 150),
+    TextColor = Color3.fromRGB(242, 246, 250),
+    TextDisabled = Color3.fromRGB(143, 154, 168),
     
     Font = Enum.Font.Code,
     TextSize = 13,
     FontFace = nil,  -- set below after table closes
 
-    HeaderBg = Color3.fromRGB(35, 40, 50),
-    HeaderHovered = Color3.fromRGB(45, 50, 60),
+    HeaderBg = Color3.fromRGB(27, 32, 40),
+    HeaderHovered = Color3.fromRGB(38, 46, 56),
 }
 
 -- Load ProggyClean.ttf via the font-family JSON trick.
@@ -200,10 +200,15 @@ function xGui.new(title, toggleKey)
     mainFrame.BorderColor3 = Theme.WindowBorder
     mainFrame.Parent = cg
     self.MainFrame = mainFrame
+
+    local mainCorner = Instance.new("UICorner")
+    mainCorner.CornerRadius = UDim.new(0, 8)
+    mainCorner.Parent = mainFrame
     
     -- Add subtle border shadow
     local borderShadow = Instance.new("UIStroke")
-    borderShadow.Color = Color3.fromRGB(0, 0, 0)
+    borderShadow.Color = Color3.fromRGB(77, 93, 108)
+    borderShadow.Transparency = 0.35
     borderShadow.Thickness = 1
     borderShadow.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     borderShadow.Parent = mainFrame
@@ -211,7 +216,7 @@ function xGui.new(title, toggleKey)
     -- Title Bar
     local titleBar = Instance.new("TextButton")
     titleBar.Name = "TitleBar"
-    titleBar.Size = UDim2.new(1, 0, 0, 22)
+    titleBar.Size = UDim2.new(1, 0, 0, 30)
     titleBar.BackgroundColor3 = Theme.TitleBg
     titleBar.BorderSizePixel = 0
     titleBar.Text = ""
@@ -222,11 +227,11 @@ function xGui.new(title, toggleKey)
     -- Title Label
     local titleLabel = Instance.new("TextLabel")
     titleLabel.Name = "TitleLabel"
-    titleLabel.Size = UDim2.new(1, -50, 1, 0)
-    titleLabel.Position = UDim2.new(0, 24, 0, 0)
+    titleLabel.Size = UDim2.new(1, -58, 1, 0)
+    titleLabel.Position = UDim2.new(0, 28, 0, 0)
     titleLabel.BackgroundTransparency = 1
     applyFont(titleLabel)
-    titleLabel.TextSize = Theme.TextSize
+    titleLabel.TextSize = Theme.TextSize + 1
     titleLabel.TextColor3 = Theme.TextColor
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
     titleLabel.Text = title
@@ -273,12 +278,16 @@ function xGui.new(title, toggleKey)
     local tabBar = Instance.new("Frame")
     tabBar.Name = "TabBar"
     tabBar.Size = UDim2.new(1, -10, 0, 22)
-    tabBar.Position = UDim2.new(0, 5, 0, 25)
-    tabBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    tabBar.Position = UDim2.new(0, 8, 0, 36)
+    tabBar.BackgroundColor3 = Color3.fromRGB(13, 15, 19)
     tabBar.BorderSizePixel = 1
     tabBar.BorderColor3 = Theme.WindowBorder
     tabBar.Parent = mainFrame
     self.TabBar = tabBar
+
+    local tabCorner = Instance.new("UICorner")
+    tabCorner.CornerRadius = UDim.new(0, 5)
+    tabCorner.Parent = tabBar
     
     local tabLayout = Instance.new("UIListLayout")
     tabLayout.FillDirection = Enum.FillDirection.Horizontal
@@ -2815,16 +2824,16 @@ function xGui.CreateKeySystem(options)
     window.CanvasGroup.Position = UDim2.new(0.5, -280, 0.5, -160)
     window.TitleBar.Visible = false
     window.TabBar.Visible = false
-    window.ContentContainer.Position = UDim2.new(0, 18, 0, 88)
-    window.ContentContainer.Size = UDim2.new(1, -36, 1, -106)
+    window.ContentContainer.Position = UDim2.new(0, 28, 0, 112)
+    window.ContentContainer.Size = UDim2.new(1, -56, 1, -136)
 
     local heading = Instance.new("TextLabel")
     heading.Name = "KeySystemHeading"
-    heading.Size = UDim2.new(1, -36, 0, 44)
-    heading.Position = UDim2.new(0, 18, 0, 16)
+    heading.Size = UDim2.new(1, -56, 0, 46)
+    heading.Position = UDim2.new(0, 28, 0, 22)
     heading.BackgroundTransparency = 1
     heading.Font = Enum.Font.Code
-    heading.TextSize = 30
+    heading.TextSize = 32
     heading.TextColor3 = Color3.fromRGB(240, 240, 240)
     heading.TextXAlignment = Enum.TextXAlignment.Left
     heading.Text = title
@@ -2832,8 +2841,8 @@ function xGui.CreateKeySystem(options)
 
     local subtitleLabel = Instance.new("TextLabel")
     subtitleLabel.Name = "KeySystemSubtitle"
-    subtitleLabel.Size = UDim2.new(1, -36, 0, 20)
-    subtitleLabel.Position = UDim2.new(0, 18, 0, 56)
+    subtitleLabel.Size = UDim2.new(1, -56, 0, 20)
+    subtitleLabel.Position = UDim2.new(0, 28, 0, 68)
     subtitleLabel.BackgroundTransparency = 1
     subtitleLabel.Font = Enum.Font.Code
     subtitleLabel.TextSize = 14
@@ -2917,11 +2926,22 @@ function xGui.CreateKeySystem(options)
         screenGui.Size = UDim2.new(1, 0, 0, 110)
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 0, 104)
-        frame.BackgroundTransparency = 1
+        frame.BackgroundColor3 = Color3.fromRGB(22, 26, 33)
+        frame.BackgroundTransparency = 0
         frame.Parent = screenGui
 
+        local frameCorner = Instance.new("UICorner")
+        frameCorner.CornerRadius = UDim.new(0, 6)
+        frameCorner.Parent = frame
+
+        local frameStroke = Instance.new("UIStroke")
+        frameStroke.Color = Color3.fromRGB(50, 62, 75)
+        frameStroke.Transparency = 0.25
+        frameStroke.Parent = frame
+
         status = Instance.new("TextLabel")
-        status.Size = UDim2.new(1, 0, 0, 20)
+        status.Size = UDim2.new(1, -24, 0, 20)
+        status.Position = UDim2.new(0, 12, 0, 9)
         status.BackgroundTransparency = 1
         status.Font = Enum.Font.Code
         status.TextSize = 14
@@ -2931,8 +2951,8 @@ function xGui.CreateKeySystem(options)
         status.Parent = frame
 
         input = Instance.new("TextBox")
-        input.Size = UDim2.new(1, 0, 0, 30)
-        input.Position = UDim2.new(0, 0, 0, 28)
+        input.Size = UDim2.new(1, -24, 0, 32)
+        input.Position = UDim2.new(0, 12, 0, 34)
         input.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
         input.BorderSizePixel = 1
         input.TextColor3 = Color3.fromRGB(240, 240, 240)
@@ -2942,16 +2962,26 @@ function xGui.CreateKeySystem(options)
         input.ClearTextOnFocus = false
         input.Parent = frame
 
+        local inputCorner = Instance.new("UICorner")
+        inputCorner.CornerRadius = UDim.new(0, 5)
+        inputCorner.Parent = input
+
         local unlock = Instance.new("TextButton")
-        unlock.Size = UDim2.new(0, 110, 0, 28)
-        unlock.Position = UDim2.new(0, 0, 0, 66)
-        unlock.BackgroundColor3 = Color3.fromRGB(41, 74, 122)
+        unlock.Size = UDim2.new(0, 132, 0, 28)
+        unlock.Position = UDim2.new(0, 12, 0, 72)
+        unlock.BackgroundColor3 = Theme.ButtonBg
         unlock.BorderSizePixel = 1
         unlock.TextColor3 = Color3.fromRGB(240, 240, 240)
         unlock.Font = Enum.Font.Code
         unlock.TextSize = 14
         unlock.Text = "Unlock"
         unlock.Parent = frame
+
+        local unlockCorner = Instance.new("UICorner")
+        unlockCorner.CornerRadius = UDim.new(0, 5)
+        unlockCorner.Parent = unlock
+        unlock.MouseEnter:Connect(function() unlock.BackgroundColor3 = Theme.ButtonBgHovered end)
+        unlock.MouseLeave:Connect(function() unlock.BackgroundColor3 = Theme.ButtonBg end)
         unlock.MouseButton1Click:Connect(function() checkKey(input.Text, status) end)
         input.FocusLost:Connect(function(enterPressed)
             if enterPressed then checkKey(input.Text, status) end
