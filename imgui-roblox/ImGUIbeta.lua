@@ -2890,9 +2890,20 @@ function xGui.CreateKeySystem(options)
         onSuccess(candidate)
     end
 
-    tab:Script("Key Access", true, function(state, surface)
-        if not state then return end
-        local status = Instance.new("TextLabel")
+    local status, input, screenGui
+    tab:Script("Key Access", false, function(state)
+        if not state then
+            if screenGui then screenGui:Destroy() screenGui = nil end
+            return
+        end
+
+        screenGui = Instance.new("ScreenGui")
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(1, 0, 1, 0)
+        frame.BackgroundTransparency = 1
+        frame.Parent = screenGui
+
+        status = Instance.new("TextLabel")
         status.Size = UDim2.new(1, 0, 0, 20)
         status.BackgroundTransparency = 1
         status.Font = Enum.Font.Code
@@ -2900,10 +2911,11 @@ function xGui.CreateKeySystem(options)
         status.TextColor3 = Color3.fromRGB(150, 150, 150)
         status.TextXAlignment = Enum.TextXAlignment.Left
         status.Text = "Status: waiting for a key"
-        status.Parent = surface
+        status.Parent = frame
 
-        local input = Instance.new("TextBox")
+        input = Instance.new("TextBox")
         input.Size = UDim2.new(1, 0, 0, 30)
+        input.Position = UDim2.new(0, 0, 0, 28)
         input.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
         input.BorderSizePixel = 1
         input.TextColor3 = Color3.fromRGB(240, 240, 240)
@@ -2911,22 +2923,23 @@ function xGui.CreateKeySystem(options)
         input.TextSize = 14
         input.PlaceholderText = "Enter access key..."
         input.ClearTextOnFocus = false
-        input.Text = ""
-        input.Parent = surface
+        input.Parent = frame
 
         local unlock = Instance.new("TextButton")
         unlock.Size = UDim2.new(0, 110, 0, 28)
+        unlock.Position = UDim2.new(0, 0, 0, 66)
         unlock.BackgroundColor3 = Color3.fromRGB(41, 74, 122)
         unlock.BorderSizePixel = 1
         unlock.TextColor3 = Color3.fromRGB(240, 240, 240)
         unlock.Font = Enum.Font.Code
         unlock.TextSize = 14
         unlock.Text = "Unlock"
-        unlock.Parent = surface
+        unlock.Parent = frame
         unlock.MouseButton1Click:Connect(function() checkKey(input.Text, status) end)
         input.FocusLost:Connect(function(enterPressed)
             if enterPressed then checkKey(input.Text, status) end
         end)
+        screenGui.Parent = game.Players.LocalPlayer.PlayerGui
     end)
     window:HideTabs(true, "Access")
 
