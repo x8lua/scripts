@@ -47,9 +47,10 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.5.3"
+StacyUI.Version = "2.5.4"
 
 local UPDATE_LOG = {
+    { Version = "v2.5.4", Text = "Added quoted and named argument support for registered commands" },
     { Version = "v2.5.3", Text = "Removed the StacyCMD key system; the console now loads directly" },
     { Version = "v2.5.2", Text = "Fixed autorevive death-effect cleanup service binding" },
     { Version = "v2.5.1", Text = "Made recognized semicolon commands fade out immediately" },
@@ -149,6 +150,65 @@ local function splitWords(value)
         table.insert(words, word)
     end
     return words
+end
+
+local function parseArguments(value)
+    local arguments = {}
+    local index = 1
+    local length = #value
+
+    while index <= length do
+        while index <= length and value:sub(index, index):match("%s") do
+            index = index + 1
+        end
+        if index > length then
+            break
+        end
+
+        local quote = value:sub(index, index)
+        local quoted = quote == '"' or quote == "'"
+        if quoted then
+            index = index + 1
+        end
+
+        local buffer = {}
+        while index <= length do
+            local character = value:sub(index, index)
+            if character == "\\" and index < length then
+                table.insert(buffer, value:sub(index + 1, index + 1))
+                index = index + 2
+            elseif quoted and character == quote then
+                index = index + 1
+                break
+            elseif not quoted and character:match("%s") then
+                break
+            else
+                table.insert(buffer, character)
+                index = index + 1
+            end
+        end
+        table.insert(arguments, table.concat(buffer))
+
+        while index <= length and value:sub(index, index):match("%s") do
+            index = index + 1
+        end
+    end
+
+    return arguments
+end
+
+local function usageFromArgs(name, definitions)
+    if type(definitions) ~= "table" or #definitions == 0 then
+        return name
+    end
+
+    local parts = { name }
+    for _, definition in ipairs(definitions) do
+        local argumentName = type(definition) == "table" and definition.Name or tostring(definition)
+        local required = type(definition) ~= "table" or definition.Required ~= false
+        table.insert(parts, required and "[" .. argumentName .. "]" or "<" .. argumentName .. ">")
+    end
+    return table.concat(parts, " ")
 end
 
 local function findPlayerByGameName(input)
@@ -3053,7 +3113,8 @@ function StacyUI:Register(definition)
 
     self.Commands[definition.Name] = {
         Description = definition.Description or "No description available",
-        Usage = definition.Usage or definition.Name,
+        Usage = definition.Usage or usageFromArgs(definition.Name, definition.Args),
+        Args = definition.Args,
         GameSpecific = definition.GameSpecific == true,
         HighlightLime = definition.HighlightLime == true or definition.GameSpecific == true,
         Callback = definition.Callback,
@@ -3068,7 +3129,8 @@ function StacyUI:Unregister(name)
 end
 
 function StacyUI:Execute(line)
-    local arguments = splitWords(trim(line))
+    local source = trim(line)
+    local arguments = parseArguments(source)
     local name = table.remove(arguments, 1)
     if not name then
         return false, "empty command"
@@ -3081,7 +3143,23 @@ function StacyUI:Execute(line)
         return false, message
     end
 
-    local ok, result = pcall(command.Callback, arguments, line, self)
+    arguments.Raw = source:match("^%S+%s*(.*)$") or ""
+    arguments.Named = {}
+    if type(command.Args) == "table" then
+        for index, definition in ipairs(command.Args) do
+            local argumentName = type(definition) == "table" and definition.Name or tostring(definition)
+            local required = type(definition) ~= "table" or definition.Required ~= false
+            local value = arguments[index]
+            if required and (value == nil or value == "") then
+                local message = ('Missing argument "%s". Usage: %s'):format(argumentName, command.Usage)
+                self:Log(message, self.Style.error)
+                return false, message
+            end
+            arguments.Named[argumentName] = value
+        end
+    end
+
+    local ok, result = pcall(command.Callback, arguments, source, self)
     if not ok then
         self:Log("Command error  " .. tostring(result), self.Style.error)
         return false, result

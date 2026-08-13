@@ -41,6 +41,23 @@ The console opens by default after a centered full-screen StacyCMD brand intro t
 
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
 
+Commands receive positional values in `arguments[1]`, `arguments[2]`, and so on. Quoted values and escaped quotes are supported, so `echo "hello world"` keeps `hello world` as one argument. Register a command with `Args` to validate required values and expose named values at `arguments.Named`:
+
+```lua
+console:Register({
+    Name = "echo",
+    Description = "Print text",
+    Args = {
+        { Name = "text", Required = true },
+    },
+    Callback = function(arguments, _, ui)
+        ui:Log(arguments.Named.text)
+    end,
+})
+```
+
+`Args` automatically creates usage text when `Usage` is omitted. `arguments.Raw` contains the unparsed text after the command name.
+
 The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ServerHop` `ShowWhoIsThis` `HideWhoIsThis` `ShowGameCommands` `ShowGames` `ShowGameDetail` `ExecuteGameScript` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
 The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `flingui` `prediction` `lagdetection` `rejoin` `serverhop` `shop` `sudoaptupdate` and `ctrlc`. `autorevive`, `legacyto`, and `whoisthis` are also available in the supported Gakuran game.
