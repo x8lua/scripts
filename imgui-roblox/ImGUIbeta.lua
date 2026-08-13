@@ -268,8 +268,8 @@ function xGui.new(title, toggleKey)
     -- Content Container (Holds Tabs & Options)
     local contentContainer = Instance.new("Frame")
     contentContainer.Name = "ContentContainer"
-    contentContainer.Size = UDim2.new(1, -10, 1, -55)
-    contentContainer.Position = UDim2.new(0, 5, 0, 50)
+    contentContainer.Size = UDim2.new(1, -32, 1, -88)
+    contentContainer.Position = UDim2.new(0, 16, 0, 76)
     contentContainer.BackgroundTransparency = 1
     contentContainer.Parent = mainFrame
     self.ContentContainer = contentContainer
@@ -277,8 +277,8 @@ function xGui.new(title, toggleKey)
     -- Tab Selection Bar
     local tabBar = Instance.new("Frame")
     tabBar.Name = "TabBar"
-    tabBar.Size = UDim2.new(1, -10, 0, 22)
-    tabBar.Position = UDim2.new(0, 8, 0, 36)
+    tabBar.Size = UDim2.new(1, -32, 0, 30)
+    tabBar.Position = UDim2.new(0, 16, 0, 38)
     tabBar.BackgroundColor3 = Color3.fromRGB(13, 15, 19)
     tabBar.BorderSizePixel = 1
     tabBar.BorderColor3 = Theme.WindowBorder
@@ -292,7 +292,7 @@ function xGui.new(title, toggleKey)
     local tabLayout = Instance.new("UIListLayout")
     tabLayout.FillDirection = Enum.FillDirection.Horizontal
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabLayout.Padding = UDim.new(0, 2)
+    tabLayout.Padding = UDim.new(0, 5)
     tabLayout.Parent = tabBar
     
     -- Window Collapse Functionality
@@ -820,8 +820,8 @@ function xGui:CreateTab(name)
     -- Tab Header Button
     local tabButton = Instance.new("TextButton")
     tabButton.Name = name .. "_Tab"
-    tabButton.Size = UDim2.new(0, 75, 1, -2)
-    tabButton.Position = UDim2.new(0, 0, 0, 1)
+    tabButton.Size = UDim2.new(0, 75, 1, -6)
+    tabButton.Position = UDim2.new(0, 0, 0, 3)
     tabButton.BackgroundColor3 = Theme.TabBg
     tabButton.BorderSizePixel = 0
     applyFont(tabButton)
@@ -829,6 +829,10 @@ function xGui:CreateTab(name)
     tabButton.TextColor3 = Theme.TextColor
     tabButton.Text = name
     tabButton.Parent = self.TabBar
+
+    local tabButtonCorner = Instance.new("UICorner")
+    tabButtonCorner.CornerRadius = UDim.new(0, 5)
+    tabButtonCorner.Parent = tabButton
     
     -- Tab View Panel (Holds widgets)
     local tabView = Instance.new("ScrollingFrame")
@@ -846,19 +850,19 @@ function xGui:CreateTab(name)
     
     local viewLayout = Instance.new("UIListLayout")
     viewLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    viewLayout.Padding = UDim.new(0, 6)
+    viewLayout.Padding = UDim.new(0, 10)
     viewLayout.Parent = tabView
     
     local viewPadding = Instance.new("UIPadding")
-    viewPadding.PaddingLeft = UDim.new(0, 4)
+    viewPadding.PaddingLeft = UDim.new(0, 2)
     viewPadding.PaddingRight = UDim.new(0, 8)
-    viewPadding.PaddingTop = UDim.new(0, 4)
-    viewPadding.PaddingBottom = UDim.new(0, 4)
+    viewPadding.PaddingTop = UDim.new(0, 8)
+    viewPadding.PaddingBottom = UDim.new(0, 10)
     viewPadding.Parent = tabView
     
     -- Auto-adjust tab width based on text length
     local textWidth = game:GetService("TextService"):GetTextSize(name, Theme.TextSize, Theme.Font, Vector2.new(1000, 1000)).X
-    tabButton.Size = UDim2.new(0, textWidth + 16, 1, -2)
+    tabButton.Size = UDim2.new(0, textWidth + 24, 1, -6)
     
     -- Switch Tab Logic
     local function selectTab()
@@ -2819,18 +2823,65 @@ function xGui.CreateKeySystem(options)
     local busy = false
 
     local window = xGui.new(title, options.ToggleKey or "Insert")
-    window.WindowSize = UDim2.new(0, 560, 0, 320)
+    window.WindowSize = UDim2.new(0, 680, 0, 400)
     window.CanvasGroup.Size = window.WindowSize
-    window.CanvasGroup.Position = UDim2.new(0.5, -280, 0.5, -160)
+    window.CanvasGroup.Position = UDim2.new(0.5, -340, 0.5, -200)
     window.TitleBar.Visible = false
     window.TabBar.Visible = false
-    window.ContentContainer.Position = UDim2.new(0, 28, 0, 112)
-    window.ContentContainer.Size = UDim2.new(1, -56, 1, -136)
+    window.ContentContainer.Position = UDim2.new(0, 280, 0, 112)
+    window.ContentContainer.Size = UDim2.new(1, -308, 1, -136)
+
+    local rail = Instance.new("Frame")
+    rail.Name = "BrandRail"
+    rail.Size = UDim2.new(0, 220, 1, -32)
+    rail.Position = UDim2.new(0, 16, 0, 16)
+    rail.BackgroundColor3 = Color3.fromRGB(24, 30, 38)
+    rail.BorderSizePixel = 0
+    rail.Parent = window.MainFrame
+    local railCorner = Instance.new("UICorner")
+    railCorner.CornerRadius = UDim.new(0, 8)
+    railCorner.Parent = rail
+
+    local railAccent = Instance.new("Frame")
+    railAccent.Size = UDim2.new(0, 4, 0, 92)
+    railAccent.Position = UDim2.new(0, 18, 0, 34)
+    railAccent.BackgroundColor3 = Color3.fromRGB(53, 202, 207)
+    railAccent.BorderSizePixel = 0
+    railAccent.Parent = rail
+    local accentCorner = Instance.new("UICorner")
+    accentCorner.CornerRadius = UDim.new(0, 2)
+    accentCorner.Parent = railAccent
+
+    local railTitle = Instance.new("TextLabel")
+    railTitle.Size = UDim2.new(1, -52, 0, 52)
+    railTitle.Position = UDim2.new(0, 38, 0, 28)
+    railTitle.BackgroundTransparency = 1
+    railTitle.Font = Enum.Font.Code
+    railTitle.TextSize = 23
+    railTitle.TextColor3 = Color3.fromRGB(242, 246, 250)
+    railTitle.TextWrapped = true
+    railTitle.TextXAlignment = Enum.TextXAlignment.Left
+    railTitle.TextYAlignment = Enum.TextYAlignment.Top
+    railTitle.Text = title
+    railTitle.Parent = rail
+
+    local railCopy = Instance.new("TextLabel")
+    railCopy.Size = UDim2.new(1, -44, 0, 72)
+    railCopy.Position = UDim2.new(0, 38, 0, 102)
+    railCopy.BackgroundTransparency = 1
+    railCopy.Font = Enum.Font.Code
+    railCopy.TextSize = 12
+    railCopy.TextColor3 = Color3.fromRGB(143, 154, 168)
+    railCopy.TextWrapped = true
+    railCopy.TextXAlignment = Enum.TextXAlignment.Left
+    railCopy.TextYAlignment = Enum.TextYAlignment.Top
+    railCopy.Text = "PRIVATE ACCESS\nSECURE SESSION\n\nYour key is checked locally before the workspace is unlocked."
+    railCopy.Parent = rail
 
     local heading = Instance.new("TextLabel")
     heading.Name = "KeySystemHeading"
-    heading.Size = UDim2.new(1, -56, 0, 46)
-    heading.Position = UDim2.new(0, 28, 0, 22)
+    heading.Size = UDim2.new(1, -308, 0, 46)
+    heading.Position = UDim2.new(0, 280, 0, 22)
     heading.BackgroundTransparency = 1
     heading.Font = Enum.Font.Code
     heading.TextSize = 32
@@ -2841,8 +2892,8 @@ function xGui.CreateKeySystem(options)
 
     local subtitleLabel = Instance.new("TextLabel")
     subtitleLabel.Name = "KeySystemSubtitle"
-    subtitleLabel.Size = UDim2.new(1, -56, 0, 20)
-    subtitleLabel.Position = UDim2.new(0, 28, 0, 68)
+    subtitleLabel.Size = UDim2.new(1, -308, 0, 20)
+    subtitleLabel.Position = UDim2.new(0, 280, 0, 68)
     subtitleLabel.BackgroundTransparency = 1
     subtitleLabel.Font = Enum.Font.Code
     subtitleLabel.TextSize = 14
@@ -2908,10 +2959,11 @@ function xGui.CreateKeySystem(options)
         tab.View:Destroy()
         heading:Destroy()
         subtitleLabel:Destroy()
+        rail:Destroy()
         window.TitleBar.Visible = true
         window.TabBar.Visible = true
-        window.ContentContainer.Position = UDim2.new(0, 5, 0, 50)
-        window.ContentContainer.Size = UDim2.new(1, -10, 1, -55)
+        window.ContentContainer.Position = UDim2.new(0, 16, 0, 76)
+        window.ContentContainer.Size = UDim2.new(1, -32, 1, -88)
         onSuccess(candidate)
     end
 
@@ -2923,9 +2975,9 @@ function xGui.CreateKeySystem(options)
         end
 
         screenGui = Instance.new("ScreenGui")
-        screenGui.Size = UDim2.new(1, 0, 0, 110)
+        screenGui.Size = UDim2.new(1, 0, 0, 156)
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 0, 104)
+        frame.Size = UDim2.new(1, 0, 0, 150)
         frame.BackgroundColor3 = Color3.fromRGB(22, 26, 33)
         frame.BackgroundTransparency = 0
         frame.Parent = screenGui
@@ -2940,7 +2992,7 @@ function xGui.CreateKeySystem(options)
         frameStroke.Parent = frame
 
         status = Instance.new("TextLabel")
-        status.Size = UDim2.new(1, -24, 0, 20)
+        status.Size = UDim2.new(1, -24, 0, 18)
         status.Position = UDim2.new(0, 12, 0, 9)
         status.BackgroundTransparency = 1
         status.Font = Enum.Font.Code
@@ -2951,8 +3003,8 @@ function xGui.CreateKeySystem(options)
         status.Parent = frame
 
         input = Instance.new("TextBox")
-        input.Size = UDim2.new(1, -24, 0, 32)
-        input.Position = UDim2.new(0, 12, 0, 34)
+        input.Size = UDim2.new(1, -24, 0, 38)
+        input.Position = UDim2.new(0, 12, 0, 38)
         input.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
         input.BorderSizePixel = 1
         input.TextColor3 = Color3.fromRGB(240, 240, 240)
@@ -2967,8 +3019,8 @@ function xGui.CreateKeySystem(options)
         inputCorner.Parent = input
 
         local unlock = Instance.new("TextButton")
-        unlock.Size = UDim2.new(0, 132, 0, 28)
-        unlock.Position = UDim2.new(0, 12, 0, 72)
+        unlock.Size = UDim2.new(1, -24, 0, 36)
+        unlock.Position = UDim2.new(0, 12, 0, 94)
         unlock.BackgroundColor3 = Theme.ButtonBg
         unlock.BorderSizePixel = 1
         unlock.TextColor3 = Color3.fromRGB(240, 240, 240)
