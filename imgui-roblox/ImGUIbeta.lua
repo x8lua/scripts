@@ -37,7 +37,7 @@ local Theme = {
     TextColor = Color3.fromRGB(242, 246, 250),
     TextDisabled = Color3.fromRGB(143, 154, 168),
     
-    Font = Enum.Font.Code,
+    Font = Enum.Font.Gotham,
     TextSize = 13,
     FontFace = nil,  -- set below after table closes
 
@@ -78,14 +78,7 @@ end
 -- Uses FontFace (custom TTF) when loaded, otherwise falls back to Enum.Font.Code.
 -- Wrapped in pcall so a bad font never crashes the whole UI.
 local function applyFont(obj)
-    if Theme.FontFace then
-        local ok = pcall(function() obj.FontFace = Theme.FontFace end)
-        if not ok then
-            pcall(function() obj.Font = Enum.Font.Code end)
-        end
-    else
-        pcall(function() obj.Font = Enum.Font.Code end)
-    end
+    pcall(function() obj.Font = Theme.Font end)
 end
 
 -- Utility: Safe parenting for exploit environments
@@ -2823,68 +2816,21 @@ function xGui.CreateKeySystem(options)
     local busy = false
 
     local window = xGui.new(title, options.ToggleKey or "Insert")
-    window.WindowSize = UDim2.new(0, 680, 0, 400)
+    window.WindowSize = UDim2.new(0, 480, 0, 300)
     window.CanvasGroup.Size = window.WindowSize
-    window.CanvasGroup.Position = UDim2.new(0.5, -340, 0.5, -200)
+    window.CanvasGroup.Position = UDim2.new(0.5, -240, 0.5, -150)
     window.TitleBar.Visible = false
     window.TabBar.Visible = false
-    window.ContentContainer.Position = UDim2.new(0, 280, 0, 112)
-    window.ContentContainer.Size = UDim2.new(1, -308, 1, -136)
-
-    local rail = Instance.new("Frame")
-    rail.Name = "BrandRail"
-    rail.Size = UDim2.new(0, 220, 1, -32)
-    rail.Position = UDim2.new(0, 16, 0, 16)
-    rail.BackgroundColor3 = Color3.fromRGB(24, 30, 38)
-    rail.BorderSizePixel = 0
-    rail.Parent = window.MainFrame
-    local railCorner = Instance.new("UICorner")
-    railCorner.CornerRadius = UDim.new(0, 8)
-    railCorner.Parent = rail
-
-    local railAccent = Instance.new("Frame")
-    railAccent.Size = UDim2.new(0, 4, 0, 92)
-    railAccent.Position = UDim2.new(0, 18, 0, 34)
-    railAccent.BackgroundColor3 = Color3.fromRGB(53, 202, 207)
-    railAccent.BorderSizePixel = 0
-    railAccent.Parent = rail
-    local accentCorner = Instance.new("UICorner")
-    accentCorner.CornerRadius = UDim.new(0, 2)
-    accentCorner.Parent = railAccent
-
-    local railTitle = Instance.new("TextLabel")
-    railTitle.Size = UDim2.new(1, -52, 0, 52)
-    railTitle.Position = UDim2.new(0, 38, 0, 28)
-    railTitle.BackgroundTransparency = 1
-    railTitle.Font = Enum.Font.Code
-    railTitle.TextSize = 23
-    railTitle.TextColor3 = Color3.fromRGB(242, 246, 250)
-    railTitle.TextWrapped = true
-    railTitle.TextXAlignment = Enum.TextXAlignment.Left
-    railTitle.TextYAlignment = Enum.TextYAlignment.Top
-    railTitle.Text = title
-    railTitle.Parent = rail
-
-    local railCopy = Instance.new("TextLabel")
-    railCopy.Size = UDim2.new(1, -44, 0, 72)
-    railCopy.Position = UDim2.new(0, 38, 0, 102)
-    railCopy.BackgroundTransparency = 1
-    railCopy.Font = Enum.Font.Code
-    railCopy.TextSize = 12
-    railCopy.TextColor3 = Color3.fromRGB(143, 154, 168)
-    railCopy.TextWrapped = true
-    railCopy.TextXAlignment = Enum.TextXAlignment.Left
-    railCopy.TextYAlignment = Enum.TextYAlignment.Top
-    railCopy.Text = "PRIVATE ACCESS\nSECURE SESSION\n\nYour key is checked locally before the workspace is unlocked."
-    railCopy.Parent = rail
+    window.ContentContainer.Position = UDim2.new(0, 28, 0, 105)
+    window.ContentContainer.Size = UDim2.new(1, -56, 1, -128)
 
     local heading = Instance.new("TextLabel")
     heading.Name = "KeySystemHeading"
-    heading.Size = UDim2.new(1, -308, 0, 46)
-    heading.Position = UDim2.new(0, 280, 0, 22)
+    heading.Size = UDim2.new(1, -56, 0, 32)
+    heading.Position = UDim2.new(0, 28, 0, 28)
     heading.BackgroundTransparency = 1
-    heading.Font = Enum.Font.Code
-    heading.TextSize = 32
+    heading.Font = Enum.Font.GothamMedium
+    heading.TextSize = 24
     heading.TextColor3 = Color3.fromRGB(240, 240, 240)
     heading.TextXAlignment = Enum.TextXAlignment.Left
     heading.Text = title
@@ -2892,11 +2838,11 @@ function xGui.CreateKeySystem(options)
 
     local subtitleLabel = Instance.new("TextLabel")
     subtitleLabel.Name = "KeySystemSubtitle"
-    subtitleLabel.Size = UDim2.new(1, -308, 0, 20)
-    subtitleLabel.Position = UDim2.new(0, 280, 0, 68)
+    subtitleLabel.Size = UDim2.new(1, -56, 0, 20)
+    subtitleLabel.Position = UDim2.new(0, 28, 0, 61)
     subtitleLabel.BackgroundTransparency = 1
-    subtitleLabel.Font = Enum.Font.Code
-    subtitleLabel.TextSize = 14
+    subtitleLabel.Font = Enum.Font.Gotham
+    subtitleLabel.TextSize = 13
     subtitleLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
     subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
     subtitleLabel.Text = subtitle
@@ -2959,7 +2905,6 @@ function xGui.CreateKeySystem(options)
         tab.View:Destroy()
         heading:Destroy()
         subtitleLabel:Destroy()
-        rail:Destroy()
         window.TitleBar.Visible = true
         window.TabBar.Visible = true
         window.ContentContainer.Position = UDim2.new(0, 16, 0, 76)
@@ -2975,11 +2920,10 @@ function xGui.CreateKeySystem(options)
         end
 
         screenGui = Instance.new("ScreenGui")
-        screenGui.Size = UDim2.new(1, 0, 0, 156)
+        screenGui.Size = UDim2.new(1, 0, 0, 150)
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 0, 150)
-        frame.BackgroundColor3 = Color3.fromRGB(22, 26, 33)
-        frame.BackgroundTransparency = 0
+        frame.BackgroundTransparency = 1
         frame.Parent = screenGui
 
         local frameCorner = Instance.new("UICorner")
@@ -2987,29 +2931,28 @@ function xGui.CreateKeySystem(options)
         frameCorner.Parent = frame
 
         local frameStroke = Instance.new("UIStroke")
-        frameStroke.Color = Color3.fromRGB(50, 62, 75)
-        frameStroke.Transparency = 0.25
+        frameStroke.Transparency = 1
         frameStroke.Parent = frame
 
         status = Instance.new("TextLabel")
         status.Size = UDim2.new(1, -24, 0, 18)
         status.Position = UDim2.new(0, 12, 0, 9)
         status.BackgroundTransparency = 1
-        status.Font = Enum.Font.Code
-        status.TextSize = 14
+        status.Font = Enum.Font.Gotham
+        status.TextSize = 12
         status.TextColor3 = Color3.fromRGB(150, 150, 150)
         status.TextXAlignment = Enum.TextXAlignment.Left
-        status.Text = "Status: waiting for a key"
+        status.Text = "Enter your access key"
         status.Parent = frame
 
         input = Instance.new("TextBox")
         input.Size = UDim2.new(1, -24, 0, 38)
         input.Position = UDim2.new(0, 12, 0, 38)
-        input.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+        input.BackgroundColor3 = Color3.fromRGB(27, 30, 36)
         input.BorderSizePixel = 1
         input.TextColor3 = Color3.fromRGB(240, 240, 240)
-        input.Font = Enum.Font.Code
-        input.TextSize = 14
+        input.Font = Enum.Font.Gotham
+        input.TextSize = 13
         input.PlaceholderText = "Enter access key..."
         input.ClearTextOnFocus = false
         input.Parent = frame
@@ -3024,9 +2967,9 @@ function xGui.CreateKeySystem(options)
         unlock.BackgroundColor3 = Theme.ButtonBg
         unlock.BorderSizePixel = 1
         unlock.TextColor3 = Color3.fromRGB(240, 240, 240)
-        unlock.Font = Enum.Font.Code
-        unlock.TextSize = 14
-        unlock.Text = "Unlock"
+        unlock.Font = Enum.Font.GothamMedium
+        unlock.TextSize = 13
+        unlock.Text = "Continue"
         unlock.Parent = frame
 
         local unlockCorner = Instance.new("UICorner")
@@ -3041,6 +2984,11 @@ function xGui.CreateKeySystem(options)
         screenGui.Parent = game.Players.LocalPlayer.PlayerGui
     end)
     keyWidget:SetState(true)
+    local scriptFrame = tab.View:FindFirstChild("Key Access_ScriptWidget")
+    if scriptFrame then
+        local header = scriptFrame:FindFirstChild("Header")
+        if header then header.Visible = false end
+    end
     window:HideTabs(true, "Access")
     tab.Select()
 
