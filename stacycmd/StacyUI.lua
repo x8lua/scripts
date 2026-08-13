@@ -47,14 +47,9 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.5.7"
+StacyUI.Version = "2.5.2"
 
 local UPDATE_LOG = {
-    { Version = "v2.5.7", Text = "Added the persistent draggable Stacy mobile launcher to the main console" },
-    { Version = "v2.5.6", Text = "Added responsive mobile scaling and rotation reflow for the main console" },
-    { Version = "v2.5.5", Text = "Simplified declared command callbacks to receive arguments directly" },
-    { Version = "v2.5.4", Text = "Added quoted and named argument support for registered commands" },
-    { Version = "v2.5.3", Text = "Removed the StacyCMD key system; the console now loads directly" },
     { Version = "v2.5.2", Text = "Fixed autorevive death-effect cleanup service binding" },
     { Version = "v2.5.1", Text = "Made recognized semicolon commands fade out immediately" },
     { Version = "v2.5.0", Text = "Added the one-way Gakuran autorevive command" },
@@ -68,6 +63,8 @@ local UPDATE_LOG = {
     { Version = "v2.4.2", Text = "Added Sans Flex game typography and restored the Larpkuran thumbnail" },
     { Version = "v2.4.1", Text = "Redesigned the games pages and fixed the Larpkuran icon" },
     { Version = "v2.4.0", Text = "Added the supported games browser and script auto-execution" },
+    { Version = "v2.3.1", Text = "Made the local StacyCMD key gate required" },
+    { Version = "v2.3.0", Text = "Added the optional in-console keysystem page" },
     { Version = "v2.2.9", Text = "Made semicolon command mode close after 2.5 seconds of inactivity" },
     { Version = "v2.2.8", Text = "Removed the startup built-in command list" },
     { Version = "v2.2.7", Text = "Changed lag detection to sample player positions" },
@@ -155,65 +152,6 @@ local function splitWords(value)
     return words
 end
 
-local function parseArguments(value)
-    local arguments = {}
-    local index = 1
-    local length = #value
-
-    while index <= length do
-        while index <= length and value:sub(index, index):match("%s") do
-            index = index + 1
-        end
-        if index > length then
-            break
-        end
-
-        local quote = value:sub(index, index)
-        local quoted = quote == '"' or quote == "'"
-        if quoted then
-            index = index + 1
-        end
-
-        local buffer = {}
-        while index <= length do
-            local character = value:sub(index, index)
-            if character == "\\" and index < length then
-                table.insert(buffer, value:sub(index + 1, index + 1))
-                index = index + 2
-            elseif quoted and character == quote then
-                index = index + 1
-                break
-            elseif not quoted and character:match("%s") then
-                break
-            else
-                table.insert(buffer, character)
-                index = index + 1
-            end
-        end
-        table.insert(arguments, table.concat(buffer))
-
-        while index <= length and value:sub(index, index):match("%s") do
-            index = index + 1
-        end
-    end
-
-    return arguments
-end
-
-local function usageFromArgs(name, definitions)
-    if type(definitions) ~= "table" or #definitions == 0 then
-        return name
-    end
-
-    local parts = { name }
-    for _, definition in ipairs(definitions) do
-        local argumentName = type(definition) == "table" and definition.Name or tostring(definition)
-        local required = type(definition) ~= "table" or definition.Required ~= false
-        table.insert(parts, required and "[" .. argumentName .. "]" or "<" .. argumentName .. ">")
-    end
-    return table.concat(parts, " ")
-end
-
 local function findPlayerByGameName(input)
     input = input:lower()
     for _, player in Players:GetPlayers() do
@@ -276,6 +214,21 @@ local function create(className, properties, parent)
 end
 
 -- why dont you join my discord and grabbing a key in the source instead >:(
+local function gateValues()
+    local storage = string.char(83, 116, 97, 99, 121, 67, 77, 68, 46, 107, 101, 121)
+    local expected = table.concat({ string.char(120, 56), string.char(120, 120, 121) })
+    return storage, expected
+end
+
+local function readSavedKey()
+    if type(readfile) ~= "function" then
+        return nil
+    end
+    local storage = gateValues()
+    local read, key = pcall(readfile, storage)
+    return read and trim(tostring(key)) or nil
+end
+
 local function readAutoExecGame()
     if type(readfile) ~= "function" then
         return nil
@@ -298,6 +251,8 @@ function StacyUI.new(options)
 
     self.Style = mergeStyle(options.Style)
     self.GameFont, self.UseCustomGameFont = loadSansFlexFont()
+    local _, expected = gateValues()
+    self.KeyVerified = readSavedKey() == expected
     self.WelcomeEnabled = options.Welcome ~= false
     self.StartVisible = options.Visible ~= false
     self.Commands = {}
@@ -352,10 +307,15 @@ function StacyUI.new(options)
     self:SetCommandKey(self.CommandKey)
     self:_registerBuiltIns()
 
-    if self.IsGakuranGame and not self.UseLegacyTo then
+    if self.KeyVerified and self.IsGakuranGame and not self.UseLegacyTo then
         self:_notifyGakuranToOverride()
     end
-    self:_startVerifiedConsole()
+
+    if self.KeyVerified then
+        self:_startVerifiedConsole()
+    else
+        self:ShowKeySystem()
+    end
 
     return self
 end
@@ -450,6 +410,14 @@ function StacyUI:_registerBuiltIns()
         Protected = true,
         Callback = function(_, _, ui)
             ui:ShowSettings()
+        end,
+    }
+    self.Commands.keysystem = {
+        Description = "Open the optional StacyCMD key page",
+        Usage = "keysystem",
+        Protected = true,
+        Callback = function(_, _, ui)
+            ui:ShowKeySystem()
         end,
     }
     local gakuranToActive = self.IsGakuranGame and not self.UseLegacyTo
@@ -1837,8 +1805,8 @@ function StacyUI:_build(options)
     self:_buildGames()
     self:_buildUpdateLog()
     self:_buildSettings()
+    self:_buildKeySystem()
     self:_buildWhoIsThis()
-    self:_buildMobileOpenButton()
     self:_updatePromptBounds()
 
     self:_connect(self.PrefixLabel:GetPropertyChangedSignal("TextBounds"), function()
@@ -1847,12 +1815,6 @@ function StacyUI:_build(options)
     self:_connect(self.Main:GetPropertyChangedSignal("AbsolutePosition"), function()
         self:_updatePromptBounds()
     end)
-    self:_applyResponsiveLayout()
-    if workspace.CurrentCamera then
-        self:_connect(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"), function()
-            self:_applyResponsiveLayout()
-        end)
-    end
 
     self:_connect(self.LogLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
         self:_updateCanvas()
@@ -1872,116 +1834,6 @@ function StacyUI:_build(options)
             self:_scheduleCommandAutoHide()
         end
     end)
-end
-
-function StacyUI:_buildMobileOpenButton()
-    self.MobileOpenButton = create("TextButton", {
-        Name = "MobileOpen",
-        AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, -18, 1, -18),
-        Size = UDim2.fromOffset(58, 58),
-        BackgroundColor3 = Color3.fromRGB(55, 58, 57),
-        BackgroundTransparency = 0.5,
-        BorderSizePixel = 0,
-        AutoButtonColor = false,
-        Font = Enum.Font.Bodoni,
-        Text = "Stacy",
-        TextColor3 = Color3.fromRGB(235, 240, 236),
-        TextSize = 14,
-        Visible = UserInputService.TouchEnabled,
-        Active = true,
-        ZIndex = 100,
-    }, self.Gui)
-    create("UICorner", { CornerRadius = UDim.new(1, 0) }, self.MobileOpenButton)
-    create("UIStroke", {
-        Color = Color3.fromRGB(175, 180, 177),
-        Transparency = 0.35,
-        Thickness = 1,
-        ZIndex = 101,
-    }, self.MobileOpenButton)
-
-    local holdToken = 0
-    local dragging = false
-    local dragInput
-    local dragStart
-    local startPosition
-    local function setDragStyle(active)
-        dragging = active
-        self.MobileOpenButton.BackgroundColor3 = active and Color3.fromRGB(35, 37, 36) or Color3.fromRGB(55, 58, 57)
-        self.MobileOpenButton.BackgroundTransparency = active and 0.25 or 0.5
-        self.MobileOpenButton.Text = active and "MOVE" or "Stacy"
-        self.MobileOpenButton.TextColor3 = active and Color3.fromRGB(150, 255, 170) or Color3.fromRGB(235, 240, 236)
-    end
-
-    self:_connect(self.MobileOpenButton.InputBegan, function(input)
-        if input.UserInputType ~= Enum.UserInputType.Touch then
-            return
-        end
-        holdToken = holdToken + 1
-        local token = holdToken
-        dragInput = input
-        dragStart = input.Position
-        startPosition = self.MobileOpenButton.Position
-        task.delay(1, function()
-            if not self.Destroyed and token == holdToken and dragStart and self.MobileOpenButton.Parent then
-                setDragStyle(true)
-            end
-        end)
-    end)
-    self:_connect(UserInputService.InputChanged, function(input)
-        if not dragging or input ~= dragInput or not dragStart then
-            return
-        end
-        local delta = input.Position - dragStart
-        self.MobileOpenButton.Position = UDim2.new(
-            startPosition.X.Scale, startPosition.X.Offset + delta.X,
-            startPosition.Y.Scale, startPosition.Y.Offset + delta.Y
-        )
-    end)
-    self:_connect(UserInputService.InputEnded, function(input)
-        if input ~= dragInput or not dragStart then
-            return
-        end
-        holdToken = holdToken + 1
-        local moved = (input.Position - dragStart).Magnitude > 8
-        if not dragging and not moved then
-            self:FocusCommandBar()
-        end
-        if dragging then
-            setDragStyle(false)
-        end
-        dragStart = nil
-        startPosition = nil
-        dragInput = nil
-    end)
-end
-
-function StacyUI:_applyResponsiveLayout()
-    if self.Destroyed or not self.Main then
-        return
-    end
-
-    if not UserInputService.TouchEnabled then
-        self.Style.width = self.DesktopWidth or self.Style.width
-        self.Style.height = self.DesktopHeight or self.Style.height
-        return
-    end
-
-    self.DesktopWidth = self.DesktopWidth or self.Style.width
-    self.DesktopHeight = self.DesktopHeight or self.Style.height
-    local camera = workspace.CurrentCamera
-    local viewport = camera and camera.ViewportSize or Vector2.new(400, 700)
-    local width = math.max(280, viewport.X - 24)
-    local height = math.clamp(viewport.Y - 110, 250, 430)
-
-    self.Style.width = width
-    self.Style.height = height
-    self.Main.AnchorPoint = Vector2.new(0.5, 0)
-    self.Main.Position = UDim2.new(0.5, 0, 0, 34)
-    self.Main.Size = UDim2.fromOffset(width, height)
-    self.KeyHint.Text = "TAP TO TYPE"
-    self.KeyHint.Size = UDim2.new(0, 110, 0, 18)
-    self:_updatePromptBounds()
 end
 
 function StacyUI:_buildCommandBrowser()
@@ -2792,6 +2644,181 @@ function StacyUI:HideSettings(restoreFocus)
     return self
 end
 
+function StacyUI:_buildKeySystem()
+    local style = self.Style
+    self.KeySystem = create("Frame", {
+        Name = "KeySystem",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(500, 405),
+        BackgroundColor3 = Color3.fromRGB(15, 15, 18),
+        BackgroundTransparency = 0.01,
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 30,
+    }, self.Gui)
+    create("UICorner", { CornerRadius = UDim.new(0, 10) }, self.KeySystem)
+    create("UIStroke", { Color = STACY_GREEN, Transparency = 0.45, Thickness = 1 }, self.KeySystem)
+    local header = create("Frame", {
+        BackgroundColor3 = Color3.fromRGB(24, 24, 29), BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 86), ZIndex = 31,
+    }, self.KeySystem)
+    create("UICorner", { CornerRadius = UDim.new(0, 10) }, header)
+    create("Frame", {
+        BackgroundColor3 = Color3.fromRGB(24, 24, 29), BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 1, -10), Size = UDim2.new(1, 0, 0, 10), ZIndex = 31,
+    }, header)
+    create("TextLabel", {
+        Name = "Brand",
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Bodoni,
+        RichText = true,
+        Text = 'Stacy <font color="#50FF7D">CMD</font>',
+        TextColor3 = style.text,
+        TextSize = 31,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(24, 10),
+        Size = UDim2.new(1, -48, 0, 38),
+        ZIndex = 32,
+    }, header)
+    create("TextLabel", {
+        Name = "Subtitle",
+        BackgroundTransparency = 1,
+        Font = self.GameFont,
+        Text = "A simple key. No ads, no linkvertise, no nonsense.",
+        TextColor3 = style.muted,
+        TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(26, 50), Size = UDim2.new(1, -52, 0, 24), ZIndex = 32,
+    }, header)
+    create("TextLabel", {
+        BackgroundTransparency = 1, Font = self.GameFont, Text = "GET YOUR KEY",
+        TextColor3 = STACY_GREEN, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(26, 106), Size = UDim2.fromOffset(180, 22), ZIndex = 31,
+    }, self.KeySystem)
+    create("TextLabel", {
+        BackgroundTransparency = 1, Font = self.GameFont,
+        Text = "Join the Discord, grab your key, then paste it below.",
+        TextColor3 = style.text, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(26, 128), Size = UDim2.new(1, -52, 0, 26), ZIndex = 31,
+    }, self.KeySystem)
+    local discord = create("TextButton", {
+        Name = "DiscordLink", AutoButtonColor = false, BackgroundColor3 = Color3.fromRGB(88, 101, 242),
+        BorderSizePixel = 0, Font = self.GameFont, Text = "COPY DISCORD INVITE",
+        TextColor3 = Color3.new(1, 1, 1), TextSize = 16,
+        Position = UDim2.fromOffset(26, 164), Size = UDim2.new(1, -52, 0, 40), ZIndex = 31,
+    }, self.KeySystem)
+    create("UICorner", { CornerRadius = UDim.new(0, 6) }, discord)
+    self.KeySystemKeyBox = create("TextBox", {
+        Name = "Key",
+        BackgroundColor3 = Color3.fromRGB(28, 28, 33),
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        ClearTextOnFocus = false,
+        Font = self.GameFont,
+        PlaceholderText = "Paste your key here",
+        PlaceholderColor3 = style.muted,
+        Text = "",
+        TextColor3 = style.text,
+        TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left,
+        Position = UDim2.fromOffset(26, 216),
+        Size = UDim2.new(1, -52, 0, 42),
+        ZIndex = 31,
+    }, self.KeySystem)
+    create("UICorner", { CornerRadius = UDim.new(0, 6) }, self.KeySystemKeyBox)
+    create("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }, self.KeySystemKeyBox)
+    local verify = create("TextButton", {
+        Name = "Verify",
+        AutoButtonColor = false,
+        BackgroundColor3 = STACY_GREEN,
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        Font = self.GameFont,
+        Text = "VERIFY KEY",
+        TextColor3 = Color3.fromRGB(10, 20, 10),
+        TextSize = 17,
+        Position = UDim2.fromOffset(26, 268),
+        Size = UDim2.new(1, -52, 0, 42),
+        ZIndex = 31,
+    }, self.KeySystem)
+    create("UICorner", { CornerRadius = UDim.new(0, 6) }, verify)
+    self.KeySystemWhy = create("TextButton", {
+        Name = "WhyDiscord", AutoButtonColor = false, BackgroundTransparency = 1,
+        Font = self.GameFont, Text = "Why Discord?", TextColor3 = style.muted, TextSize = 15,
+        Position = UDim2.fromOffset(26, 326), Size = UDim2.new(1, -52, 0, 28), ZIndex = 31,
+    }, self.KeySystem)
+    self.KeySystemWhyText = create("TextLabel", {
+        Name = "WhyDiscordText", BackgroundTransparency = 1, Font = self.GameFont,
+        RichText = true, TextColor3 = style.text, TextSize = 15, TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+        Visible = false, Position = UDim2.fromOffset(26, 358), Size = UDim2.new(1, -52, 0, 170), ZIndex = 31,
+        Text = "<b>I’ll never put StacyCMD behind ad-key systems.</b> I’m not trying to squeeze money out of you or send you through pop-ups just to use something I made. This project exists because I enjoy building it and I want the community around it to help shape it.\n\nThe Discord is simply where that happens. Come hang out, tell me what feels broken, throw in a feature idea, or pitch a totally new game idea. It’s still growing, but every message genuinely helps.",
+    }, self.KeySystem)
+    self:_connect(discord.MouseButton1Click, function()
+        if type(setclipboard) == "function" then
+            pcall(setclipboard, "https://discord.gg/WM7RyD7Znn")
+            discord.Text = "INVITE COPIED"
+        else
+            discord.Text = "discord.gg/WM7RyD7Znn"
+        end
+    end)
+    self:_connect(self.KeySystemWhy.MouseButton1Click, function()
+        local shown = not self.KeySystemWhyText.Visible
+        self.KeySystemWhyText.Visible = shown
+        self.KeySystemWhy.Text = shown and "Why Discord?  -" or "Why Discord?  +"
+        self.KeySystem.Size = UDim2.fromOffset(500, shown and 550 or 405)
+    end)
+    self:_connect(verify.MouseButton1Click, function()
+        local verified = self:VerifyKey(self.KeySystemKeyBox.Text)
+        if not verified then
+            self.KeySystemKeyBox.Text = ""
+            self.KeySystemKeyBox.PlaceholderText = "INVALID KEY"
+        end
+    end)
+end
+
+function StacyUI:ShowKeySystem()
+    self:HideCommands(false)
+    self:HideUpdateLog(false)
+    self:HideSettings(false)
+    self:HideGames(false)
+    self:_clearSuggestions()
+    self.Prompt:ReleaseFocus()
+    self.KeySystem.Visible = true
+    task.defer(self.KeySystemKeyBox.CaptureFocus, self.KeySystemKeyBox)
+    return self
+end
+
+function StacyUI:HideKeySystem(restoreFocus)
+    if not self.KeyVerified then
+        return self
+    end
+    if self.KeySystem then
+        self.KeySystem.Visible = false
+    end
+    if restoreFocus ~= false and not self.Destroyed and self.Open then
+        task.defer(self.Prompt.CaptureFocus, self.Prompt)
+    end
+    return self
+end
+
+function StacyUI:VerifyKey(key)
+    local storage, expected = gateValues()
+    if trim(tostring(key)) ~= expected then
+        return false
+    end
+    self.KeyVerified = true
+    if type(writefile) == "function" then
+        pcall(writefile, storage, expected)
+    end
+    self.KeySystemKeyBox:ReleaseFocus()
+    self.KeySystem.Visible = false
+    if self.IsGakuranGame and not self.UseLegacyTo then
+        self:_notifyGakuranToOverride()
+    end
+    self:_startVerifiedConsole()
+    return true
+end
+
 function StacyUI:_refreshCommandBrowser()
     if self.Destroyed or not self.CommandBrowserList then
         return
@@ -3212,7 +3239,7 @@ function StacyUI:_onFocusLost(enterPressed)
             if command and self.CommandFocusActive and not self.Destroyed then
                 self.CommandFocusActive = false
                 self.CommandFocusSession = self.CommandFocusSession + 1
-                if not self.CommandBrowser.Visible and not self.UpdateLog.Visible and not self.Settings.Visible and not self.Games.Visible and not self.GameDetail.Visible then
+                if not self.CommandBrowser.Visible and not self.UpdateLog.Visible and not self.Settings.Visible and not self.Games.Visible and not self.GameDetail.Visible and not self.KeySystem.Visible then
                     self:Toggle(false)
                 end
             end
@@ -3233,8 +3260,7 @@ function StacyUI:Register(definition)
 
     self.Commands[definition.Name] = {
         Description = definition.Description or "No description available",
-        Usage = definition.Usage or usageFromArgs(definition.Name, definition.Args),
-        Args = definition.Args,
+        Usage = definition.Usage or definition.Name,
         GameSpecific = definition.GameSpecific == true,
         HighlightLime = definition.HighlightLime == true or definition.GameSpecific == true,
         Callback = definition.Callback,
@@ -3249,8 +3275,7 @@ function StacyUI:Unregister(name)
 end
 
 function StacyUI:Execute(line)
-    local source = trim(line)
-    local arguments = parseArguments(source)
+    local arguments = splitWords(trim(line))
     local name = table.remove(arguments, 1)
     if not name then
         return false, "empty command"
@@ -3263,32 +3288,7 @@ function StacyUI:Execute(line)
         return false, message
     end
 
-    arguments.Raw = source:match("^%S+%s*(.*)$") or ""
-    arguments.Named = {}
-    if type(command.Args) == "table" then
-        for index, definition in ipairs(command.Args) do
-            local argumentName = type(definition) == "table" and definition.Name or tostring(definition)
-            local required = type(definition) ~= "table" or definition.Required ~= false
-            local value = arguments[index]
-            if required and (value == nil or value == "") then
-                local message = ('Missing argument "%s". Usage: %s'):format(argumentName, command.Usage)
-                self:Log(message, self.Style.error)
-                return false, message
-            end
-            arguments.Named[argumentName] = value
-        end
-    end
-
-    local ok
-    local result
-    if type(command.Args) == "table" then
-        -- Declared Args use the simple callback form: function(player, cmd, time, ui).
-        local count = math.max(#arguments, #command.Args)
-        ok, result = pcall(command.Callback, table.unpack(arguments, 1, count), self, source)
-    else
-        -- Existing commands keep the original callback form: function(args, rawLine, ui).
-        ok, result = pcall(command.Callback, arguments, source, self)
-    end
+    local ok, result = pcall(command.Callback, arguments, line, self)
     if not ok then
         self:Log("Command error  " .. tostring(result), self.Style.error)
         return false, result
@@ -3417,6 +3417,10 @@ function StacyUI:SetCommandKey(keyCode)
 end
 
 function StacyUI:FocusCommandBar()
+    if not self.KeyVerified then
+        self:ShowKeySystem()
+        return self
+    end
     self.CommandFocusSession = self.CommandFocusSession + 1
     self.CommandFocusActive = true
     self:HideCommands(false)
@@ -3462,6 +3466,10 @@ end
 
 function StacyUI:Toggle(forceState)
     assert(not self.Destroyed, "StacyUI has been destroyed")
+    if not self.KeyVerified and forceState ~= false then
+        self:ShowKeySystem()
+        return false
+    end
     if self.IntroPlaying then
         return self.Open
     end
@@ -3476,10 +3484,7 @@ function StacyUI:Toggle(forceState)
     self.Open = nextState
     if self.Open then
         self.Main.Visible = true
-        if UserInputService.TouchEnabled then
-            self:_applyResponsiveLayout()
-            self.Main.GroupTransparency = 0
-        elseif self.OpenFromIntro then
+        if self.OpenFromIntro then
             self.OpenFromIntro = false
             self.Main.Position = UDim2.new(0.5, 0, 0, 40)
             self.Main.GroupTransparency = 1
@@ -3503,18 +3508,14 @@ function StacyUI:Toggle(forceState)
         self:HideSettings(false)
         self:HideGames(false)
         self.Prompt:ReleaseFocus()
-        if UserInputService.TouchEnabled then
-            self.Main.Visible = false
-        else
-            TweenService:Create(self.Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                Position = UDim2.new(0.5, 0, 0, 20),
-            }):Play()
-            task.delay(0.2, function()
-                if not self.Destroyed and not self.Open then
-                    self.Main.Visible = false
-                end
-            end)
-        end
+        TweenService:Create(self.Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Position = UDim2.new(0.5, 0, 0, 20),
+        }):Play()
+        task.delay(0.2, function()
+            if not self.Destroyed and not self.Open then
+                self.Main.Visible = false
+            end
+        end)
     end
     return self.Open
 end

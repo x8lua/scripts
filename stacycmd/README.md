@@ -39,34 +39,17 @@ console:Register({
 
 The console opens by default after a centered full-screen StacyCMD brand intro that shrinks directly into the aligned header title, then fades in the command UI. `IntroSize` controls the starting title, `IntroTargetSize` controls the finished header title, `IntroTargetOffset` adjusts its final X/Y position, and `IntroTweenDuration` controls the shrink time. Pass `Intro = false` to skip the intro or `Visible = false` to start hidden.
 
-On touch devices, the main console automatically uses the available screen width with a mobile-safe height and updates when the device rotates. Desktop dimensions remain unchanged.
-
-The main StacyCMD UI also shows a persistent bottom-right `Stacy` launcher on touch devices. Tap it to open and focus the command bar; hold for one second to drag it.
-
 Set `Usage` on a command to show its syntax in autocomplete suggestions, for example `Usage = "kick [reason] [time]"`.
-
-Use the easy `Args` format for a command with parameters. Your callback receives those values directly, in the same order:
-
-```lua
-console:Register({
-    Name = "sudo",
-    Args = { "player", "cmd", "time" },
-    Callback = function(player, cmd, time, ui)
-        -- sudo x8lua fly 30
-        -- player = "x8lua"
-        -- cmd = "fly"
-        -- time = "30"
-    end,
-})
-```
-
-This automatically shows `sudo [player] [cmd] [time]` in suggestions. Use `{ Name = "reason", Required = false }` for an optional argument. Quotes preserve spaces: `sudo x8lua "say hello everyone" 30`. Existing commands without `Args` keep the original callback format: `function(arguments, rawLine, ui)`.
 
 The public API includes `new` `Register` `Unregister` `Execute` `CheckForUpdate` `PlayIntro` `SetFlyEnabled` `SetPredictionEnabled` `StopPrediction` `TeleportTo` `ViewPlayer` `ServerHop` `ShowWhoIsThis` `HideWhoIsThis` `ShowGameCommands` `ShowGames` `ShowGameDetail` `ExecuteGameScript` `ShowSettings` `FocusCommandBar` `Log` `Clear` `SetPrefix` `SetToggleKey` `SetCommandKey` `Toggle` and `Destroy`. Registered commands may provide an optional `Usage` string for autocomplete display. Set `GameSpecific = true` to include a custom command in `gamecmds` and display it in lime green.
 
-The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `flingui` `prediction` `lagdetection` `rejoin` `serverhop` `shop` `sudoaptupdate` and `ctrlc`. `autorevive`, `legacyto`, and `whoisthis` are also available in the supported Gakuran game.
+The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` `keysystem` `updatelog` `version` `to` `view` `maxzoom` `jpower` `reset` `fly` `flingui` `prediction` `lagdetection` `rejoin` `serverhop` `shop` `sudoaptupdate` and `ctrlc`. `autorevive`, `legacyto`, and `whoisthis` are also available in the supported Gakuran game.
 
 `flingui` loads the FlingV2 interface from the configured FlingV2 source URL.
+
+StacyCMD requires a local key before loading. It reads and persists the verified key through executor file APIs when available.
+
+The key page includes a copyable Discord invite (`https://discord.gg/WM7RyD7Znn`) for getting a key, with no ad-key system or redirect pages. Its expandable `Why Discord?` section explains how to join the community, share feedback, and suggest features or games.
 
 `games` opens the dark supported-games browser with Roblox thumbnails and icons. Larpkuran runs `gakuran_fling.lua`; when launched outside its supported place, StacyCMD warns that it might not work. `placeholder` intentionally produces a runtime nil-call error followed by a randomized compatibility remark in the console. The detail page's `AUTOEXEC ON` button saves the selected game in `StacyCMD.autoexec` and runs it on the next StacyCMD load; click it again to turn autoexec off.
 
@@ -113,16 +96,3 @@ Each StacyCMD release adds its newest entry at the top of the update log
 The console displays a compact Bodoni StacyCMD header with bright green CMD branding F1 state ready banner and accent matched command suggestions by default
 
 See `Example.lua` for a complete loader and command setup
-
-## Mobile echo-only replica
-
-`StacyCMDReplica.lua` is a self-contained StacyCMD-style interface for lightweight/mobile use. It deliberately supports **only** `echo [text]`; it does not load any StacyCMD built-ins. On touch devices, its round green `CMD` button is always present in the lower-right corner, including when the console is closed. Tapping it opens the console and focuses the command bar for the on-screen keyboard.
-
-```lua
-local StacyCMDReplica = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/StacyCMDReplica.lua"
-))()
-local console = StacyCMDReplica.new()
-```
-
-Use `F1` on desktop or the mobile `CMD` button to open it. `MobileReplicaExample.lua` is a ready-to-run loader.
