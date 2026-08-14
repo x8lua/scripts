@@ -47,9 +47,10 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.5.4"
+StacyUI.Version = "2.5.5"
 
 local UPDATE_LOG = {
+    { Version = "v2.5.5", Text = "Changed mobile layout to continuous viewport-based scaling" },
     { Version = "v2.5.4", Text = "Added responsive mobile scaling while preserving the required key system" },
     { Version = "v2.5.2", Text = "Fixed autorevive death-effect cleanup service binding" },
     { Version = "v2.5.1", Text = "Made recognized semicolon commands fade out immediately" },
@@ -1692,6 +1693,7 @@ function StacyUI:_build(options)
         BorderSizePixel = 0,
         Visible = false,
     }, self.Gui)
+    self.ResponsiveScale = create("UIScale", { Scale = 1 }, self.Main)
 
     create("UICorner", { CornerRadius = UDim.new(0, 6) }, self.Main)
 
@@ -1848,23 +1850,25 @@ function StacyUI:_applyResponsiveLayout()
         return
     end
 
+    self.DesktopWidth = self.DesktopWidth or self.Style.width
+    self.DesktopHeight = self.DesktopHeight or self.Style.height
+    self.Style.width = self.DesktopWidth
+    self.Style.height = self.DesktopHeight
+
     if not UserInputService.TouchEnabled then
-        self.Style.width = self.DesktopWidth or self.Style.width
-        self.Style.height = self.DesktopHeight or self.Style.height
+        self.ResponsiveScale.Scale = 1
+        self.Main.Size = UDim2.fromOffset(self.DesktopWidth, self.DesktopHeight)
         return
     end
 
-    self.DesktopWidth = self.DesktopWidth or self.Style.width
-    self.DesktopHeight = self.DesktopHeight or self.Style.height
     local camera = workspace.CurrentCamera
     local viewport = camera and camera.ViewportSize or Vector2.new(400, 700)
-    local width = math.max(280, viewport.X - 24)
-    local height = math.clamp(viewport.Y - 110, 250, 430)
-    self.Style.width = width
-    self.Style.height = height
+    local horizontalScale = (viewport.X - 24) / self.DesktopWidth
+    local verticalScale = (viewport.Y - 110) / self.DesktopHeight
+    self.ResponsiveScale.Scale = math.max(0.1, math.min(horizontalScale, verticalScale, 1))
     self.Main.AnchorPoint = Vector2.new(0.5, 0)
     self.Main.Position = UDim2.new(0.5, 0, 0, 34)
-    self.Main.Size = UDim2.fromOffset(width, height)
+    self.Main.Size = UDim2.fromOffset(self.DesktopWidth, self.DesktopHeight)
     self.KeyHint.Text = "TAP TO TYPE"
     self.KeyHint.Size = UDim2.new(0, 110, 0, 18)
     self:_updatePromptBounds()

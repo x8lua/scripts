@@ -49,7 +49,7 @@ The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` 
 
 StacyCMD requires a local key before loading. It reads and persists the verified key through executor file APIs when available.
 
-On touch devices, StacyCMD scales to the available viewport width and uses a mobile-safe height. It also recalculates its layout when the device rotates.
+On touch devices, StacyCMD continuously scales the original console from the live viewport width and height, then recalculates when the device rotates. Desktop uses scale 1.
 
 The key page includes a copyable Discord invite (`https://discord.gg/WM7RyD7Znn`) for getting a key, with no ad-key system or redirect pages. Its expandable `Why Discord?` section explains how to join the community, share feedback, and suggest features or games.
 
