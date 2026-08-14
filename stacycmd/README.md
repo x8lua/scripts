@@ -49,6 +49,8 @@ The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` 
 
 StacyCMD requires a local key before loading. It reads and persists the verified key through executor file APIs when available.
 
+On touch devices, StacyCMD scales to the available viewport width and uses a mobile-safe height. It also recalculates its layout when the device rotates.
+
 The key page includes a copyable Discord invite (`https://discord.gg/WM7RyD7Znn`) for getting a key, with no ad-key system or redirect pages. Its expandable `Why Discord?` section explains how to join the community, share feedback, and suggest features or games.
 
 `games` opens the dark supported-games browser with Roblox thumbnails and icons. Larpkuran runs `gakuran_fling.lua`; when launched outside its supported place, StacyCMD warns that it might not work. `placeholder` intentionally produces a runtime nil-call error followed by a randomized compatibility remark in the console. The detail page's `AUTOEXEC ON` button saves the selected game in `StacyCMD.autoexec` and runs it on the next StacyCMD load; click it again to turn autoexec off.

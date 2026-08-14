@@ -47,9 +47,10 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.5.2"
+StacyUI.Version = "2.5.4"
 
 local UPDATE_LOG = {
+    { Version = "v2.5.4", Text = "Added responsive mobile scaling while preserving the required key system" },
     { Version = "v2.5.2", Text = "Fixed autorevive death-effect cleanup service binding" },
     { Version = "v2.5.1", Text = "Made recognized semicolon commands fade out immediately" },
     { Version = "v2.5.0", Text = "Added the one-way Gakuran autorevive command" },
@@ -1815,6 +1816,12 @@ function StacyUI:_build(options)
     self:_connect(self.Main:GetPropertyChangedSignal("AbsolutePosition"), function()
         self:_updatePromptBounds()
     end)
+    self:_applyResponsiveLayout()
+    if workspace.CurrentCamera then
+        self:_connect(workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"), function()
+            self:_applyResponsiveLayout()
+        end)
+    end
 
     self:_connect(self.LogLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
         self:_updateCanvas()
@@ -1834,6 +1841,33 @@ function StacyUI:_build(options)
             self:_scheduleCommandAutoHide()
         end
     end)
+end
+
+function StacyUI:_applyResponsiveLayout()
+    if self.Destroyed or not self.Main then
+        return
+    end
+
+    if not UserInputService.TouchEnabled then
+        self.Style.width = self.DesktopWidth or self.Style.width
+        self.Style.height = self.DesktopHeight or self.Style.height
+        return
+    end
+
+    self.DesktopWidth = self.DesktopWidth or self.Style.width
+    self.DesktopHeight = self.DesktopHeight or self.Style.height
+    local camera = workspace.CurrentCamera
+    local viewport = camera and camera.ViewportSize or Vector2.new(400, 700)
+    local width = math.max(280, viewport.X - 24)
+    local height = math.clamp(viewport.Y - 110, 250, 430)
+    self.Style.width = width
+    self.Style.height = height
+    self.Main.AnchorPoint = Vector2.new(0.5, 0)
+    self.Main.Position = UDim2.new(0.5, 0, 0, 34)
+    self.Main.Size = UDim2.fromOffset(width, height)
+    self.KeyHint.Text = "TAP TO TYPE"
+    self.KeyHint.Size = UDim2.new(0, 110, 0, 18)
+    self:_updatePromptBounds()
 end
 
 function StacyUI:_buildCommandBrowser()
@@ -3484,7 +3518,10 @@ function StacyUI:Toggle(forceState)
     self.Open = nextState
     if self.Open then
         self.Main.Visible = true
-        if self.OpenFromIntro then
+        if UserInputService.TouchEnabled then
+            self:_applyResponsiveLayout()
+            self.Main.GroupTransparency = 0
+        elseif self.OpenFromIntro then
             self.OpenFromIntro = false
             self.Main.Position = UDim2.new(0.5, 0, 0, 40)
             self.Main.GroupTransparency = 1
@@ -3508,14 +3545,18 @@ function StacyUI:Toggle(forceState)
         self:HideSettings(false)
         self:HideGames(false)
         self.Prompt:ReleaseFocus()
-        TweenService:Create(self.Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-            Position = UDim2.new(0.5, 0, 0, 20),
-        }):Play()
-        task.delay(0.2, function()
-            if not self.Destroyed and not self.Open then
-                self.Main.Visible = false
-            end
-        end)
+        if UserInputService.TouchEnabled then
+            self.Main.Visible = false
+        else
+            TweenService:Create(self.Main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Position = UDim2.new(0.5, 0, 0, 20),
+            }):Play()
+            task.delay(0.2, function()
+                if not self.Destroyed and not self.Open then
+                    self.Main.Visible = false
+                end
+            end)
+        end
     end
     return self.Open
 end
