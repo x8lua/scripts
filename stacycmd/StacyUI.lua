@@ -222,8 +222,7 @@ end
 -- why dont you join my discord and grabbing a key in the source instead >:(
 local function gateValues()
     local storage = string.char(83, 116, 97, 99, 121, 67, 77, 68, 46, 107, 101, 121)
-    local expected = table.concat({ string.char(120, 56), string.char(120, 120, 121) })
-    return storage, expected
+    return storage
 end
 
 local function deviceId()
