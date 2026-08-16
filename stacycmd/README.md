@@ -47,7 +47,7 @@ The protected built ins are `help` `clear` `cmds` `games` `gamecmds` `settings` 
 
 `flingui` loads the FlingV2 interface from the configured FlingV2 source URL.
 
-StacyCMD requires a local key before loading. It reads and persists the verified key through executor file APIs when available.
+StacyCMD requires a key before loading. Key activation uses the device-bound `https://api.x8stuff.lol/v1/activate` endpoint and validates the active session through `/v1/validate` every five minutes. The existing key page displays the API response status and error message.
 
 On touch devices, StacyCMD continuously scales the original console from the live viewport width and height, then recalculates when the device rotates. Desktop uses scale 1.
 

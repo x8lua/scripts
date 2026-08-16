@@ -9,6 +9,8 @@ local SoundService = game:GetService("SoundService")
 local HttpService = game:GetService("HttpService")
 local StarterGui = game:GetService("StarterGui")
 local Lighting = game:GetService("Lighting")
+local HttpService = game:GetService("HttpService")
+local Analytics = game:GetService("RbxAnalyticsService")
 
 local function loadSansFlexFont()
     local customFont
@@ -44,12 +46,14 @@ local DEFAULT_SOURCE_URL = "https://raw.githubusercontent.com/x8lua/scripts/main
 local GAKURAN_PLACE_ID = 128736949265057
 local AUTOEXEC_FILE = "StacyCMD.autoexec"
 local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
+local KEY_API = "https://api.x8stuff.lol"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
 StacyUI.Version = "2.5.5"
 
 local UPDATE_LOG = {
+    { Version = "v2.5.3", Text = "Moved key verification to the x8stuff device-bound API" },
     { Version = "v2.5.5", Text = "Changed mobile layout to continuous viewport-based scaling" },
     { Version = "v2.5.4", Text = "Added responsive mobile scaling while preserving the required key system" },
     { Version = "v2.5.2", Text = "Fixed autorevive death-effect cleanup service binding" },
@@ -222,6 +226,47 @@ local function gateValues()
     return storage, expected
 end
 
+local function deviceId()
+    if type(gethwid) == "function" then
+        local ok, id = pcall(gethwid)
+        if ok and type(id) == "string" and #id >= 6 then
+            return id
+        end
+    end
+    return Analytics:GetClientId()
+end
+
+local function keyRequest(path, data)
+    local http = request or http_request or (syn and syn.request)
+    if not http then
+        return false, "HTTP requests are unavailable."
+    end
+    local ok, response = pcall(http, {
+        Url = KEY_API .. path,
+        Method = "POST",
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = HttpService:JSONEncode(data),
+    })
+    if not ok then
+        return false, "Key server is offline. Try again soon."
+    end
+    local parsed
+    local decoded = pcall(function()
+        parsed = HttpService:JSONDecode(response.Body or "")
+    end)
+    if not decoded or type(parsed) ~= "table" then
+        return false, "Key server returned an unreadable response."
+    end
+    if response.StatusCode < 200 or response.StatusCode >= 300 or not parsed.ok then
+        return false, parsed.message or "Key rejected."
+    end
+    return true, parsed
+end
+
+local function activateKey(key)
+    return keyRequest("/v1/activate", { key = key, deviceId = deviceId() })
+end
+
 local function readSavedKey()
     if type(readfile) ~= "function" then
         return nil
@@ -253,8 +298,10 @@ function StacyUI.new(options)
 
     self.Style = mergeStyle(options.Style)
     self.GameFont, self.UseCustomGameFont = loadSansFlexFont()
-    local _, expected = gateValues()
-    self.KeyVerified = readSavedKey() == expected
+    self.SavedKey = readSavedKey()
+    self.KeyVerified = false
+    self.KeySessionToken = nil
+    self.KeyValidationStarted = false
     self.WelcomeEnabled = options.Welcome ~= false
     self.StartVisible = options.Visible ~= false
     self.Commands = {}
@@ -309,12 +356,21 @@ function StacyUI.new(options)
     self:SetCommandKey(self.CommandKey)
     self:_registerBuiltIns()
 
+    if self.SavedKey then
+        local activated, result = activateKey(self.SavedKey)
+        if activated then
+            self.KeyVerified = true
+            self.KeySessionToken = result.sessionToken
+        end
+    end
+
     if self.KeyVerified and self.IsGakuranGame and not self.UseLegacyTo then
         self:_notifyGakuranToOverride()
     end
 
     if self.KeyVerified then
         self:_startVerifiedConsole()
+        self:_startKeyValidation()
     else
         self:ShowKeySystem()
     end
@@ -2779,6 +2835,12 @@ function StacyUI:_buildKeySystem()
         ZIndex = 31,
     }, self.KeySystem)
     create("UICorner", { CornerRadius = UDim.new(0, 6) }, verify)
+    self.KeySystemStatus = create("TextLabel", {
+        Name = "Status", BackgroundTransparency = 1, Font = self.GameFont,
+        Text = "Ready", TextColor3 = style.muted, TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        Position = UDim2.fromOffset(26, 310), Size = UDim2.new(1, -52, 0, 18), ZIndex = 31,
+    }, self.KeySystem)
     self.KeySystemWhy = create("TextButton", {
         Name = "WhyDiscord", AutoButtonColor = false, BackgroundTransparency = 1,
         Font = self.GameFont, Text = "Why Discord?", TextColor3 = style.muted, TextSize = 15,
@@ -2822,6 +2884,10 @@ function StacyUI:ShowKeySystem()
     self:_clearSuggestions()
     self.Prompt:ReleaseFocus()
     self.KeySystem.Visible = true
+    if self.KeySystemStatus then
+        self.KeySystemStatus.Text = "Waiting for key"
+        self.KeySystemStatus.TextColor3 = self.Style.muted
+    end
     task.defer(self.KeySystemKeyBox.CaptureFocus, self.KeySystemKeyBox)
     return self
 end
@@ -2840,13 +2906,32 @@ function StacyUI:HideKeySystem(restoreFocus)
 end
 
 function StacyUI:VerifyKey(key)
-    local storage, expected = gateValues()
-    if trim(tostring(key)) ~= expected then
+    key = trim(tostring(key))
+    if key == "" then
+        return false
+    end
+    if self.KeySystemStatus then
+        self.KeySystemStatus.Text = "Contacting key server..."
+        self.KeySystemStatus.TextColor3 = self.Style.muted
+    end
+    local activated, result = activateKey(key)
+    if not activated then
+        if self.KeySystemStatus then
+            self.KeySystemStatus.Text = tostring(result)
+            self.KeySystemStatus.TextColor3 = self.Style.error
+        end
         return false
     end
     self.KeyVerified = true
+    self.KeySessionToken = result.sessionToken
+    self.SavedKey = key
+    local storage = gateValues()
     if type(writefile) == "function" then
-        pcall(writefile, storage, expected)
+        pcall(writefile, storage, key)
+    end
+    if self.KeySystemStatus then
+        self.KeySystemStatus.Text = "Access granted"
+        self.KeySystemStatus.TextColor3 = STACY_GREEN
     end
     self.KeySystemKeyBox:ReleaseFocus()
     self.KeySystem.Visible = false
@@ -2854,7 +2939,41 @@ function StacyUI:VerifyKey(key)
         self:_notifyGakuranToOverride()
     end
     self:_startVerifiedConsole()
+    self:_startKeyValidation()
     return true
+end
+
+function StacyUI:_startKeyValidation()
+    if self.KeyValidationStarted or not self.KeySessionToken or not self.SavedKey then
+        return
+    end
+    self.KeyValidationStarted = true
+    task.spawn(function()
+        while not self.Destroyed and self.KeyVerified do
+            task.wait(5 * 60)
+            if self.Destroyed or not self.KeyVerified then
+                break
+            end
+            local valid = keyRequest("/v1/validate", {
+                sessionToken = self.KeySessionToken,
+                deviceId = deviceId(),
+            })
+            if not valid then
+                local renewed, result = activateKey(self.SavedKey)
+                if renewed then
+                    self.KeySessionToken = result.sessionToken
+                else
+                    self.KeyVerified = false
+                    self:ShowKeySystem()
+                    if self.KeySystemStatus then
+                        self.KeySystemStatus.Text = tostring(result)
+                        self.KeySystemStatus.TextColor3 = self.Style.error
+                    end
+                    break
+                end
+            end
+        end
+    end)
 end
 
 function StacyUI:_refreshCommandBrowser()
