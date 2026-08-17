@@ -1491,11 +1491,15 @@ function StacyUI:CheckForUpdate()
         return false, compileError
     end
 
-    local loaded, updatedModule = pcall(chunk)
+    local loaded, updatedExport = pcall(chunk)
+    local updatedModule = loaded and type(updatedExport) == "table" and (updatedExport._StacyModule or updatedExport)
     if not loaded or type(updatedModule) ~= "table" or type(updatedModule.new) ~= "function" then
-        local reason = loaded and "download did not return StacyUI" or updatedModule
+        local reason = loaded and "download did not return StacyUI" or updatedExport
         self:Log("Update load failed  " .. tostring(reason), self.Style.error)
         return false, reason
+    end
+    if updatedExport ~= updatedModule and type(updatedExport.Destroy) == "function" then
+        updatedExport:Destroy()
     end
 
     local reloadOptions = {}
@@ -3723,4 +3727,19 @@ function StacyUI:Destroy()
     end
 end
 
-return StacyUI
+local console = StacyUI.new({
+    Name = "Stacy",
+    Prefix = "user@StacyUI$ ",
+    ToggleKey = Enum.KeyCode.F1,
+    CommandKey = Enum.KeyCode.Semicolon,
+    IntroSize = Vector2.new(480, 120),
+    IntroTargetSize = Vector2.new(92, 26),
+    IntroTargetOffset = Vector2.new(0, 0),
+    IntroTweenDuration = 0.7,
+    OnDestroy = function()
+        print("Script resources destroyed")
+    end,
+})
+
+console._StacyModule = StacyUI
+return console
