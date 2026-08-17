@@ -635,6 +635,9 @@ local function rogueTargetFling(target)
 
     return true
 end
+
+-- The original target-fling UI is retained below only as inactive source for rollback.
+if false then
 local xGuiSource = game:HttpGet(
     "https://raw.githubusercontent.com/x8lua/scripts/main/imgui-roblox/ImGui.lua?nocache=" .. tostring(tick())
 )
@@ -793,4 +796,164 @@ getgenv().__gakuranFlingCleanup = function()
     end)
     getgenv().__gakuranFlingWindow = nil
     getgenv().__gakuranFlingCleanup = nil
+end
+end
+
+local compiler = loadstring or load
+assert(type(compiler) == "function", "Rere requires loadstring or load")
+local Rere = assert(compiler(game:HttpGet("https://raw.githubusercontent.com/x8lua/Rere/v0.1.24/src/Rere.lua")))()
+Rere.Init()
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local parry = {Enabled = false, Radius = 14, HoldTime = 0.24, TimingScale = 1, LeadTime = 0.15, Connections = {}, BlockingUntil = 0, PulseActive = false}
+local attackAnimations = {}
+local windups = {
+    Ali = {M1 = {0.292, 0.382, 0.432, 0.232}, M2 = 0.542}, Basic = {M1 = {0.352, 0.352, 0.352, 0.352}, M2 = 0.537},
+    Boxing = {M1 = {0.352, 0.352, 0.352, 0.392}, M2 = 0.442}, Capoeira = {M1 = {0.362, 0.442, 0.362, 0.292}, M2 = 0.462},
+    Hakari = {M1 = {0.362, 0.382, 0.292, 0.392}, M2 = 0.362}, Karate = {M1 = {0.2895, 0.327, 0.402, 0.477}, M2 = 0.4995},
+    Kure = {M1 = {0.332, 0.332, 0.332, 0.332}, M2 = 0.312}, MuayThai = {M1 = {0.312, 0.312, 0.312, 0.312}, M2 = 0.612},
+    Slugger = {M1 = {0.512, 0.462, 0.462, 0.382}, M2 = 0.832}, Striker = {M1 = {0.362, 0.362, 0.242, 0.132}, M2 = 0.462},
+    WingChun = {M1 = {0.312, 0.312, 0.312, 0.712}, M2 = 0.537}, Wrestling = {M1 = {0.372, 0.382, 0.372, 0.372}, M2 = 0.537},
+}
+
+local function getBlockModule()
+    local character = LocalPlayer.Character
+    local data = character and character:FindFirstChild("PlayerData")
+    local combatType = data and data:GetAttribute("CombatType") or "Base"
+    local root = ReplicatedStorage:FindFirstChild("CombatSystemClient")
+    local combat = root and root:FindFirstChild("Combat")
+    local folder = combat and (combat:FindFirstChild(combatType) or combat:FindFirstChild("Base"))
+    local module = folder and folder:FindFirstChild("Block")
+    local ok, block = module and pcall(require, module)
+    return ok and block or nil
+end
+
+local function canParry(enemy)
+    if not parry.Enabled then return false end
+    local character = LocalPlayer.Character
+    local root, enemyRoot = rootOf(character), rootOf(enemy)
+    local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
+    local enemyHumanoid = enemy and enemy:FindFirstChildWhichIsA("Humanoid")
+    if not root or not enemyRoot or not humanoid or humanoid.Health <= 0 or not enemyHumanoid or enemyHumanoid.Health <= 0 then return false end
+    if (root.Position - enemyRoot.Position).Magnitude > parry.Radius then return false end
+    for _, attribute in ipairs({"Ragdoll", "Downed", "GrappleWinnerStun", "CantAnything"}) do
+        if character:GetAttribute(attribute) == true then return false end
+    end
+    return true
+end
+
+local function blockPulse()
+    parry.BlockingUntil = math.max(parry.BlockingUntil, os.clock() + parry.HoldTime + parry.LeadTime)
+    if parry.PulseActive then return end
+    parry.PulseActive = true
+    task.spawn(function()
+        local block = getBlockModule()
+        if not block or typeof(block.Block) ~= "function" then parry.PulseActive = false return end
+        while parry.Enabled and os.clock() < parry.BlockingUntil do
+            pcall(block.Block)
+            local credit = _G.__GakuranAcCombatInputCreditAt
+            if typeof(credit) ~= "table" then credit = {}; _G.__GakuranAcCombatInputCreditAt = credit end
+            credit["Block.Activated"] = tick()
+            task.wait()
+        end
+        if typeof(block.Unblock) == "function" then pcall(block.Unblock) end
+        parry.PulseActive = false
+    end)
+end
+
+local function watchCharacter(character)
+    if not character or character == LocalPlayer.Character then return end
+    task.spawn(function()
+        local humanoid = character:FindFirstChildWhichIsA("Humanoid") or character:WaitForChild("Humanoid", 8)
+        local animator = humanoid and (humanoid:FindFirstChildOfClass("Animator") or humanoid:WaitForChild("Animator", 8))
+        if not animator then return end
+        table.insert(parry.Connections, animator.AnimationPlayed:Connect(function(track)
+            local animation = track.Animation
+            local id = animation and string.match(animation.AnimationId, "%d+")
+            local windup = id and attackAnimations[id]
+            if not windup or not canParry(character) then return end
+            local delay = math.max(0, windup / math.max(math.abs(track.Speed), 0.05) * parry.TimingScale - parry.LeadTime)
+            task.spawn(function()
+                if delay > 0 then task.wait(delay) end
+                if canParry(character) then blockPulse() end
+            end)
+        end))
+    end)
+end
+
+local combatAnimations = ReplicatedStorage:WaitForChild("Animations"):WaitForChild("Combat")
+local function registerAnimation(animation)
+    if not animation:IsA("Animation") then return end
+    local light = string.match(animation.Name, "^[1-4]thM1$") ~= nil
+    local heavy = animation.Name == "M2"
+    if not light and not heavy then return end
+    local id = string.match(animation.AnimationId, "%d+")
+    if not id then return end
+    local class = string.gsub(animation.Parent.Name, "Anims$", "")
+    local timing = windups[class]
+    local combo = tonumber(string.match(animation.Name, "^(%d+)"))
+    attackAnimations[id] = (heavy and timing and timing.M2) or (timing and timing.M1[combo]) or (heavy and 0.537 or 0.352)
+end
+for _, animation in ipairs(combatAnimations:GetDescendants()) do registerAnimation(animation) end
+table.insert(parry.Connections, combatAnimations.DescendantAdded:Connect(registerAnimation))
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        if player.Character then watchCharacter(player.Character) end
+        table.insert(parry.Connections, player.CharacterAdded:Connect(watchCharacter))
+    end
+end
+table.insert(parry.Connections, Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then table.insert(parry.Connections, player.CharacterAdded:Connect(watchCharacter)) end
+end))
+
+local function stopParry()
+    parry.Enabled = false
+    parry.BlockingUntil = 0
+    local block = getBlockModule()
+    if block and typeof(block.Unblock) == "function" then pcall(block.Unblock) end
+end
+
+local touchState = Rere.State(false)
+local strengthState = Rere.State(touchStrength)
+local parryState = Rere.State(false)
+local radiusState = Rere.State(parry.Radius)
+local holdState = Rere.State(parry.HoldTime)
+local scaleState = Rere.State(parry.TimingScale)
+local leadState = Rere.State(parry.LeadTime)
+Rere:Connect(function()
+    if touchState:get() ~= touchEnabled then
+        if touchState:get() then startTouchFling() else stopTouchFling() end
+    end
+    touchStrength = strengthState:get()
+    parry.Enabled, parry.Radius = parryState:get(), radiusState:get()
+    parry.HoldTime, parry.TimingScale, parry.LeadTime = holdState:get(), scaleState:get(), leadState:get()
+    Rere.Window({"Gakuran Fling"})
+        Rere.TabBar()
+            Rere.Tab({"Controls"})
+                Rere.Checkbox({"Enable touch fling"}, {isChecked = touchState})
+                Rere.SliderNum({"Touch strength", 100, 100, 5000, "%.0f"}, {number = strengthState})
+                if Rere.Button({"Play fling animation"}).clicked() then playTouchAnimation() end
+            Rere.End()
+            Rere.Tab({"Touch Fling"})
+                Rere.Text({"Touch fling HAS been patched by gakuran Fling might not work as expected."})
+            Rere.End()
+            Rere.Tab({"Parry"})
+                Rere.Checkbox({"Enable auto parry"}, {isChecked = parryState})
+                Rere.SliderNum({"Radius", 0.5, 2, 30, "%.1f studs"}, {number = radiusState})
+                Rere.SliderNum({"Hold time", 0.01, 0.05, 0.6, "%.2f s"}, {number = holdState})
+                Rere.SliderNum({"Timing scale", 0.01, 0.5, 1.5, "%.2fx"}, {number = scaleState})
+                Rere.SliderNum({"Parry lead", 0.01, 0, 0.25, "%.2f s"}, {number = leadState})
+                if Rere.Button({"Stop auto parry"}).clicked() then stopParry(); parryState:set(false) end
+            Rere.End()
+        Rere.End()
+    Rere.End()
+end)
+
+env.__gakuranFlingCleanup = function()
+    stopTouchFling()
+    stopParry()
+    for _, connection in ipairs(parry.Connections) do pcall(function() connection:Disconnect() end) end
+    table.clear(parry.Connections)
+    if Rere.Shutdown then pcall(Rere.Shutdown) end
+    env.__gakuranFlingCleanup = nil
 end
