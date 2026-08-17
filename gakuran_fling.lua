@@ -10,7 +10,7 @@ if _G.LarpkuranRereUI and _G.LarpkuranRereUI.Shutdown then
     pcall(_G.LarpkuranRereUI.Shutdown)
 end
 
-local source = game:HttpGet("https://raw.githubusercontent.com/x8lua/Rere/v0.1.24/src/Rere.lua")
+local source = game:HttpGet("https://raw.githubusercontent.com/x8lua/Rere/v0.1.25/src/Rere.lua")
 local Rere = assert(compiler(source))()
 Rere.Init()
 _G.LarpkuranRereUI = Rere
