@@ -3437,7 +3437,8 @@ function StacyUI:Execute(line)
         return false, "empty command"
     end
 
-    local command = self.Commands[name]
+    -- Command names are case-insensitive while arguments keep their original case.
+    local command = self.Commands[name:lower()]
     if not command then
         local message = ('Unknown command "%s"'):format(name)
         self:Log(message, self.Style.error)
