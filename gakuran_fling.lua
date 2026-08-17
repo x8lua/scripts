@@ -23,6 +23,7 @@ local VirtualInputManager = game:GetService("VirtualInputManager")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local touchAnimationKey
 
 local DEFAULT_CONFIG = {
     AutoParry = true,
@@ -65,6 +66,7 @@ local controller = {
     TouchEnabled = config.TouchEnabled,
     TouchStrength = config.TouchStrength,
     TouchAnimationKey = config.TouchAnimationKey,
+    CapturingTouchKey = false,
     AutoPerfectNote = config.AutoPerfectNote,
     RhythmHits = 0,
     RhythmHeld = {},
@@ -382,6 +384,14 @@ table.insert(controller.Connections, Players.PlayerAdded:Connect(watchPlayer))
 table.insert(controller.Connections, RunService.Heartbeat:Connect(touchBurst))
 table.insert(controller.Connections, RunService.RenderStepped:Connect(autoPerfectNote))
 table.insert(controller.Connections, UserInputService.InputBegan:Connect(function(input, processed)
+    if controller.CapturingTouchKey and input.UserInputType == Enum.UserInputType.Keyboard
+        and input.KeyCode ~= Enum.KeyCode.Unknown then
+        controller.TouchAnimationKey = input.KeyCode.Name
+        controller.CapturingTouchKey = false
+        if touchAnimationKey then touchAnimationKey:set(input.KeyCode.Name) end
+        log("TOUCH animation key set to " .. input.KeyCode.Name)
+        return
+    end
     if processed then return end
     local animationKey = touchAnimationKeyCode()
     if animationKey and input.KeyCode == animationKey then playTouchAnimation() end
@@ -410,7 +420,7 @@ local parryLead = Rere.State(config.ParryLead)
 local parryChance = Rere.State(config.ParryChance)
 local touchEnabled = Rere.State(config.TouchEnabled)
 local touchStrength = Rere.State(config.TouchStrength)
-local touchAnimationKey = Rere.State(config.TouchAnimationKey)
+touchAnimationKey = Rere.State(config.TouchAnimationKey)
 local autoPerfectNoteEnabled = Rere.State(config.AutoPerfectNote)
 local filter = Rere.State("")
 
@@ -497,7 +507,8 @@ Rere:Connect(function()
             Rere.Tab({"Touch"})
                 Rere.Checkbox({"Enable touch impulse"}, {isChecked = touchEnabled})
                 Rere.SliderNum({"Touch strength", 100, 100, 5000, "%.0f"}, {number = touchStrength})
-                Rere.InputText({"Animation key", "F"}, {text = touchAnimationKey})
+                local bindLabel = controller.CapturingTouchKey and "Press a key..." or "Bind animation key: " .. controller.TouchAnimationKey
+                if Rere.Button({bindLabel}).clicked() then controller.CapturingTouchKey = true end
                 if Rere.Button({"Play animation"}).clicked() then playTouchAnimation() end
                 Rere.Text({"Press " .. controller.TouchAnimationKey .. " to play the touch animation."})
             Rere.End()
