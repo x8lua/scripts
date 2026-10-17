@@ -9,14 +9,14 @@ local StacyUI = loadstring(game:HttpGet(
     "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/legacyStacy.lua"
 ))()
 assert(StacyUI.SupportsCommandSelection == true, "StacyUI is cached or outdated. Reload the latest legacyStacy.lua first.")
-if env.LarpkurianPanel then
-    pcall(function() env.LarpkurianPanel:Destroy() end)
+if env.LarPanel then
+    pcall(function() env.LarPanel:Destroy() end)
 end
 local stopped = false
 local console
 console = StacyUI.new({
-    Name = "LarpkurianPanel",
-    Prefix = "admin@Larpkurian$ ",
+    Name = "LarPanel",
+    Prefix = "admin@LarPanel$ ",
     ToggleKey = Enum.KeyCode.F1,
     CommandKey = Enum.KeyCode.Semicolon,
     IntroSize = Vector2.new(480, 120),
@@ -27,10 +27,10 @@ console = StacyUI.new({
     BuiltInCommands = {"help", "cmds", "clear", "settings", "version", "ctrlc"},
     OnDestroy = function()
         stopped = true
-        if env.LarpkurianPanel == console then env.LarpkurianPanel = nil end
+        if env.LarPanel == console then env.LarPanel = nil end
     end,
 })
-env.LarpkurianPanel = console
+env.LarPanel = console
 -- Keep this instance limited without changing ordinary Stacy consoles.
 local essentials = {help=true, cmds=true, clear=true, settings=true, version=true, ctrlc=true}
 for name in pairs(console.Commands) do
