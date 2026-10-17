@@ -6,7 +6,7 @@ local requestFunction = (syn and syn.request) or (http and http.request) or http
 assert(type(requestFunction) == "function", "Larpkurian Panel requires an executor HTTP request API")
 
 local StacyUI = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/legacyStacy.lua"
+    "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/legacyStacy.lua?nocache=" .. tostring(tick())
 ))()
 assert(StacyUI.SupportsCommandSelection == true, "StacyUI is cached or outdated. Reload the latest legacyStacy.lua first.")
 if env.LarPanel then
