@@ -6,9 +6,9 @@ local requestFunction = (syn and syn.request) or (http and http.request) or http
 assert(type(requestFunction) == "function", "Larpkurian Panel requires an executor HTTP request API")
 
 local VisualUI = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/VisualCommandUI.lua?nocache=" .. tostring(tick()), false
+    "https://raw.githubusercontent.com/x8lua/Roblox/54e360bcfb5842f36498554e105faccf4ab701ff/UI-Libraries/Visual%20Command%20UI%20Library/Source.lua?nocache=" .. tostring(tick()), false
 ))()
-assert(VisualUI.LarPanelVersion == 2026101701, "LarPanel UI is outdated. Please run the latest loader again.")
+assert(VisualUI.LarPanelVersion == 2026101702, "LarPanel UI is outdated. Please run the latest loader again.")
 if env.LarPanel then
     pcall(function() env.LarPanel:Destroy() end)
 end
@@ -68,13 +68,13 @@ local function call(action, input)
     local decoded, data = pcall(HttpService.JSONDecode, HttpService, response.Body)
     if not decoded or type(data) ~= "table" then return nil, "Invalid panel response (HTTP " .. tostring(response.StatusCode) .. ")." end
     if response.StatusCode < 200 or response.StatusCode >= 300 or data.ok ~= true then
-        return nil, errors[data.code] or ("Panel request failed: " .. tostring(data.code or response.StatusCode))
+        return nil, errors[data.code] or ("Panel request failed: " .. tostring(data.code or response.StatusCode)), data.code
     end
     return data
 end
 local function resolve(query)
     query = tostring(query or ""):lower():gsub("^@", "")
-    if query == "" then return nil, "Usage: bring <username, display name or UserId>" end
+    if query == "" then return nil, "Usage: bring <username, display name, UserId or all>" end
     local exact, prefix = {}, {}
     for _, target in ipairs(Players:GetPlayers()) do
         local name, display = target.Name:lower(), target.DisplayName:lower()
@@ -86,48 +86,107 @@ local function resolve(query)
     if #matches == 1 then return matches[1] end
     return nil, #matches > 1 and "Multiple players match. Use an exact username or UserId." or "Player not found in this server."
 end
-local bringing = false
-console:AddCommand("bring", {"player"}, "Bring an updated Larpkurian to you", function(arguments)
-        local target, why = resolve(table.concat(arguments, " "))
-        if not target then log(why, true); return end
-        if bringing then log("Wait for the current bring result.", true); return end
-        bringing = true
-        task.spawn(function()
-            local ok, err = pcall(function()
-                local result, failure = call("bring", {targetUserId=tostring(target.UserId)})
-                if not result then log(failure, true); return end
-                log("Bring queued for @" .. target.Name .. ". Waiting for their client...")
-                local id = result.command.id
-                for _ = 1, 23 do
-                    task.wait(1)
-                    if stopped then return end
-                    local state, errorMessage = call("status", {commandId=id})
-                    if not state then log(errorMessage, true); return end
-                    local command = state.command
-                    if command.status == "executed" then log("@" .. target.Name .. " confirmed arrival."); return end
-                    if command.status == "failed" then log("Bring failed: " .. tostring(command.error), true); return end
-                    if command.status == "expired" then break end
-                end
-                log("Bring timed out. Arrival was not confirmed.", true)
-            end)
-            bringing = false
-            if not ok then log("Bring error: " .. tostring(err), true) end
-        end)
-    end)
-console:AddCommand("players", {}, "List active Larpkurians in this server", function()
-        local data, err = call("state")
-        if not data then log(err, true); return end
-        local count = 0
-        for _, peer in ipairs(data.peers or {}) do
-            if Players:GetPlayerByUserId(tonumber(peer.userId)) then
-                count += 1
-                log("@" .. peer.username .. (peer.anonymous and " [Anonymous]" or "") .. (peer.canBring and " [Bring ready]" or " [Update required]"))
-            end
+local function roster()
+    local data, err = call("state")
+    if not data then return nil, err end
+    local result, seen = {}, {}
+    for _, peer in ipairs(data.peers or {}) do
+        local userId = tonumber(peer.userId)
+        local target = userId and Players:GetPlayerByUserId(userId)
+        if target and not seen[userId] then
+            seen[userId] = true
+            table.insert(result, {player=target, peer=peer})
         end
-        log(tostring(count) .. " active Larpkurian(s).")
+    end
+    table.sort(result, function(a, b) return a.player.Name:lower() < b.player.Name:lower() end)
+    return result
+end
+local authErrors = {PANEL_ACCESS_DENIED=true, INVALID_SESSION=true, BINDING_MISMATCH=true, SESSION_REVOKED=true, ACCESS_RESTRICTED=true}
+local function bringOne(target)
+    if stopped then return false end
+    if Players:GetPlayerByUserId(target.UserId) ~= target then
+        log("@" .. target.Name .. " left this server. Skipped.", true)
+        return false
+    end
+    local result, failure, code = call("bring", {targetUserId=tostring(target.UserId)})
+    if not result then log(failure, true); return false, code end
+    log("Bring queued for @" .. target.Name .. ". Waiting for their client...")
+    for _ = 1, 23 do
+        task.wait(1)
+        if stopped then return false end
+        local state, errorMessage, statusCode = call("status", {commandId=result.command.id})
+        if not state then log(errorMessage, true); return false, statusCode end
+        local command = state.command
+        if command.status == "executed" then log("@" .. target.Name .. " confirmed arrival."); return true end
+        if command.status == "failed" then log("Bring failed for @" .. target.Name .. ": " .. tostring(command.error), true); return false end
+        if command.status == "expired" then break end
+    end
+    log("Bring timed out for @" .. target.Name .. ". Arrival was not confirmed.", true)
+    return false
+end
+local bringing = false
+console:AddCommand("bring", {"player/all"}, "Bring one or all ready Larpkurians", function(arguments)
+    if stopped then return end
+    local query = table.concat(arguments, " "):match("^%s*(.-)%s*$")
+    local all = query:lower() == "all"
+    local target, why
+    if not all then
+        target, why = resolve(query)
+        if not target then log(why, true); return end
+    end
+    if bringing then log("Wait for the current bring result.", true); return end
+    bringing = true
+    task.spawn(function()
+        local ok, err = pcall(function()
+            if not all then bringOne(target); return end
+            local entries, failure = roster()
+            if not entries then log(failure, true); return end
+            if stopped then return end
+            local targets, skipped = {}, 0
+            for _, entry in ipairs(entries) do
+                if entry.player.UserId ~= player.UserId then
+                    if entry.peer.canBring == true then table.insert(targets, entry.player)
+                    else skipped += 1 end
+                end
+            end
+            if #targets == 0 then log("No other bring-ready Larpkurians in this server."); return end
+            log("Bring all: " .. #targets .. " ready; " .. skipped .. " need an update.")
+            local confirmed, attempted = 0, 0
+            for index, nextTarget in ipairs(targets) do
+                -- The server limits each issuer to one bring every three seconds.
+                if index > 1 then task.wait(3.1) end
+                if stopped then return end
+                attempted += 1
+                local arrived, code = bringOne(nextTarget)
+                if arrived then confirmed += 1 end
+                if authErrors[code] then break end
+            end
+            if not stopped then
+                log("Bring all: " .. confirmed .. "/" .. #targets .. " arrival(s) confirmed; " .. (attempted - confirmed) .. " failed/unconfirmed; " .. (#targets - attempted) .. " not attempted.")
+            end
+        end)
+        bringing = false
+        if not ok then log("Bring error: " .. tostring(err), true) end
     end)
+end)
+console:AddCommand("players", {}, "List exact Larpkurian accounts; optional page", function(arguments)
+    if stopped then return end
+    local page = tonumber(arguments and arguments[1] or "1")
+    if not page or page < 1 or page % 1 ~= 0 then log("Usage: players [page number]", true); return end
+    local entries, failure = roster()
+    if not entries then log(failure, true); return end
+    local pages = math.max(1, math.ceil(#entries / 5))
+    if page > pages then log("Page out of range. Available pages: 1-" .. pages, true); return end
+    local lines = {#entries .. " active Larpkurian(s) | Page " .. page .. "/" .. pages}
+    for index = (page - 1) * 5 + 1, math.min(page * 5, #entries) do
+        local entry = entries[index]
+        local target, peer = entry.player, entry.peer
+        table.insert(lines, "@" .. target.Name .. " | " .. target.DisplayName .. "\nUserId: " .. target.UserId .. (target.UserId == player.UserId and " [You]" or "") .. (peer.anonymous and " [Anonymous]" or "") .. (peer.canBring == true and " [Bring ready]" or " [Update required]"))
+    end
+    log(table.concat(lines, "\n"))
+end)
 console:AddCommand("help", {}, "Show panel commands", function()
-    log("bring <username, display name or UserId>\nplayers\nhelp\nctrlc")
+    log("bring <username, display name, UserId or all>\nplayers [page]\nhelp\nctrlc")
 end)
 console:AddCommand("ctrlc", {}, "Close LarPanel", function() console:Destroy() end)
 console:Open()
