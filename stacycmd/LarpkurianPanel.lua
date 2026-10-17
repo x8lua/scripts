@@ -5,37 +5,29 @@ local env = type(getgenv) == "function" and getgenv() or _G
 local requestFunction = (syn and syn.request) or (http and http.request) or http_request or request
 assert(type(requestFunction) == "function", "Larpkurian Panel requires an executor HTTP request API")
 
-local StacyUI = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/legacyStacy.lua?nocache=" .. tostring(tick())
+local VisualUI = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/VisualCommandUI.lua?nocache=" .. tostring(tick()), false
 ))()
-assert(StacyUI.SupportsCommandSelection == true, "StacyUI is cached or outdated. Reload the latest legacyStacy.lua first.")
+assert(VisualUI.LarPanelVersion == 2026101701, "LarPanel UI is outdated. Please run the latest loader again.")
 if env.LarPanel then
     pcall(function() env.LarPanel:Destroy() end)
 end
 local stopped = false
 local console
-console = StacyUI.new({
+console = VisualUI:CreateWindow({
     Name = "LarPanel",
-    Prefix = "admin@LarPanel$ ",
-    ToggleKey = Enum.KeyCode.F1,
-    CommandKey = Enum.KeyCode.Semicolon,
-    IntroSize = Vector2.new(480, 120),
-    IntroTargetSize = Vector2.new(92, 26),
-    IntroTargetOffset = Vector2.new(0, 0),
-    IntroTweenDuration = 0.7,
-    AutoExecute = false,
-    BuiltInCommands = {"help", "cmds", "clear", "settings", "version", "ctrlc"},
+    IntroText = "LarPanel",
+    IntroBlur = false,
+    Theme = VisualUI.Themes.dark,
+    Position = "bottom",
+    Draggable = true,
+    Prefix = ";",
     OnDestroy = function()
         stopped = true
         if env.LarPanel == console then env.LarPanel = nil end
     end,
 })
 env.LarPanel = console
--- Keep this instance limited without changing ordinary Stacy consoles.
-local essentials = {help=true, cmds=true, clear=true, settings=true, version=true, ctrlc=true}
-for name in pairs(console.Commands) do
-    if not essentials[name] then console.Commands[name] = nil end
-end
 
 local errors = {
     PANEL_ACCESS_DENIED = "This account is not authorized to use the Larpkurian Panel.",
@@ -51,7 +43,11 @@ local errors = {
     COMMAND_NOT_FOUND = "The command expired or the server restarted. It is not confirmed.",
 }
 local function log(message, isError)
-    if not stopped then console:Log(message, isError and console.Style.error or console.Style.info) end
+    if stopped then return end
+    if isError then warn("[LarPanel] " .. message) else print("[LarPanel] " .. message) end
+    task.spawn(function()
+        if not stopped then console:CreateNotification(isError and "LarPanel | Error" or "LarPanel", message, 7) end
+    end)
 end
 local function call(action, input)
     input = input or {}
@@ -91,11 +87,7 @@ local function resolve(query)
     return nil, #matches > 1 and "Multiple players match. Use an exact username or UserId." or "Player not found in this server."
 end
 local bringing = false
-console:Register({
-    Name = "bring",
-    Description = "Bring an updated Larpkurian to you",
-    Usage = "bring <player>",
-    Callback = function(arguments)
+console:AddCommand("bring", {"player"}, "Bring an updated Larpkurian to you", function(arguments)
         local target, why = resolve(table.concat(arguments, " "))
         if not target then log(why, true); return end
         if bringing then log("Wait for the current bring result.", true); return end
@@ -121,13 +113,8 @@ console:Register({
             bringing = false
             if not ok then log("Bring error: " .. tostring(err), true) end
         end)
-    end,
-})
-console:Register({
-    Name = "players",
-    Description = "List Larpkurians in this server, including anonymous users",
-    Usage = "players",
-    Callback = function()
+    end)
+console:AddCommand("players", {}, "List active Larpkurians in this server", function()
         local data, err = call("state")
         if not data then log(err, true); return end
         local count = 0
@@ -138,8 +125,12 @@ console:Register({
             end
         end
         log(tostring(count) .. " active Larpkurian(s).")
-    end,
-})
+    end)
+console:AddCommand("help", {}, "Show panel commands", function()
+    log("bring <username, display name or UserId>\nplayers\nhelp\nctrlc")
+end)
+console:AddCommand("ctrlc", {}, "Close LarPanel", function() console:Destroy() end)
+console:Open()
 task.spawn(function()
     local data, err = call("state")
     if data then log("Larpkurian Panel authorized.") else log(err, true) end
