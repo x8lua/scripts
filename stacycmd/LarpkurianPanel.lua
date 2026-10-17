@@ -1,0 +1,147 @@
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local player = Players.LocalPlayer
+local env = type(getgenv) == "function" and getgenv() or _G
+local requestFunction = (syn and syn.request) or (http and http.request) or http_request or request
+assert(type(requestFunction) == "function", "Larpkurian Panel requires an executor HTTP request API")
+
+local StacyUI = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/x8lua/scripts/main/stacycmd/legacyStacy.lua"
+))()
+assert(StacyUI.SupportsCommandSelection == true, "StacyUI is cached or outdated. Reload the latest legacyStacy.lua first.")
+if env.LarpkurianPanel then
+    pcall(function() env.LarpkurianPanel:Destroy() end)
+end
+local stopped = false
+local console
+console = StacyUI.new({
+    Name = "LarpkurianPanel",
+    Prefix = "admin@Larpkurian$ ",
+    ToggleKey = Enum.KeyCode.F1,
+    CommandKey = Enum.KeyCode.Semicolon,
+    IntroSize = Vector2.new(480, 120),
+    IntroTargetSize = Vector2.new(92, 26),
+    IntroTargetOffset = Vector2.new(0, 0),
+    IntroTweenDuration = 0.7,
+    AutoExecute = false,
+    BuiltInCommands = {"help", "cmds", "clear", "settings", "version", "ctrlc"},
+    OnDestroy = function()
+        stopped = true
+        if env.LarpkurianPanel == console then env.LarpkurianPanel = nil end
+    end,
+})
+env.LarpkurianPanel = console
+-- Keep this instance limited without changing ordinary Stacy consoles.
+local essentials = {help=true, cmds=true, clear=true, settings=true, version=true, ctrlc=true}
+for name in pairs(console.Commands) do
+    if not essentials[name] then console.Commands[name] = nil end
+end
+
+local errors = {
+    PANEL_ACCESS_DENIED = "This account is not authorized to use the Larpkurian Panel.",
+    INVALID_SESSION = "Sign in to LarpKuran through StacyUI first.",
+    BINDING_MISMATCH = "Sign in with the LarpKuran account belonging to this Roblox player.",
+    SESSION_REVOKED = "Your session has expired or was revoked. Sign in again.",
+    ACCESS_RESTRICTED = "Your LarpKuran account is not active.",
+    NOT_LARPKURIAN = "This player is not an active authenticated Larpkurian in this server.",
+    TARGET_UPDATE_REQUIRED = "This Larpkurian must reload the updated LarpKuran before bring can work.",
+    BRING_COOLDOWN = "Wait a few seconds before sending another bring.",
+    TARGET_BUSY = "A bring is already pending for this player.",
+    CANNOT_BRING_SELF = "You cannot bring yourself.",
+    COMMAND_NOT_FOUND = "The command expired or the server restarted. It is not confirmed.",
+}
+local function log(message, isError)
+    if not stopped then console:Log(message, isError and console.Style.error or console.Style.info) end
+end
+local function call(action, input)
+    input = input or {}
+    input.sessionToken = env.StacyCMDStartupToken or env.StacyKeyToken
+    input.robloxUserId = tostring(player.UserId)
+    input.jobId = tostring(game.JobId)
+    if type(gethwid) == "function" then pcall(function() input.deviceId = gethwid() end) end
+    if type(input.deviceId) ~= "string" or #input.deviceId < 6 then
+        pcall(function() input.deviceId = game:GetService("RbxAnalyticsService"):GetClientId() end)
+    end
+    local ok, response = pcall(requestFunction, {
+        Url = "https://api.x8stuff.lol/api/larpkuran/panel/" .. action,
+        Method = "POST",
+        Headers = {["Content-Type"]="application/json"},
+        Body = HttpService:JSONEncode(input),
+    })
+    if not ok or type(response) ~= "table" then return nil, "Panel connection failed." end
+    local decoded, data = pcall(HttpService.JSONDecode, HttpService, response.Body)
+    if not decoded or type(data) ~= "table" then return nil, "Invalid panel response (HTTP " .. tostring(response.StatusCode) .. ")." end
+    if response.StatusCode < 200 or response.StatusCode >= 300 or data.ok ~= true then
+        return nil, errors[data.code] or ("Panel request failed: " .. tostring(data.code or response.StatusCode))
+    end
+    return data
+end
+local function resolve(query)
+    query = tostring(query or ""):lower():gsub("^@", "")
+    if query == "" then return nil, "Usage: bring <username, display name or UserId>" end
+    local exact, prefix = {}, {}
+    for _, target in ipairs(Players:GetPlayers()) do
+        local name, display = target.Name:lower(), target.DisplayName:lower()
+        if name == query or tostring(target.UserId) == query then return target end
+        if display == query then table.insert(exact, target)
+        elseif name:sub(1, #query) == query or display:sub(1, #query) == query then table.insert(prefix, target) end
+    end
+    local matches = #exact > 0 and exact or prefix
+    if #matches == 1 then return matches[1] end
+    return nil, #matches > 1 and "Multiple players match. Use an exact username or UserId." or "Player not found in this server."
+end
+local bringing = false
+console:Register({
+    Name = "bring",
+    Description = "Bring an updated Larpkurian to you",
+    Usage = "bring <player>",
+    Callback = function(arguments)
+        local target, why = resolve(table.concat(arguments, " "))
+        if not target then log(why, true); return end
+        if bringing then log("Wait for the current bring result.", true); return end
+        bringing = true
+        task.spawn(function()
+            local ok, err = pcall(function()
+                local result, failure = call("bring", {targetUserId=tostring(target.UserId)})
+                if not result then log(failure, true); return end
+                log("Bring queued for @" .. target.Name .. ". Waiting for their client...")
+                local id = result.command.id
+                for _ = 1, 23 do
+                    task.wait(1)
+                    if stopped then return end
+                    local state, errorMessage = call("status", {commandId=id})
+                    if not state then log(errorMessage, true); return end
+                    local command = state.command
+                    if command.status == "executed" then log("@" .. target.Name .. " confirmed arrival."); return end
+                    if command.status == "failed" then log("Bring failed: " .. tostring(command.error), true); return end
+                    if command.status == "expired" then break end
+                end
+                log("Bring timed out. Arrival was not confirmed.", true)
+            end)
+            bringing = false
+            if not ok then log("Bring error: " .. tostring(err), true) end
+        end)
+    end,
+})
+console:Register({
+    Name = "players",
+    Description = "List Larpkurians in this server, including anonymous users",
+    Usage = "players",
+    Callback = function()
+        local data, err = call("state")
+        if not data then log(err, true); return end
+        local count = 0
+        for _, peer in ipairs(data.peers or {}) do
+            if Players:GetPlayerByUserId(tonumber(peer.userId)) then
+                count += 1
+                log("@" .. peer.username .. (peer.anonymous and " [Anonymous]" or "") .. (peer.canBring and " [Bring ready]" or " [Update required]"))
+            end
+        end
+        log(tostring(count) .. " active Larpkurian(s).")
+    end,
+})
+task.spawn(function()
+    local data, err = call("state")
+    if data then log("Larpkurian Panel authorized.") else log(err, true) end
+end)
+return console

@@ -47,9 +47,11 @@ local SERVER_HOP_FILE = "StacyCMD.NotSameServers.json"
 
 local StacyUI = {}
 StacyUI.__index = StacyUI
-StacyUI.Version = "2.5.6"
+StacyUI.Version = "2.5.7"
+StacyUI.SupportsCommandSelection = true
 
 local UPDATE_LOG = {
+    { Version = "v2.5.7", Text = "Added optional built-in command selection and auto-execution control" },
     { Version = "v2.5.6", Text = "Removed the legacy key prompt and validation" },
     { Version = "v2.5.5", Text = "Changed mobile layout to continuous viewport-based scaling" },
     { Version = "v2.5.4", Text = "Added responsive mobile scaling while preserving the required key system" },
@@ -247,7 +249,9 @@ function StacyUI.new(options)
     self.SuggestionButtons = {}
     self.CommandBrowserGameOnly = false
     self.SelectedGame = nil
-    self.AutoExecGame = readAutoExecGame()
+    if options.AutoExecute ~= false then
+        self.AutoExecGame = readAutoExecGame()
+    end
     self.AutoExecStarted = false
     self.PredictionConnections = {}
     self.PredictionMarkers = {}
@@ -291,8 +295,15 @@ function StacyUI.new(options)
     self:SetToggleKey(self.ToggleKey)
     self:SetCommandKey(self.CommandKey)
     self:_registerBuiltIns()
+    if type(options.BuiltInCommands) == "table" then
+        for name in pairs(self.Commands) do
+            if not table.find(options.BuiltInCommands, name) then
+                self.Commands[name] = nil
+            end
+        end
+    end
 
-    if self.IsGakuranGame and not self.UseLegacyTo then
+    if self.IsGakuranGame and not self.UseLegacyTo and self.Commands.to then
         self:_notifyGakuranToOverride()
     end
 
